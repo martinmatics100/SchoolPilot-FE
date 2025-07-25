@@ -7,6 +7,10 @@ import { useTheme } from "@mui/material";
 const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) => {
     const { pathname } = useLocation();
     const theme = useTheme();
+
+    // Check if current path matches or starts with navItem.path
+    const isActive = pathname === navItem.path || pathname.startsWith(`${navItem.path}/`);
+
     return (
         <ListItem
             disablePadding
@@ -14,28 +18,27 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                 display: 'block',
                 px: 5,
                 borderRight: !open
-                    ? pathname === navItem.path
+                    ? isActive
                         ? `3px solid ${theme.palette.primary.main}`
                         : `3px solid transparent`
                     : '',
             })}>
-
             <ListItemButton
                 LinkComponent={Link}
                 href={navItem.path}
                 sx={{
                     opacity: navItem.active ? 1 : 0.5,
-                    bgcolor: pathname === navItem.path ? (open ? theme.palette.primary.main : '') : theme.palette.common.black,
+                    bgcolor: isActive ? (open ? theme.palette.primary.main : theme.palette.primary.main) : theme.palette.common.black,
                     '&:hover': {
                         bgcolor:
-                            pathname === navItem.path
+                            isActive
                                 ? open
                                     ? theme.palette.background.paper
                                     : theme.palette.background.paper
                                 : theme.palette.common.white,
                     },
                     '& .MuiTouchRipple-root': {
-                        color: pathname === navItem.path ? theme.palette.common.white : theme.palette.text.disabled,
+                        color: isActive ? theme.palette.common.white : theme.palette.text.disabled,
                     },
                 }}
             >
@@ -45,10 +48,10 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                         height: 20,
                         mr: open ? 'auto' : 0,
                         color:
-                            pathname === navItem.path
+                            isActive
                                 ? open
                                     ? theme.palette.common.black
-                                    : theme.palette.primary.main
+                                    : theme.palette.common.black
                                 : theme.palette.text.primary,
                     }}
                 >
@@ -59,13 +62,12 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                     sx={{
                         display: open ? 'inline-block' : 'none',
                         opacity: open ? 1 : 0,
-                        color: pathname === navItem.path ? theme.palette.common.black : '',
+                        color: isActive ? theme.palette.common.black : '',
                     }}
                 />
             </ListItemButton>
-
         </ListItem>
     )
 }
 
-export default NavItem
+export default NavItem;

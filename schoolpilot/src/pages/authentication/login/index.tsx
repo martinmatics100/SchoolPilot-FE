@@ -37,40 +37,57 @@ const Login = () => {
     const [message, setMessage] = useState<string>(''); // For success message
     const [loading, setLoading] = useState<boolean>(false);
     const [openMessage, setOpenMessage] = useState<boolean>(false);
+    const [shouldNavigate, setShouldNavigate] = useState<boolean>(false); // New state to control navigation
 
     // This useEffect will now handle redirection after a successful login state change
     useEffect(() => {
-        if (isAuthenticated) {
-            if (selectedAccount && role) { // If an account is already selected (e.g., persistent login)
+        if (isAuthenticated && shouldNavigate) {
+            if (selectedAccount || role) { // If an account is already selected (e.g., persistent login)
                 navigate('/app/dashboard', { replace: true });
             } else { // If authenticated but no account selected, go to account selection
                 navigate(paths.home, { replace: true });
             }
+            // Reset shouldNavigate after navigation to prevent re-triggering
+            setShouldNavigate(false);
         }
-    }, [isAuthenticated, navigate, selectedAccount, role]); // Add selectedAccount and role to dependencies
+    }, [isAuthenticated, shouldNavigate, navigate, selectedAccount, role]); // Add selectedAccount and role to dependencies
 
-    const handleSubmit = (event: React.FormEvent) => {
+    const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setLoading(true);
         setError(''); // Clear previous errors
         setMessage(''); // Clear previous messages
+        setOpenMessage(false); // Close any existing messages
+        setShouldNavigate(false); // Reset navigation flag
 
-        setTimeout(() => {
-            const success = login(email, password);
+        try {
+            const success = await login(email, password); // Await the async login call
             if (success) {
                 setMessage('Login successful!');
                 setOpenMessage(true);
-                // No explicit navigate here. The useEffect above will handle it
-                // based on the updated isAuthenticated and selectedAccount states.
+                // The useEffect will handle navigation
+                // Set a timeout to allow the message to display before navigating
+                setTimeout(() => {
+                    setOpenMessage(false); // Close the message
+                    setShouldNavigate(true); // Trigger navigation
+                }, 3000); // Display message for 1.5 seconds
             } else {
-                setError('Invalid email or password');
+                setError('Login failed. Please check your credentials.');
                 setOpenMessage(true);
                 setTimeout(() => {
                     setOpenMessage(false);
                 }, 3000);
             }
-            setLoading(false); // Stop loading after login attempt
-        }, 1500);
+        } catch (err) {
+            console.error("Login attempt failed:", err);
+            setError('An unexpected error occurred during login.');
+            setOpenMessage(true);
+            setTimeout(() => {
+                setOpenMessage(false);
+            }, 3000);
+        } finally {
+            setLoading(false); // Stop loading after login attempt (success or failure)
+        }
     };
 
     const handleClickShowPassword = () => {
@@ -107,7 +124,7 @@ const Login = () => {
                     <Typography variant="h6" fontWeight={500} textAlign="center" color="text.primary">
                         Don’t have an account?{' '}
                         <Link href={paths.signup} underline="none">
-                            Sign up
+                            Enroll your school
                         </Link>
                     </Typography>
                     <TextField

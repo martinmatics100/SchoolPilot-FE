@@ -6,6 +6,4 @@ export const dummyUsers: {
     role: UserRoleType;
 }[] = [
         { email: 'admin@example.com', password: 'admin123', role: UserRoles.ADMIN },
-        { email: 'user1@example.com', password: 'user123', role: UserRoles.USER },
-        { email: 'user2@example.com', password: 'user234', role: UserRoles.USER },
     ];

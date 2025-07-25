@@ -1,132 +1,242 @@
-// Update your auth context (src/context/index.tsx)
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+// src/context/index.tsx
+import { createContext, useContext, useState, useEffect, type ReactNode, useMemo } from 'react';
 import { UserRoles } from '../enums/user-roles';
+import { encryptData } from '../utils/encryption';
+import {
+    createApiClient,
+    createAuthClient,
+    setAuthData as setApiAuthData,
+    clearAuthData as clearApiAuthData,
+    getCurrentUser,
+    getInitialAuthData,
+    parseJwt, // Import parseJwt here
+    type AccountModel,
+    type LocationModel
+} from '../utils/apiClient';
+import { isUserRole } from '../enums/user-roles';
+
+interface ContextAccount {
+    id: string;
+    name: string;
+    branches: LocationModel[];
+}
 
 interface AuthContextType {
     isAuthenticated: boolean;
-    login: (email: string, password: string) => boolean;
+    login: (email: string, password: string) => Promise<boolean>;
     role: UserRoles | null;
     logout: () => void;
     selectedAccount: string | null;
-    selectedBranches: string[];
-    setAccountSelection: (accountId: string, branches: string[]) => void;
-    accounts: { id: string; name: string; branches: string[] }[];
+    selectedBranches: LocationModel[];
+    setAccountSelection: (accountId: string, branches: LocationModel[]) => void;
+    accounts: ContextAccount[];
+    setAccounts: (accounts: ContextAccount[]) => void;
+    userEmail: string | null;
+    apiClient: ReturnType<typeof createApiClient>;
+    accessToken: string | null;
+    userId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock data - replace with your actual data fetching logic
-const mockAccounts = [
-    { id: '1', name: 'Greenfield Academy', branches: ['Main Campus', 'North Campus', 'East Campus'] },
-    { id: '2', name: 'Sunshine International', branches: ['Headquarters', 'Downtown Branch'] },
-    { id: '3', name: 'Prestige High School', branches: ['Main Branch', 'Annex'] },
-];
+const MOCK_BRANCHES = ['Main Campus', 'North Campus', 'East Campus'];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-        const authData = localStorage.getItem('authData');
-        if (authData) {
-            const { isAuthenticated, timestamp } = JSON.parse(authData);
-            const hasExpired = Date.now() - timestamp > 24 * 60 * 60 * 1000;
-            return isAuthenticated && !hasExpired;
-        }
-        return false;
-    });
+    const initialApiAuthData = getInitialAuthData();
+    const initialUser = getCurrentUser();
 
-    const [role, setRole] = useState<UserRoles | null>(() => {
-        const authData = localStorage.getItem('authData');
-        if (authData) {
-            return JSON.parse(authData).role || null;
-        }
-        return null;
-    });
+    // Initialize states based on initial data from localStorage/token
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!initialUser);
+    const [role, setRole] = useState<UserRoles | null>(initialUser?.roles?.[0] || null);
+    const [selectedAccount, setSelectedAccount] = useState<string | null>(initialApiAuthData.selectedAccount || initialUser?.accountId || null);
+    const [userEmail, setUserEmail] = useState<string | null>(initialUser?.email || null);
+    const [selectedBranches, setSelectedBranches] = useState<LocationModel[]>([]);
+    const [accounts, setAccounts] = useState<ContextAccount[]>([]);
+    const [accessToken, setAccessToken] = useState<string | null>(initialApiAuthData.accessToken);
+    const [userId, setUserId] = useState<string | null>(initialUser?.userId || null); // Key: userId is derived from the token
 
-    const [selectedAccount, setSelectedAccount] = useState<string | null>(() => {
-        const authData = localStorage.getItem('authData');
-        if (authData) {
-            return JSON.parse(authData).selectedAccount || null;
-        }
-        return null;
-    });
+    const authClient = useMemo(() => createAuthClient(), []);
+    // apiClient needs to react to changes in selectedAccount and accessToken for headers
+    const apiClient = useMemo(() => createApiClient({ selectedAccount, accessToken }), [selectedAccount, accessToken]);
 
-    const [selectedBranches, setSelectedBranches] = useState<string[]>(() => {
-        const authData = localStorage.getItem('authData');
-        if (authData) {
-            return JSON.parse(authData).selectedBranches || [];
-        }
-        return [];
-    });
-
-    const [accounts] = useState(mockAccounts);
-
+    // Effect to handle initial population of selectedBranches from localStorage
     useEffect(() => {
-        if (isAuthenticated) {
-            localStorage.setItem(
-                'authData',
-                JSON.stringify({
-                    isAuthenticated: true,
-                    role,
-                    selectedAccount,
-                    selectedBranches,
-                    timestamp: Date.now()
-                })
-            );
+        if (selectedAccount) {
+            const storedBranches = localStorage.getItem('selectedBranches');
+            if (storedBranches) {
+                try {
+                    const parsedBranches: LocationModel[] = JSON.parse(storedBranches);
+                    if (JSON.stringify(parsedBranches) !== JSON.stringify(selectedBranches)) {
+                        setSelectedBranches(parsedBranches);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse stored branches", e);
+                    localStorage.removeItem('selectedBranches');
+                }
+            } else {
+                const acc = accounts.find(a => a.id === selectedAccount);
+                if (acc && JSON.stringify(acc.branches) !== JSON.stringify(selectedBranches)) {
+                    setSelectedBranches(acc.branches);
+                }
+            }
         }
-    }, [isAuthenticated, role, selectedAccount, selectedBranches]);
+    }, [selectedAccount, accounts, selectedBranches]);
 
-    const login = (email: string, password: string) => {
-        const defaultEmail = 'user@gmail.com';
-        const adminEmail = 'admin@gmail.com';
-        const defaultPassword = '85465955';
+    // Add this useEffect in AuthProvider to refetch accounts on refresh
+    useEffect(() => {
+        const fetchAccounts = async () => {
+            if (userId && accessToken && selectedAccount && accounts.length === 0) {
+                try {
+                    const response = await apiClient.getAccounts(userId, 1, 100);
+                    const fetchedAccounts = response.items.map((account: any) => ({
+                        id: String(account.id),
+                        name: account.name, // 👈 ensure casing matches API response
+                        branches: [] as LocationModel[]
+                    }));
 
-        if (email === defaultEmail && password === defaultPassword) {
-            setIsAuthenticated(true);
-            setRole(UserRoles.USER);
-            setSelectedAccount(null);
-            setSelectedBranches([]);
-            localStorage.setItem("authData", JSON.stringify({
-                isAuthenticated: true,
-                role: UserRoles.USER,
-                selectedAccount: null,
-                selectedBranches: [],
+                    setAccounts(fetchedAccounts);
+
+                    // Also restore selectedBranches if none exist in memory
+                    const selected = fetchedAccounts.find(acc => acc.id === selectedAccount);
+                    if (selected && selectedBranches.length === 0) {
+                        setSelectedBranches(selected.branches);
+                    }
+                } catch (err) {
+                    console.error("Error fetching accounts in AuthProvider:", err);
+                }
+            }
+        };
+
+        fetchAccounts();
+    }, [userId, accessToken, selectedAccount, accounts.length]); // 👈 Dependencies
+
+
+    // This effect ensures core authentication details are consistent with the current token
+    useEffect(() => {
+        if (accessToken) {
+            const currentUserDetails = getCurrentUser(); // Re-parse the token if accessToken changes
+
+            if (currentUserDetails) {
+                // Update states only if they've changed to avoid unnecessary re-renders
+                if (userEmail !== currentUserDetails.email) setUserEmail(currentUserDetails.email);
+                if (role !== (currentUserDetails.roles?.[0] || null)) setRole(currentUserDetails.roles?.[0] || null);
+                if (userId !== currentUserDetails.userId) setUserId(currentUserDetails.userId); // Ensure userId is always up-to-date
+                if (isAuthenticated !== true) setIsAuthenticated(true); // Ensure isAuthenticated is true if token is valid
+            } else {
+                // If token is invalid or expired, clear auth data
+                if (isAuthenticated) setIsAuthenticated(false);
+                clearApiAuthData();
+            }
+
+            // Persist auth data, potentially including selectedAccount/Branches if logic needs it
+            const authDataToPersist = {
+                isAuthenticated: isAuthenticated, // Use the current state value
+                role: role,
+                selectedAccount: selectedAccount,
+                selectedBranches: selectedBranches,
+                userEmail: userEmail,
+                accessToken: accessToken,
+                userId: userId,
                 timestamp: Date.now()
-            }));
-            return true;
-        } else if (email === adminEmail && password === defaultPassword) {
-            setIsAuthenticated(true);
-            setRole(UserRoles.ADMIN);
-            setSelectedAccount(null);
-            setSelectedBranches([]);
-            localStorage.setItem("authData", JSON.stringify({
-                isAuthenticated: true,
-                role: UserRoles.ADMIN,
-                selectedAccount: null,
-                selectedBranches: [],
-                timestamp: Date.now()
-            }));
-            return true;
+            };
+            localStorage.setItem('authData', encryptData(authDataToPersist));
+
+            setApiAuthData(accessToken, Intl.DateTimeFormat().resolvedOptions().timeZone, true);
+
+        } else {
+            // If no accessToken, ensure all states are cleared
+            if (isAuthenticated || selectedAccount || selectedBranches.length > 0 || accounts.length > 0 || userId || userEmail || role) {
+                setIsAuthenticated(false);
+                setRole(null);
+                setSelectedAccount(null);
+                setSelectedBranches([]);
+                setUserEmail(null);
+                setUserId(null);
+                setAccounts([]);
+                clearApiAuthData();
+            }
         }
-        return false;
+    }, [accessToken]); // ONLY depend on accessToken here. Other states will derive from it.
+    // Removed other states as dependencies to prevent infinite loops and ensure
+    // this effect is primarily driven by token presence/change.
+
+    // src/context/index.tsx (updated login function)
+    const login = async (email: string, password: string) => {
+        try {
+            const response = await authClient.login(email, password);
+            if (response && response.accessToken) {
+                setAccessToken(response.accessToken);
+
+                // Immediately decode and set userId here after login for faster state update
+                const decodedToken = parseJwt(response.accessToken);
+                if (decodedToken) {
+                    setUserId(decodedToken.sub);
+                    setUserEmail(decodedToken.email);
+
+                    const rawRoles = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                    let roles: UserRoles[] = [];
+
+                    if (Array.isArray(rawRoles)) {
+                        roles = rawRoles
+                            .map(role => {
+                                // Map numeric roles to enum values
+                                if (role === '1') return UserRoles.ADMIN;
+                                if (role === '2') return UserRoles.TEACHER;
+                                if (role === '3') return UserRoles.STUDENT;
+                                if (role === '4') return UserRoles.PARENT;
+
+                                // Convert to uppercase and validate
+                                const upperRole = role.toUpperCase();
+                                return isUserRole(upperRole) ? upperRole : null;
+                            })
+                            .filter((role): role is UserRoles => role !== null);
+                    } else if (typeof rawRoles === 'string') {
+                        // Handle single role
+                        const role = rawRoles;
+                        if (role === '1') roles = [UserRoles.ADMIN];
+                        else if (role === '2') roles = [UserRoles.TEACHER];
+                        else if (role === '3') roles = [UserRoles.STUDENT];
+                        else if (role === '4') roles = [UserRoles.PARENT];
+                        else {
+                            const upperRole = role.toUpperCase();
+                            if (isUserRole(upperRole)) {
+                                roles = [upperRole];
+                            }
+                        }
+                    }
+
+                    setRole(roles[0] || null);
+
+                    if (decodedToken.accountId) {
+                        setSelectedAccount(decodedToken.accountId);
+                    }
+                }
+
+                setIsAuthenticated(true);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Login failed:', error);
+            return false;
+        }
     };
 
-    const setAccountSelection = (accountId: string, branches: string[]) => {
+    const setAccountSelection = (accountId: string, branches: LocationModel[]) => {
+        const accountToSelect = accounts.find(acc => acc.id === accountId);
+
         setSelectedAccount(accountId);
-        setSelectedBranches(branches);
-        localStorage.setItem("authData", JSON.stringify({
-            isAuthenticated: true,
-            role,
-            selectedAccount: accountId,
-            selectedBranches: branches,
-            timestamp: Date.now()
-        }));
+        // Only set branches if they are derived from the account data, otherwise use provided
+        setSelectedBranches(accountToSelect ? accountToSelect.branches : branches);
+
+        localStorage.setItem('selectedAccount', accountId);
+        localStorage.setItem('selectedBranches', JSON.stringify(branches));
     };
 
     const logout = () => {
+        // Clearing accessToken will trigger the main useEffect to clear all other states
+        setAccessToken(null);
         setIsAuthenticated(false);
-        setRole(null);
-        setSelectedAccount(null);
-        setSelectedBranches([]);
-        localStorage.removeItem('authData');
     };
 
     return (
@@ -138,7 +248,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             selectedAccount,
             selectedBranches,
             setAccountSelection,
-            accounts
+            accounts,
+            setAccounts,
+            userEmail,
+            apiClient,
+            accessToken,
+            userId,
         }}>
             {children}
         </AuthContext.Provider>

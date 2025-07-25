@@ -16,15 +16,20 @@ export const ProtectedRoute = ({
     const { isAuthenticated, selectedAccount } = useAuth();
     const location = useLocation();
 
-    if (!isAuthenticated) {
+    // If trying to access login page while authenticated
+    if (location.pathname === paths.login && isAuthenticated) {
+        return <Navigate to={selectedAccount ? '/app/dashboard' : paths.home} replace />;
+    }
+
+    if (!isAuthenticated && location.pathname !== paths.login) {
         return <Navigate to={paths.login} state={{ from: location }} replace />;
     }
 
     if (requireAccountSelection && !selectedAccount && location.pathname !== paths.home) {
-        return <Navigate to={paths.home} />;
+        return <Navigate to={paths.home} replace />;
     }
 
-    if (!requireAccountSelection && selectedAccount && location.pathname !== '/app/dashboard') {
+    if (!requireAccountSelection && selectedAccount && location.pathname === paths.home) {
         return <Navigate to="/app/dashboard" replace />;
     }
 

@@ -1,3 +1,4 @@
+import { UserRoles } from "../../enums/user-roles";
 import { type INavbarItem } from "../../interfaces/sidebar/i-navbar-item";
 import { rootPaths } from "../../routes/paths";
 
@@ -12,71 +13,54 @@ const navItems: INavbarItem[] = [
 
     {
         id: 1,
-        path: '/home/admin/my-dashboard',
+        path: '/app/dashboard',
         title: 'Overview',
         icon: 'mingcute:home-1-fill',
         active: true,
         group: 'DASHBOARD',
-        roles: ["ADMIN"],
+        roles: [UserRoles.ADMIN],
     },
 
     // User Management
 
     {
         id: 2,
-        path: '/home/admin/manage-consumers',
-        title: 'Manage Consumers',
+        path: '/app/staffs',
+        title: 'Staffs',
         icon: 'mingcute:home-1-fill',
         active: true,
-        group: 'User Management',
-        roles: ["ADMIN"],
+        group: 'MANAGMENT',
+        roles: [UserRoles.ADMIN],
     },
     {
         id: 3,
-        path: '/home/admin/manage-providers',
-        title: 'Manage Providers',
+        path: '#',
+        title: 'Students',
         icon: 'mingcute:home-1-fill',
-        active: true,
-        group: 'User Management',
-        roles: ["ADMIN"],
-    },
-    {
-        id: 4,
-        path: '/home/admin/verify-providers',
-        title: 'Verify Providers',
-        icon: 'mingcute:home-1-fill',
-        active: true,
-        group: 'User Management',
-        roles: ["ADMIN"],
+        active: false,
+        group: 'MANAGMENT',
+        roles: [UserRoles.ADMIN],
     },
 
-    // Service Management
+    // Access Control
+
     {
-        id: 5,
-        path: '/home/admin/service-categories',
-        title: 'Service-Category',
+        id: 2,
+        path: '/app/permission',
+        title: 'Permissions',
         icon: 'mingcute:home-1-fill',
         active: true,
-        group: 'Service Management',
-        roles: ["ADMIN"],
+        group: 'Access Control',
+        roles: [UserRoles.ADMIN],
     },
     {
-        id: 6,
-        path: '/home/admin/listings',
-        title: 'Listings',
+        id: 3,
+        path: '#',
+        title: 'Audit Trails',
         icon: 'mingcute:home-1-fill',
-        active: true,
-        group: 'Service Management',
-        roles: ["ADMIN"],
-    },
-    {
-        id: 7,
-        path: '/home/admin/pricing-policies',
-        title: 'Set Pricing Policy',
-        icon: 'mingcute:home-1-fill',
-        active: true,
-        group: 'Service Management',
-        roles: ["ADMIN"],
+        active: false,
+        group: 'Access Control',
+        roles: [UserRoles.ADMIN],
     },
 ]
 

@@ -8,6 +8,7 @@ import paths from './paths';
 import { useAuth } from '../context';
 import NavigationHandler from '../helpers/navigation-helper';
 import { ProtectedRoute } from './protected-route';
+import ErrorBoundary from '../components/error-boundary';
 
 // Lazy-loaded components
 const App = lazy<() => ReactElement>(() => import('./../App'));
@@ -22,24 +23,33 @@ const Login = lazy<() => ReactElement>(() => import('../../src/pages/authenticat
 const AdminDashboard = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/dashboard/index'));
 const UpgradeToPro = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/upgrade-to-pro'));
 const PaymentForm = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/payment-page'));
+const AdminStaffManagementPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/index'));
+const CreateStaffPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/createStaff'));
+const CreatSchoolAccountPage = lazy<() => ReactElement>(() => import('../../src/pages/authentication/create-school/index'));
+const PermissionsPage = lazy(() => import('../../src/pages/admin-pages/permission-page/index'));
+
 
 const routes: RouteObject[] = [
     {
         element: (
-            <Suspense fallback={<Splash />}>
-                <NavigationHandler>
-                    <App />
-                </NavigationHandler>
-            </Suspense>
+            <ErrorBoundary>
+                <Suspense fallback={<Splash />}>
+                    <NavigationHandler>
+                        <App />
+                    </NavigationHandler>
+                </Suspense>
+            </ErrorBoundary>
         ),
         children: [
             // Account selection page (first page after login)
             {
                 path: paths.home,
                 element: (
-                    <ProtectedRoute requireAccountSelection={false}>
-                        <AccountSelection />
-                    </ProtectedRoute>
+                    <ErrorBoundary>
+                        <ProtectedRoute requireAccountSelection={false}>
+                            <AccountSelection />
+                        </ProtectedRoute>
+                    </ErrorBoundary>
                 ),
             },
 
@@ -58,9 +68,42 @@ const routes: RouteObject[] = [
                 children: [
                     {
                         path: 'dashboard',
-                        element: <AdminDashboard />,
+                        element: (
+                            <ErrorBoundary>
+                                <AdminDashboard />
+                            </ErrorBoundary>
+                        ),
                     },
-                    // Add other app routes here
+                    {
+                        path: 'staffs',
+                        element: <Outlet />,
+                        children: [
+                            {
+                                index: true,
+                                element: (
+                                    <ErrorBoundary>
+                                        <AdminStaffManagementPage />
+                                    </ErrorBoundary>
+                                ),
+                            },
+                            {
+                                path: "create",
+                                element: (
+                                    <ErrorBoundary>
+                                        <CreateStaffPage />
+                                    </ErrorBoundary>
+                                ),
+                            }
+                        ]
+                    },
+                    {
+                        path: 'permission',
+                        element: (
+                            <ErrorBoundary>
+                                <PermissionsPage />
+                            </ErrorBoundary>
+                        ),
+                    },
                 ],
             },
 
@@ -99,10 +142,36 @@ const routes: RouteObject[] = [
                 children: [
                     {
                         path: paths.login,
-                        element: <Login />,
+                        element: (
+                            <ProtectedRoute requireAccountSelection={false}>
+                                <Login />
+                            </ProtectedRoute>
+                        ),
                     },
-                    // Add other auth routes here
+                    {
+                        path: '*',
+                        element: (
+                            <ProtectedRoute>
+                                <Navigate to={paths.home} replace />
+                            </ProtectedRoute>
+                        ),
+                    }
                 ],
+            },
+            {
+                path: paths.signup,
+                element: (
+                    <Suspense fallback={<PageLoader />}>
+                        <ErrorBoundary>
+                            <CreatSchoolAccountPage />
+                        </ErrorBoundary>
+                    </Suspense>
+                ),
+            },
+
+            {
+                path: rootPaths.authRoot,
+                element: <Navigate to={paths.login} replace />,
             },
         ],
     },

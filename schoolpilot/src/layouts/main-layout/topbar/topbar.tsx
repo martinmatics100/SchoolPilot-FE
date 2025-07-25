@@ -10,7 +10,8 @@ import {
     List,
     ListItem,
     ListItemText,
-    Typography
+    Typography,
+    Box
 } from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 import { type ReactElement, useState } from 'react';
@@ -19,6 +20,7 @@ import { useBreakpoints } from '../../../providers/breakPointsProvider';
 import { drawerOpenWidth, drawerCloseWidth } from '..';
 import { useTheme } from '@mui/material/styles';
 import ThemeToggle from '../../../theme/theme-toggle';
+import { useAuth } from '../../../context';
 
 const Topbar = ({
     open,
@@ -35,6 +37,9 @@ const Topbar = ({
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [messageOpen, setMessageOpen] = useState(false);
+    const { selectedAccount, accounts, selectedBranches, userEmail, isAuthenticated } = useAuth();
+
+    const selectedAccountData = accounts.find(account => account.id === selectedAccount);
 
     const notifications = [
         { id: 1, message: 'New comment on your post' },
@@ -115,6 +120,53 @@ const Topbar = ({
                             ),
                         }}
                     /> */}
+
+                    {/* Display selected account info and user email in topbar */}
+                    <Stack direction="row" alignItems="center" spacing={3}>
+                        {selectedAccountData && (
+                            <Box
+                                sx={{
+                                    position: 'relative',
+                                    '&:hover .branch-tooltip': {
+                                        visibility: 'visible',
+                                        opacity: 1,
+                                    }
+                                }}
+                            >
+                                <Typography
+                                    variant="subtitle1"
+                                    sx={{ fontSize: "15px" }}
+                                    fontWeight="bold"
+                                    color={theme.palette.text.secondary}
+                                >
+                                    {selectedAccountData.name}
+                                </Typography>
+
+                                {/* Hidden branch names that appear on hover */}
+                                <Box
+                                    className="branch-tooltip"
+                                    sx={{
+                                        visibility: 'hidden',
+                                        opacity: 0,
+                                        position: 'absolute',
+                                        bottom: '-30px',
+                                        left: 0,
+                                        backgroundColor: theme.palette.background.paper,
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        borderRadius: 1,
+                                        padding: 1,
+                                        transition: 'all 0.3s ease',
+                                        zIndex: 1,
+                                        minWidth: '500px'
+                                    }}
+                                >
+                                    <Typography variant="caption" color={theme.palette.text.primary}>
+                                        Branches: {selectedBranches.map(branch => branch.name).join(', ')}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        )}
+                    </Stack>
                 </Stack>
                 <Stack
                     direction="row"

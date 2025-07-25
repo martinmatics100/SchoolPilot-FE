@@ -1,24 +1,24 @@
-// src/layouts/main-layout/index.tsx
 import { useState, type ReactElement, type PropsWithChildren } from 'react';
-import { Box, Drawer, Toolbar, Typography } from '@mui/material';
+import { Box, Drawer, Toolbar } from '@mui/material';
 import Topbar from './topbar/topbar';
 import Sidebar from './sidebar/sidebar';
-import { useAuth } from '../../context';
+import { Footer } from './footer/footer'; // ✅ FIXED HERE
+import { useTheme } from '@mui/material';
 
 export const drawerOpenWidth = 240;
 export const drawerCloseWidth = 110;
 
 const MainLayout = ({ children }: PropsWithChildren): ReactElement => {
     const [open, setOpen] = useState<boolean>(false);
-    const { selectedAccount, accounts, selectedBranches } = useAuth();
     const handleDrawerToggle = () => setOpen(!open);
 
-    const selectedAccountData = accounts.find(account => account.id === selectedAccount);
+    const theme = useTheme();
 
     return (
         <>
             <Box sx={{ display: 'flex', minHeight: '100vh' }}>
                 <Topbar open={open} handleDrawerToggle={handleDrawerToggle} />
+
                 {/* Mobile Drawer */}
                 <Drawer
                     variant="temporary"
@@ -34,6 +34,7 @@ const MainLayout = ({ children }: PropsWithChildren): ReactElement => {
                 >
                     <Sidebar open={open} />
                 </Drawer>
+
                 {/* Desktop Drawer */}
                 <Drawer
                     variant="permanent"
@@ -49,6 +50,7 @@ const MainLayout = ({ children }: PropsWithChildren): ReactElement => {
                 >
                     <Sidebar open={open} />
                 </Drawer>
+
                 <Box
                     component="main"
                     overflow="auto"
@@ -61,23 +63,14 @@ const MainLayout = ({ children }: PropsWithChildren): ReactElement => {
                         pl: { xs: 3, sm: 5.25 },
                     }}
                 >
-                    <Toolbar
-                        sx={{
-                            height: 96,
-                        }}
-                    />
-                    {selectedAccountData && (
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="h6">
-                                {selectedAccountData.name} - {selectedBranches.join(', ')}
-                            </Typography>
-                        </Box>
-                    )}
+                    <Toolbar sx={{ height: 96 }} />
                     {children}
                 </Box>
             </Box>
+
+            <Footer open={open} sx={{ position: 'fixed', bottom: 0, width: '100%', bgcolor: theme.palette.common.black }} />
         </>
-    )
-}
+    );
+};
 
 export default MainLayout;

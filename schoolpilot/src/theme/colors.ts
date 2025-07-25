@@ -115,7 +115,7 @@ export const stone: Color = {
     600: '#87888C',
     700: '#2C2D33',
     800: "#ffffff",
-    900: '#171821',
+    900: '#181818',
 };
 
 export const white: Color = {
@@ -155,5 +155,5 @@ export const lightThemeColors: Color = {
     600: '#6D6D6D',       // Subtle borders or lines
     700: '#4D4D4D',       // Stronger text
     800: '#2D2D2D',       // Very dark accents
-    900: '#ffffff',       // Background for light theme
+    900: '#f2f2f2',       // Background for light theme
 };
