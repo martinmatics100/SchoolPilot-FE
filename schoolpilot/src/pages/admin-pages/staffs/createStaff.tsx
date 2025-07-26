@@ -5,6 +5,7 @@ import { type FormField } from '../../../components/common/my-form';
 import { useEnums } from '../../../hooks/useEnums';
 import { createApiClient } from '../../../utils/apiClient';
 import AlertMessage from '../../../components/common/message-display/message';
+import { NavigationButton } from '../../../components/common/NavigationButton';
 
 const CreateStaff = () => {
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
@@ -243,6 +244,13 @@ const CreateStaff = () => {
                 onClose={() => setAlertMessage({ frontendMessage: null, backendMessage: null })}
             />
             <BackButton />
+            <NavigationButton
+                to=""
+                // startIcon={<AddIcon />}
+                sx={{ alignContent: 'flex-end' }}
+            >
+                Go to Staff List
+            </NavigationButton>
             <DynamicForm
                 title="Staff Form"
                 fields={formFields}

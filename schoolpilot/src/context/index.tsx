@@ -161,64 +161,76 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // this effect is primarily driven by token presence/change.
 
     // src/context/index.tsx (updated login function)
+    // src/context/index.tsx (updated login function)
     const login = async (email: string, password: string) => {
         try {
             const response = await authClient.login(email, password);
             if (response && response.accessToken) {
-                setAccessToken(response.accessToken);
-
-                // Immediately decode and set userId here after login for faster state update
+                // Parse the token first
                 const decodedToken = parseJwt(response.accessToken);
-                if (decodedToken) {
-                    setUserId(decodedToken.sub);
-                    setUserEmail(decodedToken.email);
 
-                    const rawRoles = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-                    let roles: UserRoles[] = [];
+                // Prepare all the new state values
+                const newUserId = decodedToken?.sub || null;
+                const newUserEmail = decodedToken?.email || null;
 
-                    if (Array.isArray(rawRoles)) {
-                        roles = rawRoles
-                            .map(role => {
-                                // Map numeric roles to enum values
-                                if (role === '1') return UserRoles.ADMIN;
-                                if (role === '2') return UserRoles.TEACHER;
-                                if (role === '3') return UserRoles.STUDENT;
-                                if (role === '4') return UserRoles.PARENT;
+                let newRole: UserRoles | null = null;
+                const rawRoles = decodedToken?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
 
-                                // Convert to uppercase and validate
-                                const upperRole = role.toUpperCase();
-                                return isUserRole(upperRole) ? upperRole : null;
-                            })
-                            .filter((role): role is UserRoles => role !== null);
-                    } else if (typeof rawRoles === 'string') {
-                        // Handle single role
-                        const role = rawRoles;
-                        if (role === '1') roles = [UserRoles.ADMIN];
-                        else if (role === '2') roles = [UserRoles.TEACHER];
-                        else if (role === '3') roles = [UserRoles.STUDENT];
-                        else if (role === '4') roles = [UserRoles.PARENT];
-                        else {
+                if (Array.isArray(rawRoles)) {
+                    const roles = rawRoles
+                        .map(role => {
+                            if (role === '1') return UserRoles.ADMIN;
+                            if (role === '2') return UserRoles.TEACHER;
+                            if (role === '3') return UserRoles.STUDENT;
+                            if (role === '4') return UserRoles.PARENT;
                             const upperRole = role.toUpperCase();
-                            if (isUserRole(upperRole)) {
-                                roles = [upperRole];
-                            }
+                            return isUserRole(upperRole) ? upperRole : null;
+                        })
+                        .filter((role): role is UserRoles => role !== null);
+                    newRole = roles[0] || null;
+                } else if (typeof rawRoles === 'string') {
+                    if (rawRoles === '1') newRole = UserRoles.ADMIN;
+                    else if (rawRoles === '2') newRole = UserRoles.TEACHER;
+                    else if (rawRoles === '3') newRole = UserRoles.STUDENT;
+                    else if (rawRoles === '4') newRole = UserRoles.PARENT;
+                    else {
+                        const upperRole = rawRoles.toUpperCase();
+                        if (isUserRole(upperRole)) {
+                            newRole = upperRole;
                         }
-                    }
-
-                    setRole(roles[0] || null);
-
-                    if (decodedToken.accountId) {
-                        setSelectedAccount(decodedToken.accountId);
                     }
                 }
 
+                const newSelectedAccount = decodedToken?.accountId || null;
+
+                // Update all states synchronously
+                setAccessToken(response.accessToken);
+                setUserId(newUserId);
+                setUserEmail(newUserEmail);
+                setRole(newRole);
+                setSelectedAccount(newSelectedAccount);
                 setIsAuthenticated(true);
+
+                // Update localStorage synchronously
+                const authDataToPersist = {
+                    isAuthenticated: true,
+                    role: newRole,
+                    selectedAccount: newSelectedAccount,
+                    selectedBranches: [], // Will be updated later if needed
+                    userEmail: newUserEmail,
+                    accessToken: response.accessToken,
+                    userId: newUserId,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('authData', encryptData(authDataToPersist));
+                setApiAuthData(response.accessToken, Intl.DateTimeFormat().resolvedOptions().timeZone, true);
+
                 return true;
             }
             return false;
         } catch (error) {
             console.error('Login failed:', error);
-            return false;
+            throw error; // Throw the error so the calling component can handle it
         }
     };
 

@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react'
 import { ReusableTable, type Column } from '../../../components/common/table-component';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -9,7 +9,8 @@ import { useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add'; // New import
 import { NavigationButton } from '../../../components/common/NavigationButton';
 
-const Index = () => {
+const StudentList = () => {
+
     const [sortBy, setSortBy] = React.useState<string>('username');
     const [order, setOrder] = React.useState<'asc' | 'desc'>('asc');
 
@@ -23,14 +24,14 @@ const Index = () => {
             sortable: true
         },
         {
-            id: 'fullName',
-            label: 'Staff Name',
+            id: 'studentfullName',
+            label: 'Student Name',
             minWidth: 150,
             sortable: true,
             format: (value, row: any) => (
                 <div>
                     <h4 style={{ display: 'flex', gap: 6 }}>{row.firstName} {row.lastName}</h4>
-                    <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STAFF ID:</span> {row.studentId}</h6>
+                    <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STUDENT ID:</span> {row.studentId}</h6>
                 </div >
             )
         },
@@ -52,16 +53,16 @@ const Index = () => {
             )
         },
         {
-            id: 'department',
-            label: 'Department',
+            id: 'class',
+            label: 'Class',
             minWidth: 150,
             sortable: true
         },
     ];
 
     const userData = [
-        { username: 'john_doe', firstName: 'John', lastName: 'Doe', status: 'active', department: 'Engineering', studentId: 'STU001' },
-        { username: 'jane_smith', firstName: 'Jane', lastName: 'Smith', status: 'inactive', department: 'Marketing', studentId: 'not available' },
+        { username: 'john_doe', firstName: 'John', lastName: 'Doe', status: 'active', class: 'JSS 1', studentId: 'STU001' },
+        { username: 'jane_smith', firstName: 'Jane', lastName: 'Smith', status: 'inactive', class: 'SSS 3', studentId: 'not available' },
 
     ];
 
@@ -96,18 +97,17 @@ const Index = () => {
         console.log('Request new data sorted by:', sortByField, 'order:', sortOrder);
         // Here you would fetch new data from the backend with sortBy and order
     };
-
     return (
         <div>
             <NavigationButton
-                to="create"
+                to=""
                 startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
-                Create Staff
+                Create Student
             </NavigationButton>
             <ReusableTable
-                title='Staff List'
+                title='Students List'
                 columns={columns}
                 data={userData}
                 defaultRowsPerPage={25}
@@ -120,7 +120,7 @@ const Index = () => {
                 onSelectedRowsChange={(selected) => console.log('Selected rows:', selected)}
             />
         </div>
-    );
-};
+    )
+}
 
-export default Index;
+export default StudentList

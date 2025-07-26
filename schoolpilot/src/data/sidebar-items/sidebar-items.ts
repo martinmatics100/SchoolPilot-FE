@@ -34,10 +34,10 @@ const navItems: INavbarItem[] = [
     },
     {
         id: 3,
-        path: '#',
+        path: '/app/students',
         title: 'Students',
         icon: 'mingcute:home-1-fill',
-        active: false,
+        active: true,
         group: 'MANAGMENT',
         roles: [UserRoles.ADMIN],
     },

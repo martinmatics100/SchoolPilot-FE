@@ -28,6 +28,8 @@ const CreateStaffPage = lazy<() => ReactElement>(() => import('../../src/pages/a
 const CreatSchoolAccountPage = lazy<() => ReactElement>(() => import('../../src/pages/authentication/create-school/index'));
 const PermissionsPage = lazy(() => import('../../src/pages/admin-pages/permission-page/index'));
 
+const AdminStudentListPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/students/index'));
+
 
 const routes: RouteObject[] = [
     {
@@ -83,6 +85,28 @@ const routes: RouteObject[] = [
                                 element: (
                                     <ErrorBoundary>
                                         <AdminStaffManagementPage />
+                                    </ErrorBoundary>
+                                ),
+                            },
+                            {
+                                path: "create",
+                                element: (
+                                    <ErrorBoundary>
+                                        <CreateStaffPage />
+                                    </ErrorBoundary>
+                                ),
+                            }
+                        ]
+                    },
+                    {
+                        path: 'students',
+                        element: <Outlet />,
+                        children: [
+                            {
+                                index: true,
+                                element: (
+                                    <ErrorBoundary>
+                                        <AdminStudentListPage />
                                     </ErrorBoundary>
                                 ),
                             },

@@ -14,7 +14,6 @@ import {
     InputAdornment,
     FormControlLabel,
     CircularProgress,
-    Alert,
 } from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 import { useState, useEffect } from 'react';
@@ -24,8 +23,7 @@ import Image from '../../../components/base/image';
 import logoWithText from '../../../assets/palmfitLogoWithText.png';
 import { useAuth } from '../../../context';
 import paths from '../../../routes/paths';
-import MessageDisplay from '../../../components/common/message-display';
-
+import AlertMessage from '../../../components/common/message-display/message';
 
 const Login = () => {
     const { login, isAuthenticated, selectedAccount, role } = useAuth();
@@ -33,69 +31,90 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
-    const [error, setError] = useState<string>('');
-    const [message, setMessage] = useState<string>(''); // For success message
     const [loading, setLoading] = useState<boolean>(false);
-    const [openMessage, setOpenMessage] = useState<boolean>(false);
-    const [shouldNavigate, setShouldNavigate] = useState<boolean>(false); // New state to control navigation
+    const [shouldNavigate, setShouldNavigate] = useState<boolean>(false);
+    const [alertMessage, setAlertMessage] = useState<{
+        frontendMessage: { text: string; severity: 'error' | 'success' } | null;
+        backendMessage: { text: string; severity: 'error' | 'success' } | null;
+    }>({
+        frontendMessage: null,
+        backendMessage: null
+    });
 
-    // This useEffect will now handle redirection after a successful login state change
     useEffect(() => {
-        if (isAuthenticated && shouldNavigate) {
-            if (selectedAccount || role) { // If an account is already selected (e.g., persistent login)
-                navigate('/app/dashboard', { replace: true });
-            } else { // If authenticated but no account selected, go to account selection
-                navigate(paths.home, { replace: true });
-            }
-            // Reset shouldNavigate after navigation to prevent re-triggering
-            setShouldNavigate(false);
+        console.log("Auth changed", { isAuthenticated, selectedAccount, role });
+    }, [isAuthenticated, selectedAccount, role]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            // Ensure at least 100ms delay to allow role/account to update
+            const timer = setTimeout(() => {
+                if (selectedAccount || role) {
+                    navigate('/app/dashboard', { replace: true });
+                } else {
+                    navigate(paths.home, { replace: true });
+                }
+            }, 20000); // Short delay to allow context updates
+
+            return () => clearTimeout(timer);
         }
-    }, [isAuthenticated, shouldNavigate, navigate, selectedAccount, role]); // Add selectedAccount and role to dependencies
+    }, [isAuthenticated, selectedAccount, role, navigate]);
+
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setLoading(true);
-        setError(''); // Clear previous errors
-        setMessage(''); // Clear previous messages
-        setOpenMessage(false); // Close any existing messages
-        setShouldNavigate(false); // Reset navigation flag
+        setAlertMessage({ frontendMessage: null, backendMessage: null });
 
         try {
-            const success = await login(email, password); // Await the async login call
+            const success = await login(email, password);
             if (success) {
-                setMessage('Login successful!');
-                setOpenMessage(true);
-                // The useEffect will handle navigation
-                // Set a timeout to allow the message to display before navigating
+                setAlertMessage({
+                    frontendMessage: {
+                        text: 'Login successful!',
+                        severity: 'success'
+                    },
+                    backendMessage: null
+                });
+
+                // ✅ Delay navigation to show success message
                 setTimeout(() => {
-                    setOpenMessage(false); // Close the message
-                    setShouldNavigate(true); // Trigger navigation
-                }, 3000); // Display message for 1.5 seconds
-            } else {
-                setError('Login failed. Please check your credentials.');
-                setOpenMessage(true);
-                setTimeout(() => {
-                    setOpenMessage(false);
-                }, 3000);
+                    navigate('/app/dashboard', { replace: true });
+                }, 15000);
             }
         } catch (err) {
             console.error("Login attempt failed:", err);
-            setError('An unexpected error occurred during login.');
-            setOpenMessage(true);
-            setTimeout(() => {
-                setOpenMessage(false);
-            }, 3000);
+
+            // ✅ Normalize error message
+            let errorMsg = 'An unexpected error occurred during login.';
+            if (err instanceof Error) {
+                errorMsg = err.message;
+            } else if (typeof err === 'string') {
+                errorMsg = err;
+            }
+
+            setAlertMessage({
+                frontendMessage: {
+                    text: 'Login failed!',
+                    severity: 'error'
+                },
+                backendMessage: {
+                    text: errorMsg,
+                    severity: 'error'
+                }
+            });
         } finally {
-            setLoading(false); // Stop loading after login attempt (success or failure)
+            setLoading(false);
         }
     };
+
 
     const handleClickShowPassword = () => {
         setShowPassword((prevShowPassword) => !prevShowPassword);
     };
 
-    const handleCloseMessage = () => {
-        setOpenMessage(false);
+    const handleCloseAlert = () => {
+        setAlertMessage({ frontendMessage: null, backendMessage: null });
     };
 
     return (
@@ -122,7 +141,7 @@ const Login = () => {
                         Log In
                     </Typography>
                     <Typography variant="h6" fontWeight={500} textAlign="center" color="text.primary">
-                        Don’t have an account?{' '}
+                        Don't have an account?{' '}
                         <Link href={paths.signup} underline="none">
                             Enroll your school
                         </Link>
@@ -246,12 +265,11 @@ const Login = () => {
                 </Stack>
             </Paper>
 
-            <MessageDisplay
-                message={error || message}
-                type={error ? 'error' : 'success'}
-                source="frontend"
-                open={openMessage}
-                onClose={handleCloseMessage}
+            <AlertMessage
+                frontendMessage={alertMessage.frontendMessage}
+                backendMessage={alertMessage.backendMessage}
+                autoHideDuration={3000}
+                onClose={handleCloseAlert}
             />
         </>
     )
