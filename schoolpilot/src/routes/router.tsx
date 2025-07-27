@@ -25,6 +25,7 @@ const UpgradeToPro = lazy<() => ReactElement>(() => import('../../src/pages/comm
 const PaymentForm = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/payment-page'));
 const AdminStaffManagementPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/index'));
 const CreateStaffPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/createStaff'));
+const CreateStudentPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/students/CreateStudent'));
 const CreatSchoolAccountPage = lazy<() => ReactElement>(() => import('../../src/pages/authentication/create-school/index'));
 const PermissionsPage = lazy(() => import('../../src/pages/admin-pages/permission-page/index'));
 
@@ -89,7 +90,7 @@ const routes: RouteObject[] = [
                                 ),
                             },
                             {
-                                path: "create",
+                                path: "create-staff",
                                 element: (
                                     <ErrorBoundary>
                                         <CreateStaffPage />
@@ -111,10 +112,10 @@ const routes: RouteObject[] = [
                                 ),
                             },
                             {
-                                path: "create",
+                                path: "create-student",
                                 element: (
                                     <ErrorBoundary>
-                                        <CreateStaffPage />
+                                        <CreateStudentPage />
                                     </ErrorBoundary>
                                 ),
                             }

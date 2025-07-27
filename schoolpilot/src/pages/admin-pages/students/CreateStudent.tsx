@@ -7,7 +7,7 @@ import { createApiClient } from '../../../utils/apiClient';
 import AlertMessage from '../../../components/common/message-display/message';
 import { NavigationButton } from '../../../components/common/NavigationButton';
 
-const CreateStaff = () => {
+const CreateStudent = () => {
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [subjects, setSubjects] = useState<Array<{ id: string, subjectName: string }>>([]);
@@ -17,28 +17,6 @@ const CreateStaff = () => {
         frontendMessage?: { text: string; severity: 'error' | 'warning' | 'info' | 'success' } | null;
         backendMessage?: { text: string; severity: 'error' | 'warning' | 'info' | 'success' } | null;
     }>({ frontendMessage: null, backendMessage: null });
-
-    useEffect(() => {
-        const fetchSubjects = async () => {
-            try {
-                const apiClient = createApiClient();
-                const subjectsData = await apiClient.getSubjects();
-                setSubjects(subjectsData);
-            } catch (error) {
-                console.error('Error fetching subjects:', error);
-                setAlertMessage({
-                    frontendMessage: {
-                        text: 'Failed to load subjects. Please refresh the page.',
-                        severity: 'error'
-                    }
-                });
-            } finally {
-                setIsLoadingSubjects(false);
-            }
-        };
-
-        fetchSubjects();
-    }, []);
 
     const handleSubmit = async (data: any) => {
         try {
@@ -89,46 +67,16 @@ const CreateStaff = () => {
         }
     };
 
-    // Function to check if subjects taught should be hidden
-    const shouldHideSubjectsTaught = (designation: string | null) => {
-        if (!designation || !enums?.UserRole) return false;
-
-        const selectedDesignationObj = enums.UserRole.find(
-            d => d.value.toString() === designation
-        );
-
-        // Return true only for NonAcademic and Accountant
-        return selectedDesignationObj?.name === 'Non-Academic Staff' ||
-            selectedDesignationObj?.name === 'Accountant' ||
-            selectedDesignationObj?.name === 'Parent' ||
-            selectedDesignationObj?.name === 'Student';
-
-    };
-
-    // Function to check if subjects taught should be hidden
-    const shouldHideSomeInputs = (designation: string | null) => {
-        if (!designation || !enums?.UserRole) return false;
-
-        const selectedDesignationObj = enums.UserRole.find(
-            d => d.value.toString() === designation
-        );
-
-        // Return true only for NonAcademic and Accountant
-        return selectedDesignationObj?.name === 'Parent' ||
-            selectedDesignationObj?.name === 'Student';
-
-    };
-
     useEffect(() => {
         if (!isLoading && enums) {
             const fields: FormField[] = [
                 { name: 'firstName', label: 'First Name', type: 'text', required: true, colSpan: 1 },
                 { name: 'lastName', label: 'Last Name', type: 'text', required: true, colSpan: 1 },
                 {
-                    name: 'email', label: 'Email Address', type: 'email', required: true,
+                    name: 'email', label: 'Email Address', type: 'email', required: false,
                     infoText: 'This will be used to send notifications and informations', colSpan: 1
                 },
-                { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: false, colSpan: 1 },
+                { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, colSpan: 1 },
                 {
                     name: 'gender',
                     label: 'Gender',
@@ -141,64 +89,6 @@ const CreateStaff = () => {
                     })) || []
                 },
                 {
-                    name: 'role',
-                    label: 'Role',
-                    type: 'select',
-                    required: true,
-                    colSpan: 1,
-                    options: enums.UserRole?.map(d => ({
-                        value: d.value.toString(),
-                        label: d.displayName || d.name
-                    })) || [],
-                    onChange: (value: string) => setSelectedDesignation(value)
-                },
-                {
-                    name: 'employmentType',
-                    label: 'Employment Type',
-                    type: 'select',
-                    required: true,
-                    colSpan: 1,
-                    options: enums.EmploymentType?.map(e => ({
-                        value: e.value.toString(),
-                        label: e.displayName || e.name
-                    })) || []
-                },
-                {
-                    name: 'subjectsTaught',
-                    label: 'Subjects Taught',
-                    type: 'multiselect',
-                    required: !shouldHideSubjectsTaught(selectedDesignation), // Only required if field is visible
-                    colSpan: 1,
-                    options: subjects.map(subject => ({
-                        value: subject.id.toString(),
-                        label: subject.subjectName
-                    })),
-                    hidden: shouldHideSubjectsTaught(selectedDesignation)
-                },
-                {
-                    name: 'maritalStatus',
-                    label: 'Marital Status',
-                    type: 'select',
-                    required: false,
-                    colSpan: 1,
-                    options: enums.MaritalStatus?.map(m => ({
-                        value: m.value.toString(),
-                        label: m.displayName || m.name
-                    })) || []
-                },
-                {
-                    name: 'qualifications',
-                    label: 'Qualifications',
-                    type: 'select',
-                    required: !shouldHideSomeInputs(selectedDesignation),
-                    colSpan: 1,
-                    options: enums.Qualifications?.map(q => ({
-                        value: q.value.toString(),
-                        label: q.displayName || q.name
-                    })) || [],
-                    hidden: shouldHideSomeInputs(selectedDesignation)
-                },
-                {
                     name: 'nationality',
                     label: 'Nationality',
                     type: 'select',
@@ -209,13 +99,18 @@ const CreateStaff = () => {
                         label: n.displayName || n.name
                     })) || []
                 },
-                { name: 'startDate', label: 'Start Date', type: 'date', required: true, colSpan: 1 },
-                { name: 'address', label: 'Home Address', type: 'address', required: true, colSpan: 3 },
+                { name: 'address', label: 'Home Address', type: 'address', required: false, colSpan: 3 },
+                { name: 'parentsFirstName', label: 'Parent/Guardian First Name', type: 'text', required: false, colSpan: 1 },
+                { name: 'parentLastName', label: 'Parent/Guardian Last Name', type: 'text', required: false, colSpan: 1 },
+                {
+                    name: 'parentEmail', label: 'Parent/Guardian Email Address', type: 'email', required: false,
+                    infoText: 'This will be used to send notifications and informations to the parent/guardian', colSpan: 1
+                },
                 {
                     name: 'phone',
-                    label: 'Contact Phone',
+                    label: 'Parent/Guardian Contact Phone',
                     type: 'phone',
-                    required: true,
+                    required: false,
                     colSpan: 3,
                     errorMessage: 'Please provide a valid phone number',
                     extraProps: {
@@ -229,7 +124,7 @@ const CreateStaff = () => {
                     name: 'notes',
                     label: 'Additional Notes',
                     type: 'multiline',
-                    required: true,
+                    required: false,
                     rows: 4,
                     colSpan: 2
                 },
@@ -251,6 +146,7 @@ const CreateStaff = () => {
         return <div>Loading form...</div>;
     }
 
+
     return (
         <div>
             {/* Alert Message Component */}
@@ -266,17 +162,17 @@ const CreateStaff = () => {
                 // startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
-                Go to Staff List
+                Go to Student List
             </NavigationButton>
             <DynamicForm
-                title="Staff Form"
+                title="Student Form"
                 fields={formFields}
                 onSubmit={handleSubmit}
                 submitButtonText="Submit"
                 columns={3}
             />
         </div>
-    );
-};
+    )
+}
 
-export default CreateStaff;
+export default CreateStudent

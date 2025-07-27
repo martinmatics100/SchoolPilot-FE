@@ -1,8 +1,10 @@
 export const UserRoles = {
     ADMIN: 'ADMIN',
     TEACHER: 'TEACHER',
-    STUDENT: 'STUDENT',
-    PARENT: 'PARENT'
+    PARENT: 'PARENT',
+    ACCOUNTANT: 'Accountant',
+    NONACADEMICSTAFF: 'NonAcademicStaff',
+    PRINCIPAL: 'Principal'
 } as const;
 
 export type UserRoles = typeof UserRoles[keyof typeof UserRoles];

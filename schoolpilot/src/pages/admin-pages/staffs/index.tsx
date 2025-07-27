@@ -30,7 +30,7 @@ const Index = () => {
             format: (value, row: any) => (
                 <div>
                     <h4 style={{ display: 'flex', gap: 6 }}>{row.firstName} {row.lastName}</h4>
-                    <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STAFF ID:</span> {row.studentId}</h6>
+                    {/* <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STAFF ID:</span> {row.studentId}</h6> */}
                 </div >
             )
         },
@@ -100,7 +100,7 @@ const Index = () => {
     return (
         <div>
             <NavigationButton
-                to="create"
+                to="create-staff"
                 startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >

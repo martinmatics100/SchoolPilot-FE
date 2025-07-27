@@ -68,6 +68,15 @@ export interface Subject {
     subjectCode: string;
 }
 
+export interface CurrentUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    isSupportUser: boolean;
+    allowEmergencyAcessRequest: boolean;
+}
+
 const getLocalStorageItem = (key: string): string | null => {
     try {
         return localStorage.getItem(key);
@@ -193,8 +202,15 @@ export const createApiClient = ({
                 headers: baseHeaders
             });
             return handleResponse<Subject[]>(response);
-        }
+        },
 
+        getCurrentUser: async (): Promise<CurrentUser> => {
+            const response = await fetch(`${API_BASE_URL}/v1/users/current`, {
+                method: 'GET',
+                headers: baseHeaders
+            });
+            return handleResponse<CurrentUser>(response);
+        }
     };
 };
 
@@ -281,8 +297,11 @@ export const getCurrentUser = () => {
                     // Handle numeric roles if they come from API
                     if (role === '1') return UserRoles.ADMIN;
                     if (role === '2') return UserRoles.TEACHER;
-                    if (role === '3') return UserRoles.STUDENT;
-                    if (role === '4') return UserRoles.PARENT;
+                    if (role === '3') return UserRoles.PARENT;
+                    if (role === '4') return UserRoles.ACCOUNTANT;
+                    if (role === '5') return UserRoles.NONACADEMICSTAFF;
+                    if (role === '6') return UserRoles.PRINCIPAL;
+
 
                     const upperRole = role.toUpperCase();
                     return isUserRole(upperRole) ? upperRole : null;
@@ -293,8 +312,10 @@ export const getCurrentUser = () => {
             const role = rawRoles;
             if (role === '1') roles = [UserRoles.ADMIN];
             else if (role === '2') roles = [UserRoles.TEACHER];
-            else if (role === '3') roles = [UserRoles.STUDENT];
-            else if (role === '4') roles = [UserRoles.PARENT];
+            else if (role === '3') roles = [UserRoles.PARENT];
+            else if (role === '4') roles = [UserRoles.ACCOUNTANT];
+            else if (role === '5') roles = [UserRoles.NONACADEMICSTAFF];
+            else if (role === '6') roles = [UserRoles.PRINCIPAL]
             else {
                 const upperRole = role.toUpperCase();
                 if (isUserRole(upperRole)) {

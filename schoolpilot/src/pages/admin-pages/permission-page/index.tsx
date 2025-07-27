@@ -15,6 +15,7 @@ import {
     CircularProgress
 } from '@mui/material';
 import { useEnums } from '../../../hooks/useEnums';
+import { createApiClient } from '../../../utils/apiClient';
 
 interface PermissionActions {
     [key: string]: boolean;
@@ -34,6 +35,13 @@ interface ParentModule {
     features: Feature[];
 }
 
+interface UserPermission {
+    resource: string;
+    resourceType: number;
+    action: number;
+    value: boolean;
+}
+
 const PermissionTable: React.FC = () => {
     const theme = useTheme();
     const {
@@ -45,6 +53,39 @@ const PermissionTable: React.FC = () => {
     } = useEnums({ fetchPermissionData: true });
 
     const [permissions, setPermissions] = useState<ParentModule[]>([]);
+    const [currentUserId, setcurrentUserId] = useState<string | null>(null);
+    const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
+
+    useEffect(() => {
+        const fetchSubjects = async () => {
+            try {
+                const apiClient = createApiClient();
+                const userData = await apiClient.getCurrentUser();
+                setcurrentUserId(userData.id);
+            } catch (error) {
+                console.error('Error fetching subjects:', error)
+            }
+        };
+
+        fetchSubjects();
+    }, []);
+
+    // Add this useEffect hook to fetch user permissions when userId and required data are available
+    useEffect(() => {
+        const fetchUserPermissions = async () => {
+            if (!currentUserId || !enums.PermissionActions) return;
+
+            try {
+                const apiClient = createApiClient();
+                const permissions = await apiClient.get(`/v1/users/${currentUserId}/permissions`);
+                setUserPermissions(permissions);
+            } catch (error) {
+                console.error('Error fetching user permissions:', error);
+            }
+        };
+
+        fetchUserPermissions();
+    }, [currentUserId, enums.PermissionActions]);
 
     useEffect(() => {
         if (permissionGroups.length > 0 && enums.ParentPermission && enums.PermissionActions) {
@@ -52,6 +93,7 @@ const PermissionTable: React.FC = () => {
         }
     }, [permissionGroups, enums]);
 
+    // Modify the initializePermissionData function to apply user permissions
     const initializePermissionData = () => {
         const parentPermissions = enums.ParentPermission || [];
         const permissionActions = enums.PermissionActions || [];
@@ -69,15 +111,33 @@ const PermissionTable: React.FC = () => {
                 .filter(permission => parentPerms.includes(permission.value))
                 .map((permission, permIndex) => {
                     const featureAvailableActions = featureActionsMap[permission.value] || [];
-
                     const featureActions = permissionActions
                         .filter(action => featureAvailableActions.includes(action.value))
                         .map(action => action.name.toLowerCase());
 
+                    // Initialize permissions with default false values
+                    const permissions = initializeFeaturePermissions(permission?.value, featureActions);
+
+                    // Apply user permissions if they exist
+                    if (userPermissions.length > 0) {
+                        featureActions.forEach(actionName => {
+                            const actionObj = permissionActions.find(a => a.name.toLowerCase() === actionName);
+                            if (actionObj) {
+                                const userPermission = userPermissions.find(
+                                    perm => perm.resource === permission.value.toString() &&
+                                        perm.action === actionObj.value
+                                );
+                                if (userPermission?.value === true) {
+                                    permissions[actionName] = true;
+                                }
+                            }
+                        });
+                    }
+
                     return {
                         id: permission?.value?.toString() || `perm-${groupIndex}-${permIndex}`,
                         name: permission?.name || 'Unnamed Permission',
-                        permissions: initializeFeaturePermissions(permission?.value, featureActions),
+                        permissions,
                         availableActions: featureActions
                     };
                 });
@@ -92,6 +152,13 @@ const PermissionTable: React.FC = () => {
 
         setPermissions(transformedData);
     };
+
+    // Update the dependencies of the useEffect that calls initializePermissionData
+    useEffect(() => {
+        if (permissionGroups.length > 0 && enums.ParentPermission && enums.PermissionActions && userPermissions) {
+            initializePermissionData();
+        }
+    }, [permissionGroups, enums, userPermissions]);
 
     const initializeFeaturePermissions = (permissionId: number, actions: string[]): PermissionActions => {
         const defaultPermissions: PermissionActions = {};
@@ -439,7 +506,7 @@ const PermissionTable: React.FC = () => {
                                                 sx={{ mr: 1, ...customCheckboxStyle }}
                                             />
                                             <Typography variant="h6" component="span" fontSize="1.05rem" sx={{ color: "#000000" }}>
-                                                {parentModule.name}
+                                                {parentModule.name.toUpperCase()}
                                             </Typography>
                                         </Box>
                                     </TableCell>

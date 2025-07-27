@@ -31,7 +31,7 @@ const StudentList = () => {
             format: (value, row: any) => (
                 <div>
                     <h4 style={{ display: 'flex', gap: 6 }}>{row.firstName} {row.lastName}</h4>
-                    <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STUDENT ID:</span> {row.studentId}</h6>
+                    {/* <h6 style={{ color: theme.palette.text.primary }}><span style={{ color: theme.palette.info.dark }}>STUDENT ID:</span> {row.studentId}</h6> */}
                 </div >
             )
         },
@@ -100,7 +100,7 @@ const StudentList = () => {
     return (
         <div>
             <NavigationButton
-                to=""
+                to="create-student"
                 startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
