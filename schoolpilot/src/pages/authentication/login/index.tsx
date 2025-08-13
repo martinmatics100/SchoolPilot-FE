@@ -23,23 +23,18 @@ import Image from '../../../components/base/image';
 import logoWithText from '../../../assets/palmfitLogoWithText.png';
 import { useAuth } from '../../../context';
 import paths from '../../../routes/paths';
-import AlertMessage from '../../../components/common/message-display/message';
+import { useMessage } from '../../../context/messageContext';
+
 
 const Login = () => {
     const { login, isAuthenticated, selectedAccount, role } = useAuth();
+    const { showMessage } = useMessage(); // Get the showMessage function
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [shouldNavigate, setShouldNavigate] = useState<boolean>(false);
-    const [alertMessage, setAlertMessage] = useState<{
-        frontendMessage: { text: string; severity: 'error' | 'success' } | null;
-        backendMessage: { text: string; severity: 'error' | 'success' } | null;
-    }>({
-        frontendMessage: null,
-        backendMessage: null
-    });
 
     useEffect(() => {
         console.log("Auth changed", { isAuthenticated, selectedAccount, role });
@@ -64,45 +59,35 @@ const Login = () => {
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setLoading(true);
-        setAlertMessage({ frontendMessage: null, backendMessage: null });
 
         try {
             const success = await login(email, password);
             if (success) {
-                setAlertMessage({
-                    frontendMessage: {
-                        text: 'Login successful!',
-                        severity: 'success'
-                    },
-                    backendMessage: null
+                showMessage('Login successful! Redirecting...', 'success');
+
+                // Create a promise that resolves after 10 seconds
+                await new Promise(resolve => {
+                    const timer = setTimeout(resolve, 10000);
+
+                    // Store the timer so we can clean it up if component unmounts
+                    return () => clearTimeout(timer);
                 });
 
-                // ✅ Delay navigation to show success message
-                setTimeout(() => {
+                // Only navigate if still mounted and not already navigated
+                if (selectedAccount || role) {
                     navigate('/app/dashboard', { replace: true });
-                }, 15000);
+                } else {
+                    navigate(paths.home, { replace: true });
+                }
+            } else {
+                showMessage('Login failed. Please check your credentials.', 'error');
             }
         } catch (err) {
             console.error("Login attempt failed:", err);
-
-            // ✅ Normalize error message
             let errorMsg = 'An unexpected error occurred during login.';
-            if (err instanceof Error) {
-                errorMsg = err.message;
-            } else if (typeof err === 'string') {
-                errorMsg = err;
-            }
-
-            setAlertMessage({
-                frontendMessage: {
-                    text: 'Login failed!',
-                    severity: 'error'
-                },
-                backendMessage: {
-                    text: errorMsg,
-                    severity: 'error'
-                }
-            });
+            if (err instanceof Error) errorMsg = err.message;
+            else if (typeof err === 'string') errorMsg = err;
+            showMessage(errorMsg, 'error');
         } finally {
             setLoading(false);
         }
@@ -114,7 +99,6 @@ const Login = () => {
     };
 
     const handleCloseAlert = () => {
-        setAlertMessage({ frontendMessage: null, backendMessage: null });
     };
 
     return (
@@ -264,13 +248,6 @@ const Login = () => {
                     </Stack>
                 </Stack>
             </Paper>
-
-            <AlertMessage
-                frontendMessage={alertMessage.frontendMessage}
-                backendMessage={alertMessage.backendMessage}
-                autoHideDuration={3000}
-                onClose={handleCloseAlert}
-            />
         </>
     )
 }

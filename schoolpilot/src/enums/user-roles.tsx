@@ -1,7 +1,7 @@
 export const UserRoles = {
-    ADMIN: 'ADMIN',
-    TEACHER: 'TEACHER',
-    PARENT: 'PARENT',
+    ADMIN: 'Admin',
+    TEACHER: 'Teacher',
+    PARENT: 'Parent',
     ACCOUNTANT: 'Accountant',
     NONACADEMICSTAFF: 'NonAcademicStaff',
     PRINCIPAL: 'Principal'

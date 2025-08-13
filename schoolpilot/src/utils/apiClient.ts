@@ -68,6 +68,13 @@ export interface Subject {
     subjectCode: string;
 }
 
+interface GetAccountsParams {
+    userId: string;
+    role: string; // Add role parameter
+    page?: number;
+    pageLength?: number;
+}
+
 export interface CurrentUser {
     id: string;
     firstName: string;
@@ -76,6 +83,25 @@ export interface CurrentUser {
     isSupportUser: boolean;
     allowEmergencyAcessRequest: boolean;
 }
+
+export const getNumericRoleValue = (role: UserRoles): string => {
+    switch (role) {
+        case UserRoles.ADMIN:
+            return '1';
+        case UserRoles.TEACHER:
+            return '2';
+        case UserRoles.PARENT:
+            return '3';
+        case UserRoles.ACCOUNTANT:
+            return '4';
+        case UserRoles.NONACADEMICSTAFF:
+            return '5';
+        case UserRoles.PRINCIPAL:
+            return '6';
+        default:
+            return '0'; // Unknown role
+    }
+};
 
 const getLocalStorageItem = (key: string): string | null => {
     try {
@@ -173,14 +199,16 @@ export const createApiClient = ({
             });
             return handleResponse(response);
         },
-        getAccounts: async (userId: string, page: number = 1, pageLength: number = 10): Promise<PagedResult<AccountModel>> => {
+        // Update the getAccounts method in the apiClient
+        getAccounts: async ({ userId, role, page = 1, pageLength = 10 }: GetAccountsParams): Promise<PagedResult<AccountModel>> => {
             const queryParams = new URLSearchParams({
                 page: page.toString(),
                 pageLength: pageLength.toString(),
-                userId: userId
+                userId: userId,
+                role: getNumericRoleValue(role as UserRoles) // Convert to numeric value
             }).toString();
 
-            const url = `/v1/accounts?${queryParams}`; // Assuming /api/v1/accounts based on your C# query
+            const url = `/v1/accounts?${queryParams}`;
             const response = await fetch(`${API_BASE_URL}${url}`, {
                 method: 'GET',
                 headers: baseHeaders
@@ -254,7 +282,8 @@ export const clearAuthData = () => {
     removeLocalStorageItem('timeZone');
     removeLocalStorageItem('authData');
     removeLocalStorageItem('selectedBranches');
-    removeLocalStorageItem('appEnums')
+    removeLocalStorageItem('appEnums');
+    removeLocalStorageItem('selectedRole')
 };
 
 export const getInitialAuthData = () => {
@@ -281,56 +310,14 @@ export const getCurrentUser = () => {
     try {
         const decodedToken: DecodedToken = jwtDecode(accessToken);
 
-        if (decodedToken.exp * 1000 < Date.now()) {
-            console.warn("JWT token has expired.");
-            clearAuthData();
-            return null;
-        }
-
-        const rawRoles = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-
-        let roles: UserRoles[] = [];
-
-        if (Array.isArray(rawRoles)) {
-            roles = rawRoles
-                .map(role => {
-                    // Handle numeric roles if they come from API
-                    if (role === '1') return UserRoles.ADMIN;
-                    if (role === '2') return UserRoles.TEACHER;
-                    if (role === '3') return UserRoles.PARENT;
-                    if (role === '4') return UserRoles.ACCOUNTANT;
-                    if (role === '5') return UserRoles.NONACADEMICSTAFF;
-                    if (role === '6') return UserRoles.PRINCIPAL;
-
-
-                    const upperRole = role.toUpperCase();
-                    return isUserRole(upperRole) ? upperRole : null;
-                })
-                .filter((role): role is UserRoles => role !== null);
-        } else if (typeof rawRoles === 'string') {
-
-            const role = rawRoles;
-            if (role === '1') roles = [UserRoles.ADMIN];
-            else if (role === '2') roles = [UserRoles.TEACHER];
-            else if (role === '3') roles = [UserRoles.PARENT];
-            else if (role === '4') roles = [UserRoles.ACCOUNTANT];
-            else if (role === '5') roles = [UserRoles.NONACADEMICSTAFF];
-            else if (role === '6') roles = [UserRoles.PRINCIPAL]
-            else {
-                const upperRole = role.toUpperCase();
-                if (isUserRole(upperRole)) {
-                    roles = [upperRole];
-                }
-            }
-        }
-
-        const userId = decodedToken.sub;
+        // Get role from localStorage instead of token
+        const role = localStorage.getItem('selectedRole') as UserRoles | null;
 
         return {
             email: decodedToken.email,
-            roles: roles,
+            roles: role ? [role] : [], // Use the localStorage role
             accountId: decodedToken.accountId || null,
-            userId: userId,
+            userId: decodedToken.sub,
         };
     } catch (error) {
         console.error("Error decoding JWT token or token invalid:", error);

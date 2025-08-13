@@ -163,18 +163,18 @@ const CreateStaff = () => {
                         label: e.displayName || e.name
                     })) || []
                 },
-                {
-                    name: 'subjectsTaught',
-                    label: 'Subjects Taught',
-                    type: 'multiselect',
-                    required: !shouldHideSubjectsTaught(selectedDesignation), // Only required if field is visible
-                    colSpan: 1,
-                    options: subjects.map(subject => ({
-                        value: subject.id.toString(),
-                        label: subject.subjectName
-                    })),
-                    hidden: shouldHideSubjectsTaught(selectedDesignation)
-                },
+                // {
+                //     name: 'subjectsTaught',
+                //     label: 'Subjects Taught',
+                //     type: 'multiselect',
+                //     required: !shouldHideSubjectsTaught(selectedDesignation), // Only required if field is visible
+                //     colSpan: 1,
+                //     options: subjects.map(subject => ({
+                //         value: subject.id.toString(),
+                //         label: subject.subjectName
+                //     })),
+                //     hidden: shouldHideSubjectsTaught(selectedDesignation)
+                // },
                 {
                     name: 'maritalStatus',
                     label: 'Marital Status',
@@ -266,10 +266,10 @@ const CreateStaff = () => {
                 // startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
-                Go to Staff List
+                Go to User List
             </NavigationButton>
             <DynamicForm
-                title="Staff Form"
+                title="User Form"
                 fields={formFields}
                 onSubmit={handleSubmit}
                 submitButtonText="Submit"

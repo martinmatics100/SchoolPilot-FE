@@ -24,7 +24,7 @@ const AdminDashboard = lazy<() => ReactElement>(() => import('../../src/pages/ad
 const UpgradeToPro = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/upgrade-to-pro'));
 const PaymentForm = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/payment-page'));
 const AdminStaffManagementPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/index'));
-const CreateStaffPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/staffs/createStaff'));
+const CreateStaffPage = lazy<() => ReactElement>(() => import('../pages/admin-pages/staffs/createUser'));
 const CreateStudentPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/students/CreateStudent'));
 const CreatSchoolAccountPage = lazy<() => ReactElement>(() => import('../../src/pages/authentication/create-school/index'));
 const PermissionsPage = lazy(() => import('../../src/pages/admin-pages/permission-page/index'));
@@ -78,7 +78,7 @@ const routes: RouteObject[] = [
                         ),
                     },
                     {
-                        path: 'staffs',
+                        path: 'users',
                         element: <Outlet />,
                         children: [
                             {

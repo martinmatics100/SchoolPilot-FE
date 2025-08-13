@@ -1,7 +1,7 @@
 // src/context/index.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode, useMemo } from 'react';
 import { UserRoles } from '../enums/user-roles';
-import { encryptData } from '../utils/encryption';
+import { encryptData, decryptData } from '../utils/encryption';
 import {
     createApiClient,
     createAuthClient,
@@ -35,6 +35,7 @@ interface AuthContextType {
     apiClient: ReturnType<typeof createApiClient>;
     accessToken: string | null;
     userId: string | null;
+    updateRole: (newRole: UserRoles) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,10 +45,11 @@ const MOCK_BRANCHES = ['Main Campus', 'North Campus', 'East Campus'];
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initialApiAuthData = getInitialAuthData();
     const initialUser = getCurrentUser();
+    const initialRole = localStorage.getItem('selectedRole') as UserRoles | null;
 
     // Initialize states based on initial data from localStorage/token
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!initialUser);
-    const [role, setRole] = useState<UserRoles | null>(initialUser?.roles?.[0] || null);
+    const [role, setRole] = useState<UserRoles | null>(initialRole || initialUser?.roles?.[0] || null);
     const [selectedAccount, setSelectedAccount] = useState<string | null>(initialApiAuthData.selectedAccount || initialUser?.accountId || null);
     const [userEmail, setUserEmail] = useState<string | null>(initialUser?.email || null);
     const [selectedBranches, setSelectedBranches] = useState<LocationModel[]>([]);
@@ -82,33 +84,83 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [selectedAccount, accounts, selectedBranches]);
 
-    // Add this useEffect in AuthProvider to refetch accounts on refresh
+    // Update the fetchAccounts function in the useEffect
+    const fetchAccounts = async () => {
+        if (userId && accessToken && role && accounts.length === 0) { // Added role check
+            try {
+                const response = await apiClient.getAccounts({
+                    userId,
+                    role: role.toString(), // Pass the current role
+                    page: 1,
+                    pageLength: 100
+                });
+                const fetchedAccounts = response.items.map((account: any) => ({
+                    id: String(account.id),
+                    name: account.name,
+                    branches: [] as LocationModel[]
+                }));
+
+                setAccounts(fetchedAccounts);
+
+                // Also restore selectedBranches if none exist in memory
+                const selected = fetchedAccounts.find(acc => acc.id === selectedAccount);
+                if (selected && selectedBranches.length === 0) {
+                    setSelectedBranches(selected.branches);
+                }
+            } catch (err) {
+                console.error("Error fetching accounts in AuthProvider:", err);
+            }
+        }
+    };
+
+    // Update the dependencies array to include role
     useEffect(() => {
-        const fetchAccounts = async () => {
-            if (userId && accessToken && selectedAccount && accounts.length === 0) {
-                try {
-                    const response = await apiClient.getAccounts(userId, 1, 100);
-                    const fetchedAccounts = response.items.map((account: any) => ({
-                        id: String(account.id),
-                        name: account.name, // 👈 ensure casing matches API response
-                        branches: [] as LocationModel[]
-                    }));
+        fetchAccounts();
+    }, [userId, accessToken, selectedAccount, accounts.length, role]); // Added role
 
-                    setAccounts(fetchedAccounts);
-
-                    // Also restore selectedBranches if none exist in memory
-                    const selected = fetchedAccounts.find(acc => acc.id === selectedAccount);
-                    if (selected && selectedBranches.length === 0) {
-                        setSelectedBranches(selected.branches);
+    // Add this inside the AuthProvider component
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'selectedRole') {
+                const newRole = localStorage.getItem('selectedRole') as UserRoles | null;
+                if (newRole !== role) {
+                    setRole(newRole);
+                    // Update persisted auth data
+                    const authData = localStorage.getItem('authData');
+                    if (authData) {
+                        try {
+                            const parsedAuthData = JSON.parse(decryptData(authData));
+                            localStorage.setItem('authData', encryptData({
+                                ...parsedAuthData,
+                                role: newRole
+                            }));
+                        } catch (error) {
+                            console.error('Error updating auth data:', error);
+                        }
                     }
-                } catch (err) {
-                    console.error("Error fetching accounts in AuthProvider:", err);
                 }
             }
         };
 
-        fetchAccounts();
-    }, [userId, accessToken, selectedAccount, accounts.length]); // 👈 Dependencies
+        // Listen for storage changes from other tabs
+        window.addEventListener('storage', handleStorageChange);
+
+        // Also check for changes in the current tab
+        const checkRole = () => {
+            const currentRole = localStorage.getItem('selectedRole') as UserRoles | null;
+            if (currentRole !== role) {
+                setRole(currentRole);
+            }
+        };
+
+        // Check periodically (every second) for role changes
+        const interval = setInterval(checkRole, 1000);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            clearInterval(interval);
+        };
+    }, [role]); // Dependency on role to prevent unnecessary updates
 
 
     // This effect ensures core authentication details are consistent with the current token
@@ -173,33 +225,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const newUserId = decodedToken?.sub || null;
                 const newUserEmail = decodedToken?.email || null;
 
-                let newRole: UserRoles | null = null;
-                const rawRoles = decodedToken?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                const newRole = localStorage.getItem('selectedRole') as UserRoles | null;
 
-                if (Array.isArray(rawRoles)) {
-                    const roles = rawRoles
-                        .map(role => {
-                            if (role === '1') return UserRoles.ADMIN;
-                            if (role === '2') return UserRoles.TEACHER;
-                            if (role === '3') return UserRoles.STUDENT;
-                            if (role === '4') return UserRoles.PARENT;
-                            const upperRole = role.toUpperCase();
-                            return isUserRole(upperRole) ? upperRole : null;
-                        })
-                        .filter((role): role is UserRoles => role !== null);
-                    newRole = roles[0] || null;
-                } else if (typeof rawRoles === 'string') {
-                    if (rawRoles === '1') newRole = UserRoles.ADMIN;
-                    else if (rawRoles === '2') newRole = UserRoles.TEACHER;
-                    else if (rawRoles === '3') newRole = UserRoles.STUDENT;
-                    else if (rawRoles === '4') newRole = UserRoles.PARENT;
-                    else {
-                        const upperRole = rawRoles.toUpperCase();
-                        if (isUserRole(upperRole)) {
-                            newRole = upperRole;
-                        }
-                    }
-                }
+                // Update state
+                setRole(newRole);
+
+
 
                 const newSelectedAccount = decodedToken?.accountId || null;
 
@@ -234,6 +265,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Inside the AuthProvider component
+    const updateRole = (newRole: UserRoles) => {
+        localStorage.setItem('selectedRole', newRole);
+        setRole(newRole);
+        // Trigger a custom event to notify other hooks in the same tab
+        window.dispatchEvent(new Event('localStorageRoleUpdated'));
+    };
+
     const setAccountSelection = (accountId: string, branches: LocationModel[]) => {
         const accountToSelect = accounts.find(acc => acc.id === accountId);
 
@@ -266,6 +305,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             apiClient,
             accessToken,
             userId,
+            updateRole,
         }}>
             {children}
         </AuthContext.Provider>

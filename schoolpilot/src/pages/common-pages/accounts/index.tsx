@@ -1,5 +1,4 @@
 // src/pages/account-selection/index.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
@@ -23,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context';
 import { type LocationModel } from '../../../utils/apiClient';
 import { fetchAndStoreAllEnums, getEnum } from '../../../api/enumsApi';
+import { UserRoles } from '../../../enums/user-roles';
 
 const AccountSelectionPage = () => {
     const theme = useTheme();
@@ -34,11 +34,14 @@ const AccountSelectionPage = () => {
         accounts,
         userId,
         apiClient,
+        accessToken,
         setAccounts: setAuthAccounts
     } = useAuth();
 
     const [localSelectedAccount, setLocalSelectedAccount] = useState(selectedAccount || '');
     const [localSelectedBranches, setLocalSelectedBranches] = useState<LocationModel[]>(selectedBranches || []);
+    const [localSelectedRole, setLocalSelectedRole] = useState<string>('');
+    const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
     const [isLoadingSchools, setIsLoadingSchools] = useState(false);
@@ -46,14 +49,11 @@ const AccountSelectionPage = () => {
     const [activeStep, setActiveStep] = useState(0);
 
     useEffect(() => {
-
         const initializeEnums = async () => {
             try {
                 await fetchAndStoreAllEnums();
-
                 const userRoles = await getEnum('UserRole');
                 console.log('User roles enum:', userRoles);
-
             } catch (error) {
                 console.error('Error loading enums:', error);
             }
@@ -62,33 +62,61 @@ const AccountSelectionPage = () => {
         initializeEnums();
     }, []);
 
+    // Extract available roles from access token
     useEffect(() => {
-        const fetchAccounts = async () => {
-            if (userId && accounts.length === 0) {
-                setIsLoadingAccounts(true);
-                setError(null);
-                try {
-                    const response = await apiClient.getAccounts(userId, 1, 100);
-                    const fetchedAccounts = response.items.map((account: any) => ({
-                        id: String(account.id),
-                        name: account.name,
-                        branches: [] as LocationModel[]
-                    }));
-                    setAuthAccounts(fetchedAccounts);
-                } catch (err) {
-                    console.error('Failed to fetch accounts:', err);
-                    setError('Failed to load accounts. Please try again later.');
-                } finally {
-                    setIsLoadingAccounts(false);
+        if (accessToken) {
+            try {
+                const tokenParts = accessToken.split('.');
+                const decodedPayload = JSON.parse(atob(tokenParts[1]));
+                const roles = decodedPayload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+
+                if (Array.isArray(roles)) {
+                    setAvailableRoles(roles);
+                } else if (roles) {
+                    setAvailableRoles([roles]);
                 }
+            } catch (error) {
+                console.error('Error parsing access token:', error);
             }
-        };
+        }
+    }, [accessToken]);
+
+    // Update the fetchAccounts function
+    const fetchAccounts = async () => {
+        if (userId && activeStep >= 1 && localSelectedRole && accounts.length === 0) {
+            setIsLoadingAccounts(true);
+            setError(null);
+            try {
+                const response = await apiClient.getAccounts({
+                    userId,
+                    role: localSelectedRole, // Use the selected role
+                    page: 1,
+                    pageLength: 100
+                });
+                const fetchedAccounts = response.items.map((account: any) => ({
+                    id: String(account.id),
+                    name: account.name,
+                    branches: [] as LocationModel[]
+                }));
+                setAuthAccounts(fetchedAccounts);
+            } catch (err) {
+                console.error('Failed to fetch accounts:', err);
+                setError('Failed to load accounts. Please try again later.');
+            } finally {
+                setIsLoadingAccounts(false);
+            }
+        }
+    };
+
+    // Update the dependencies array
+    useEffect(() => {
         fetchAccounts();
-    }, [userId, apiClient, accounts.length, setAuthAccounts]);
+    }, [userId, apiClient, accounts.length, setAuthAccounts, activeStep, localSelectedRole]); // Added localSelectedRole
+
 
     useEffect(() => {
         const fetchSchools = async () => {
-            if (localSelectedAccount && activeStep === 1) {
+            if (localSelectedAccount && activeStep === 2) {
                 const account = accounts.find(a => a.id === localSelectedAccount);
                 if (account && account.branches.length === 0) {
                     setIsLoadingSchools(true);
@@ -131,9 +159,15 @@ const AccountSelectionPage = () => {
         [accounts, localSelectedAccount]
     );
 
+    const handleRoleChange = (event: any) => {
+        setLocalSelectedRole(event.target.value);
+        localStorage.setItem('selectedRole', event.target.value);
+        setActiveStep(1);
+    };
+
     const handleAccountChange = (event: any) => {
         setLocalSelectedAccount(event.target.value);
-        setActiveStep(1);
+        setActiveStep(2);
     };
 
     const handleBranchChange = (event: any) => {
@@ -145,14 +179,103 @@ const AccountSelectionPage = () => {
     };
 
     const handleBack = () => {
-        setActiveStep(0);
-        setLocalSelectedBranches([]);
+        setActiveStep(prev => prev - 1);
+        if (activeStep === 2) {
+            setLocalSelectedBranches([]);
+        }
     };
 
     const handleSubmit = () => {
         if (localSelectedAccount && localSelectedBranches.length > 0) {
             setAccountSelection(localSelectedAccount, localSelectedBranches);
             navigate('/app/dashboard', { replace: true });
+        }
+    };
+
+    const getStepContent = (step: number) => {
+        switch (step) {
+            case 0:
+                return (
+                    <FormControl fullWidth sx={{ mb: 3 }}>
+                        <InputLabel id="role-select-label">Select Role</InputLabel>
+                        <Select
+                            labelId="role-select-label"
+                            id="role-select"
+                            value={localSelectedRole}
+                            onChange={handleRoleChange}
+                            input={<OutlinedInput label="Select Role" />}
+                            sx={{ bgcolor: theme.palette.background.default }}
+                        >
+                            {availableRoles.map((role) => (
+                                <MenuItem key={role} value={role}>
+                                    {role}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                );
+            case 1:
+                return (
+                    <FormControl fullWidth sx={{ mb: 3 }}>
+                        <InputLabel id="account-select-label">Account</InputLabel>
+                        <Select
+                            labelId="account-select-label"
+                            id="account-select"
+                            value={localSelectedAccount}
+                            onChange={handleAccountChange}
+                            input={<OutlinedInput label="Account" />}
+                            sx={{ bgcolor: theme.palette.background.default }}
+                            disabled={isLoadingAccounts || accounts.length === 0}
+                        >
+                            {accounts.map((account) => (
+                                <MenuItem key={account.id} value={account.id}>
+                                    {account.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                );
+            case 2:
+                return (
+                    <>
+                        <Typography variant="body1" mb={2}>
+                            Selected Account: <strong>{selectedAccountData?.name}</strong>
+                        </Typography>
+                        <Typography variant="body1" mb={2}>
+                            Selected Role: <strong>{localSelectedRole}</strong>
+                        </Typography>
+
+                        <FormControl fullWidth sx={{ mb: 3 }}>
+                            <InputLabel id="branch-select-label">Branches</InputLabel>
+                            <Select
+                                labelId="branch-select-label"
+                                id="branch-select"
+                                multiple
+                                value={localSelectedBranches.map(b => b.id)}
+                                onChange={handleBranchChange}
+                                input={<OutlinedInput label="Branches" />}
+                                renderValue={(selected) => (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                        {selected.map((id: string) => {
+                                            const branch = selectedAccountData?.branches.find(b => b.id === id);
+                                            return <Chip key={id} label={branch?.name} />;
+                                        })}
+                                    </Box>
+                                )}
+                                disabled={isLoadingSchools}
+                            >
+                                {selectedAccountData?.branches.map((branch) => (
+                                    <MenuItem key={branch.id} value={branch.id}>
+                                        <Checkbox checked={localSelectedBranches.some(b => b.id === branch.id)} />
+                                        <ListItemText primary={branch.name} />
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </>
+                );
+            default:
+                return null;
         }
     };
 
@@ -189,6 +312,9 @@ const AccountSelectionPage = () => {
                 >
                     <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
                         <Step>
+                            <StepLabel>Select Role</StepLabel>
+                        </Step>
+                        <Step>
                             <StepLabel>Select School Account</StepLabel>
                         </Step>
                         <Step>
@@ -197,7 +323,9 @@ const AccountSelectionPage = () => {
                     </Stepper>
 
                     <Typography variant="h5" component="h6" gutterBottom textAlign="center">
-                        {activeStep === 0 ? 'Select Your School Account' : 'Select your School branch Branch(es)'}
+                        {activeStep === 0 ? 'Select Your Role' :
+                            activeStep === 1 ? 'Select Your School Account' :
+                                'Select your School Branch(es)'}
                     </Typography>
 
                     {error && (
@@ -206,80 +334,32 @@ const AccountSelectionPage = () => {
                         </Typography>
                     )}
 
-                    {activeStep === 0 ? (
-                        <FormControl fullWidth sx={{ mb: 3 }}>
-                            <InputLabel id="account-select-label">Account</InputLabel>
-                            <Select
-                                labelId="account-select-label"
-                                id="account-select"
-                                value={localSelectedAccount}
-                                onChange={handleAccountChange}
-                                input={<OutlinedInput label="Account" />}
-                                sx={{ bgcolor: theme.palette.background.default }}
-                                disabled={isLoadingAccounts || accounts.length === 0}
-                            >
-                                {accounts.map((account) => (
-                                    <MenuItem key={account.id} value={account.id}>
-                                        {account.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    ) : (
-                        <>
-                            <Typography variant="body1" mb={2}>
-                                Selected Account: <strong>{selectedAccountData?.name}</strong>
-                            </Typography>
-
-                            <FormControl fullWidth sx={{ mb: 3 }}>
-                                <InputLabel id="branch-select-label">Branches</InputLabel>
-                                <Select
-                                    labelId="branch-select-label"
-                                    id="branch-select"
-                                    multiple
-                                    value={localSelectedBranches.map(b => b.id)}
-                                    onChange={handleBranchChange}
-                                    input={<OutlinedInput label="Branches" />}
-                                    renderValue={(selected) => (
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                            {selected.map((id: string) => {
-                                                const branch = selectedAccountData?.branches.find(b => b.id === id);
-                                                return <Chip key={id} label={branch?.name} />;
-                                            })}
-                                        </Box>
-                                    )}
-                                    disabled={isLoadingSchools}
-                                >
-                                    {selectedAccountData?.branches.map((branch) => (
-                                        <MenuItem key={branch.id} value={branch.id}>
-                                            <Checkbox checked={localSelectedBranches.some(b => b.id === branch.id)} />
-                                            <ListItemText primary={branch.name} />
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </>
-                    )}
+                    {getStepContent(activeStep)}
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
                         <Button
                             variant="outlined"
                             onClick={activeStep === 0 ? () => navigate(-1) : handleBack}
-                            disabled={isLoadingAccounts || isLoadingSchools}
+                            disabled={isLoadingAccounts || isLoadingSchools || activeStep === 0}
                         >
                             {activeStep === 0 ? 'Cancel' : 'Back'}
                         </Button>
                         <Button
                             variant="contained"
-                            onClick={activeStep === 0 ? () => setActiveStep(1) : handleSubmit}
+                            onClick={
+                                activeStep === 0 ? () => localSelectedRole && setActiveStep(1) :
+                                    activeStep === 1 ? () => localSelectedAccount && setActiveStep(2) :
+                                        handleSubmit
+                            }
                             disabled={
-                                (activeStep === 0 && !localSelectedAccount) ||
-                                (activeStep === 1 && localSelectedBranches.length === 0) ||
+                                (activeStep === 0 && !localSelectedRole) ||
+                                (activeStep === 1 && !localSelectedAccount) ||
+                                (activeStep === 2 && localSelectedBranches.length === 0) ||
                                 isLoadingAccounts ||
                                 isLoadingSchools
                             }
                         >
-                            {activeStep === 0 ? 'Next' : 'Continue'}
+                            {activeStep === 2 ? 'Continue' : 'Next'}
                         </Button>
                     </Box>
                 </Box>

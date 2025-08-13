@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { useEnums } from '../../../hooks/useEnums';
 import { createApiClient } from '../../../utils/apiClient';
+import { ActionButton } from '../../../components/common/ActionButton';
 
 interface PermissionActions {
     [key: string]: boolean;
@@ -52,9 +53,81 @@ const PermissionTable: React.FC = () => {
         error
     } = useEnums({ fetchPermissionData: true });
 
+
+    /// Add these styles at the top of your file
+    const buttonContainerStyles = {
+        position: 'sticky',
+        bottom: 0,
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        padding: theme.spacing(2),
+        backgroundColor: theme.palette.background.default,
+        zIndex: theme.zIndex.appBar,
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+        borderTop: `1px solid ${theme.palette.divider}`,
+    };
+
+    const tableContainerStyles = {
+        maxWidth: 1500,
+        mx: 'auto',
+        mt: 2,
+        mb: 2, // Reduced margin bottom
+    };
+
     const [permissions, setPermissions] = useState<ParentModule[]>([]);
     const [currentUserId, setcurrentUserId] = useState<string | null>(null);
     const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    const handleSavePermissions = async () => {
+        if (!currentUserId) return;
+
+        setIsSaving(true);
+        try {
+            const apiClient = createApiClient();
+
+            // Transform the permissions state into the format your API expects
+            const permissionsToSave: UserPermission[] = [];
+
+            permissions.forEach(parentModule => {
+                parentModule.features.forEach(feature => {
+                    feature.availableActions.forEach(actionName => {
+                        const actionObj = enums.PermissionActions?.find(a => a.name.toLowerCase() === actionName);
+                        if (actionObj) {
+                            // Find the original user permission to get the correct resourceType
+                            const originalPermission = userPermissions.find(
+                                perm => perm.resource === feature.id && perm.action === actionObj.value
+                            );
+
+                            permissionsToSave.push({
+                                resource: feature.id,
+                                // Use the original resourceType if available, otherwise fall back to parent module ID
+                                resourceType: originalPermission?.resourceType ?? parseInt(parentModule.id),
+                                action: actionObj.value,
+                                value: feature.permissions[actionName] || false
+                            });
+                        }
+                    });
+                });
+            });
+
+            await apiClient.put(`/v1/users/${currentUserId}/permissions`, {
+                permissions: permissionsToSave
+            });
+
+            // Update userPermissions state to reflect the changes
+            setUserPermissions(permissionsToSave);
+            setHasChanges(false);
+
+            console.log('Permissions saved successfully');
+        } catch (error) {
+            console.error('Failed to save permissions:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     useEffect(() => {
         const fetchSubjects = async () => {
@@ -159,6 +232,28 @@ const PermissionTable: React.FC = () => {
             initializePermissionData();
         }
     }, [permissionGroups, enums, userPermissions]);
+
+    // Add this useEffect to track changes
+    useEffect(() => {
+        if (userPermissions.length > 0) {
+            // Compare current permissions with original userPermissions
+            const changesExist = permissions.some(parentModule =>
+                parentModule.features.some(feature =>
+                    Object.entries(feature.permissions).some(([actionName, isAllowed]) => {
+                        const actionObj = enums.PermissionActions?.find(a => a.name.toLowerCase() === actionName);
+                        if (!actionObj) return false;
+
+                        const originalPermission = userPermissions.find(
+                            perm => perm.resource === feature.id && perm.action === actionObj.value
+                        );
+
+                        return (originalPermission?.value || false) !== isAllowed;
+                    }
+                    )
+                ));
+            setHasChanges(changesExist);
+        }
+    }, [permissions, userPermissions, enums.PermissionActions]);
 
     const initializeFeaturePermissions = (permissionId: number, actions: string[]): PermissionActions => {
         const defaultPermissions: PermissionActions = {};
@@ -466,148 +561,170 @@ const PermissionTable: React.FC = () => {
     const maxActionColumns = Math.max(0, ...permissions.map(p => p.moduleActions.length));
 
     return (
-        <TableContainer component={Paper} sx={{ maxWidth: 1300, mx: 'auto', mt: 4, bgcolor: theme.palette.background.default }}>
-            <Table stickyHeader aria-label="permission table">
-                <TableHead>
-                    <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', minWidth: 200, bgcolor: theme.palette.background.default }}>
-                            <Box display="flex" alignItems="center">
-                                <Checkbox
-                                    checked={masterCheckboxState.checked}
-                                    indeterminate={masterCheckboxState.indeterminate}
-                                    onChange={(e) => handleMasterCheckboxChange(e.target.checked)}
-                                    sx={{ mr: 1, ...customCheckboxStyle }}
-                                />
-                                <Typography variant="caption" fontWeight="bold">
-                                    SELECT ALL PERMISSIONS
-                                </Typography>
-                            </Box>
-                        </TableCell>
-                        {Array.from({ length: maxActionColumns }).map((_, i) => (
-                            <TableCell
-                                key={`empty-header-col-${i}`}
-                                sx={{ bgcolor: theme.palette.background.default }}
-                            />
-                        ))}
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {permissions.map((parentModule, index) => {
-                        const { checked, indeterminate } = getParentCheckboxState(parentModule);
-                        return (
-                            <React.Fragment key={`module-${parentModule.id}`}>
-                                <TableRow sx={{ bgcolor: theme.palette.text.muted }}>
-                                    <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
-                                        <Box display="flex" alignItems="center" py={1}>
-                                            <Checkbox
-                                                checked={checked}
-                                                indeterminate={indeterminate}
-                                                onChange={(e) => handleParentCheckboxChange(parentModule.id, e.target.checked)}
-                                                sx={{ mr: 1, ...customCheckboxStyle }}
-                                            />
-                                            <Typography variant="h6" component="span" fontSize="1.05rem" sx={{ color: "#000000" }}>
-                                                {parentModule.name.toUpperCase()}
-                                            </Typography>
-                                        </Box>
-                                    </TableCell>
-                                    {parentModule.moduleActions.map((action, actionIndex) => {
-                                        const { checked: colChecked, indeterminate: colIndeterminate, disabled: colDisabled } = getModuleColumnCheckboxState(parentModule, action);
-                                        return (
-                                            <TableCell
-                                                key={`${parentModule.id}-${action}-header-${actionIndex}`}
-                                                align="center"
-                                                sx={{ fontWeight: '900', color: "#000000" }}
-                                            >
-                                                <Box display="flex" alignItems="center" justifyContent="center">
+        < Box sx={{ position: 'relative', minHeight: '80%' }}>
+            <Box sx={tableContainerStyles}>
+                <TableContainer component={Paper} sx={{ overflow: 'auto', mx: 'auto', maxHeight: 'calc(100vh - 270px)', bgcolor: theme.palette.background.default }}>
+                    <Table stickyHeader aria-label="permission table">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold', minWidth: 200, bgcolor: theme.palette.background.default }}>
+                                    <Box display="flex" alignItems="center">
+                                        <Checkbox
+                                            checked={masterCheckboxState.checked}
+                                            indeterminate={masterCheckboxState.indeterminate}
+                                            onChange={(e) => handleMasterCheckboxChange(e.target.checked)}
+                                            sx={{ mr: 1, ...customCheckboxStyle }}
+                                        />
+                                        <Typography variant="caption" fontWeight="bold">
+                                            SELECT ALL PERMISSIONS
+                                        </Typography>
+                                    </Box>
+                                </TableCell>
+                                {Array.from({ length: maxActionColumns }).map((_, i) => (
+                                    <TableCell
+                                        key={`empty-header-col-${i}`}
+                                        sx={{ bgcolor: theme.palette.background.default }}
+                                    />
+                                ))}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {permissions.map((parentModule, index) => {
+                                const { checked, indeterminate } = getParentCheckboxState(parentModule);
+                                return (
+                                    <React.Fragment key={`module-${parentModule.id}`}>
+                                        <TableRow sx={{ bgcolor: theme.palette.text.muted }}>
+                                            <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                                <Box display="flex" alignItems="center" py={1}>
                                                     <Checkbox
-                                                        checked={colChecked}
-                                                        indeterminate={colIndeterminate}
-                                                        onChange={(e) => handleModuleColumnCheckboxChange(parentModule.id, action, e.target.checked)}
-                                                        disabled={colDisabled}
-                                                        sx={{ mr: 0.5, ...customCheckboxStyle }}
+                                                        checked={checked}
+                                                        indeterminate={indeterminate}
+                                                        onChange={(e) => handleParentCheckboxChange(parentModule.id, e.target.checked)}
+                                                        sx={{ mr: 1, ...customCheckboxStyle }}
                                                     />
-                                                    <Typography variant="body2" textTransform="capitalize">
-                                                        {action}
+                                                    <Typography variant="h6" component="span" fontSize="1.05rem" sx={{ color: "#000000" }}>
+                                                        {parentModule.name.toUpperCase()}
                                                     </Typography>
                                                 </Box>
                                             </TableCell>
-                                        );
-                                    })}
-                                    {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
-                                        <TableCell
-                                            key={`empty-${parentModule.id}-${i}`}
-                                        />
-                                    ))}
-                                </TableRow>
-
-                                {parentModule.features.map(feature => {
-                                    const featureRowChecked = isFeatureRowChecked(feature, parentModule.moduleActions);
-                                    const featureRowIndeterminate = isFeatureRowIndeterminate(feature, parentModule.moduleActions);
-                                    return (
-                                        <TableRow key={`feature-${parentModule.id}-${feature.id}`}>
-                                            <TableCell sx={{ pl: 6 }}>
-                                                <Box display="flex" alignItems="center">
-                                                    <Checkbox
-                                                        checked={featureRowChecked}
-                                                        indeterminate={featureRowIndeterminate}
-                                                        onChange={(e) => handleFeatureRowCheckboxChange(parentModule.id, feature.id, e.target.checked)}
-                                                        sx={{ mr: 1, ...customCheckboxStyle }}
-                                                    />
-                                                    <Typography variant="body2">{feature.name}</Typography>
-                                                </Box>
-                                            </TableCell>
                                             {parentModule.moduleActions.map((action, actionIndex) => {
-                                                // Only render checkbox if this action exists in feature's availableActions
-                                                if (!feature.availableActions.includes(action)) {
-                                                    return (
-                                                        <TableCell
-                                                            key={`empty-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
-                                                            align="center"
-                                                        >
-                                                            <Box width={48} height={48} />
-                                                        </TableCell>
-                                                    );
-                                                }
+                                                const { checked: colChecked, indeterminate: colIndeterminate, disabled: colDisabled } = getModuleColumnCheckboxState(parentModule, action);
                                                 return (
                                                     <TableCell
-                                                        key={`action-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
+                                                        key={`${parentModule.id}-${action}-header-${actionIndex}`}
                                                         align="center"
+                                                        sx={{ fontWeight: '900', color: "#000000" }}
                                                     >
-                                                        <Checkbox
-                                                            checked={feature.permissions[action]}
-                                                            onChange={(e) => handleFeatureActionCheckboxChange(
-                                                                parentModule.id,
-                                                                feature.id,
-                                                                action,
-                                                                e.target.checked
-                                                            )}
-                                                            sx={customCheckboxStyle}
-                                                        />
+                                                        <Box display="flex" alignItems="center" justifyContent="center">
+                                                            <Checkbox
+                                                                checked={colChecked}
+                                                                indeterminate={colIndeterminate}
+                                                                onChange={(e) => handleModuleColumnCheckboxChange(parentModule.id, action, e.target.checked)}
+                                                                disabled={colDisabled}
+                                                                sx={{ mr: 0.5, ...customCheckboxStyle }}
+                                                            />
+                                                            <Typography variant="body2" textTransform="capitalize">
+                                                                {action}
+                                                            </Typography>
+                                                        </Box>
                                                     </TableCell>
                                                 );
                                             })}
                                             {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
                                                 <TableCell
-                                                    key={`empty-feature-${parentModule.id}-${feature.id}-${i}`}
+                                                    key={`empty-${parentModule.id}-${i}`}
                                                 />
                                             ))}
                                         </TableRow>
-                                    );
-                                })}
 
-                                {index < permissions.length - 1 && (
-                                    <TableRow key={`divider-${parentModule.id}`}>
-                                        <TableCell colSpan={maxActionColumns + 1} sx={{ p: 0 }}>
-                                            <Divider sx={{ my: 1, backgroundColor: theme.palette.divider }} />
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </TableBody>
-            </Table>
-        </TableContainer>
+                                        {parentModule.features.map(feature => {
+                                            const featureRowChecked = isFeatureRowChecked(feature, parentModule.moduleActions);
+                                            const featureRowIndeterminate = isFeatureRowIndeterminate(feature, parentModule.moduleActions);
+                                            return (
+                                                <TableRow key={`feature-${parentModule.id}-${feature.id}`}>
+                                                    <TableCell sx={{ pl: 6 }}>
+                                                        <Box display="flex" alignItems="center">
+                                                            <Checkbox
+                                                                checked={featureRowChecked}
+                                                                indeterminate={featureRowIndeterminate}
+                                                                onChange={(e) => handleFeatureRowCheckboxChange(parentModule.id, feature.id, e.target.checked)}
+                                                                sx={{ mr: 1, ...customCheckboxStyle }}
+                                                            />
+                                                            <Typography variant="body2">{feature.name}</Typography>
+                                                        </Box>
+                                                    </TableCell>
+                                                    {parentModule.moduleActions.map((action, actionIndex) => {
+                                                        // Only render checkbox if this action exists in feature's availableActions
+                                                        if (!feature.availableActions.includes(action)) {
+                                                            return (
+                                                                <TableCell
+                                                                    key={`empty-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
+                                                                    align="center"
+                                                                >
+                                                                    <Box width={48} height={48} />
+                                                                </TableCell>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <TableCell
+                                                                key={`action-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
+                                                                align="center"
+                                                            >
+                                                                <Checkbox
+                                                                    checked={feature.permissions[action]}
+                                                                    onChange={(e) => handleFeatureActionCheckboxChange(
+                                                                        parentModule.id,
+                                                                        feature.id,
+                                                                        action,
+                                                                        e.target.checked
+                                                                    )}
+                                                                    sx={customCheckboxStyle}
+                                                                />
+                                                            </TableCell>
+                                                        );
+                                                    })}
+                                                    {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
+                                                        <TableCell
+                                                            key={`empty-feature-${parentModule.id}-${feature.id}-${i}`}
+                                                        />
+                                                    ))}
+                                                </TableRow>
+                                            );
+                                        })}
+
+                                        {index < permissions.length - 1 && (
+                                            <TableRow key={`divider-${parentModule.id}`}>
+                                                <TableCell colSpan={maxActionColumns + 1} sx={{ p: 0 }}>
+                                                    <Divider sx={{ my: 1, backgroundColor: theme.palette.divider }} />
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
+            <Box sx={buttonContainerStyles}>
+                <ActionButton
+                    onClick={handleSavePermissions}
+                    loading={isSaving}
+                    disabled={isSaving || !hasChanges}
+                    variant="contained"
+                    sx={{
+                        minWidth: 120,
+                        fontWeight: 'bold',
+                        textTransform: 'none',
+                        fontSize: '1rem',
+                        backgroundColor: theme.palette.common.white,
+                        mr: 2,
+                    }}
+                >
+                    Save Permissions
+                </ActionButton>
+            </Box>
+        </Box>
     );
 };
 

@@ -104,10 +104,10 @@ const Index = () => {
                 startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
-                Create Staff
+                Create User
             </NavigationButton>
             <ReusableTable
-                title='Staff List'
+                title='Users List'
                 columns={columns}
                 data={userData}
                 defaultRowsPerPage={25}

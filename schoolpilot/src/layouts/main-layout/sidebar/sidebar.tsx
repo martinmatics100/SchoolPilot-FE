@@ -45,7 +45,20 @@ const groupIcons: GroupIcons = {
 
 const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     const theme = useTheme();
-    const { role: userRoleFromContext } = useAuth();
+    const { role, updateRole } = useAuth();
+    const [forceUpdate, setForceUpdate] = useState(0);
+
+    // Listen for role changes
+    useEffect(() => {
+        const handleRoleChange = () => {
+            setForceUpdate(prev => prev + 1); // Force re-render
+        };
+
+        window.addEventListener('localStorageRoleUpdated', handleRoleChange);
+        return () => {
+            window.removeEventListener('localStorageRoleUpdated', handleRoleChange);
+        };
+    }, []);
 
     // No need for a separate state `currentRole` if `userRoleFromContext` is stable enough.
     // The `useAuth` hook already provides a reactive value.
@@ -56,13 +69,10 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     // Use useMemo to memoize this computation, so it only re-runs if userRoleFromContext changes.
     const filteredNavItems = useMemo(() => {
         return navItems.filter((item) => {
-            if (!userRoleFromContext) {
-                return false; // If no role is set, show no specific role items
-            }
-            // Check if the current user's role is included in the item's allowed roles
-            return item.roles.includes(userRoleFromContext as UserRoles);
+            if (!role) return false;
+            return item.roles.includes(role);
         });
-    }, [userRoleFromContext]); // Dependency: userRoleFromContext
+    }, [role, forceUpdate]); // Re-run when localStorage role changes
 
     // Group items. This also needs to be memoized because it's derived from filteredNavItems.
     const groupedNavItems = useMemo(() => {

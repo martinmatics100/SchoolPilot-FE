@@ -23,10 +23,12 @@ const navItems: INavbarItem[] = [
 
     // User Management
 
+    //https://martinmatics100.github.io/My_Portfolio_Website/
+
     {
         id: 2,
-        path: '/app/staffs',
-        title: 'Staffs',
+        path: '/app/users',
+        title: 'Users',
         icon: 'mingcute:home-1-fill',
         active: true,
         group: 'MANAGMENT',
