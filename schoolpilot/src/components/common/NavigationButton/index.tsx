@@ -1,15 +1,16 @@
-// Create a new file at: src/components/common/navigation-button.tsx
 import * as React from 'react';
 import Button from '@mui/material/Button';
 import { Link } from 'react-router-dom';
 import { type SxProps } from '@mui/material/styles';
 
 interface NavigationButtonProps {
-    to: string;
+    to?: string; // Made optional to allow buttons without navigation
     children?: React.ReactNode;
     startIcon?: React.ReactNode;
     variant?: 'text' | 'outlined' | 'contained';
     sx?: SxProps;
+    onClick?: () => void; // Added onClick prop
+    disabled?: boolean; // Added disabled prop
 }
 
 export const NavigationButton: React.FC<NavigationButtonProps> = ({
@@ -17,20 +18,25 @@ export const NavigationButton: React.FC<NavigationButtonProps> = ({
     children,
     startIcon,
     variant = 'contained',
-    sx = {}
+    sx = {},
+    onClick,
+    disabled = false, // Default to false
 }) => {
     return (
         <Button
-            component={Link}
+            component={to ? Link : 'button'} // Use Link if 'to' is provided, else use 'button'
             to={to}
             variant={variant}
             startIcon={startIcon}
+            onClick={onClick}
+            disabled={disabled}
             sx={{
                 marginBottom: 2,
                 marginTop: 5,
-                maxHeight: "3rem",
-                maxWidth: "100%",
-                ...sx
+                maxHeight: '10rem',
+                maxWidth: '100%',
+                fontSize: '1rem',
+                ...sx,
             }}
         >
             {children}

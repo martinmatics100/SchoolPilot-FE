@@ -115,7 +115,7 @@ export const stone: Color = {
     600: '#87888C',
     700: '#2C2D33',
     800: "#ffffff",
-    900: '#181818',
+    900: '#12181e',
 };
 
 export const white: Color = {

@@ -28,6 +28,7 @@ const CreateStaffPage = lazy<() => ReactElement>(() => import('../pages/admin-pa
 const CreateStudentPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/students/CreateStudent'));
 const CreatSchoolAccountPage = lazy<() => ReactElement>(() => import('../../src/pages/authentication/create-school/index'));
 const PermissionsPage = lazy(() => import('../../src/pages/admin-pages/permission-page/index'));
+const ActivityLogPage = lazy(() => import('../pages/admin-pages/audit-trails/activityLog'));
 
 const AdminStudentListPage = lazy<() => ReactElement>(() => import('../../src/pages/admin-pages/students/index'));
 
@@ -126,6 +127,14 @@ const routes: RouteObject[] = [
                         element: (
                             <ErrorBoundary>
                                 <PermissionsPage />
+                            </ErrorBoundary>
+                        ),
+                    },
+                    {
+                        path: 'audit',
+                        element: (
+                            <ErrorBoundary>
+                                <ActivityLogPage />
                             </ErrorBoundary>
                         ),
                     },

@@ -137,7 +137,7 @@ export const parseJwt = (token: string): DecodedToken | null => {
     }
 };
 
-const API_BASE_URL = 'https://localhost:7029/api';
+export const API_BASE_URL = 'https://localhost:7029/api';
 
 export const createApiClient = ({
     selectedAccount,

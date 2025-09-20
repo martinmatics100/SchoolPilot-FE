@@ -1,4 +1,3 @@
-// src/pages/account-selection/index.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
@@ -10,9 +9,6 @@ import {
     FormControl,
     InputLabel,
     OutlinedInput,
-    Chip,
-    ListItemText,
-    Checkbox,
     useTheme,
     Stepper,
     Step,
@@ -39,7 +35,7 @@ const AccountSelectionPage = () => {
     } = useAuth();
 
     const [localSelectedAccount, setLocalSelectedAccount] = useState(selectedAccount || '');
-    const [localSelectedBranches, setLocalSelectedBranches] = useState<LocationModel[]>(selectedBranches || []);
+    const [localSelectedBranches, setLocalSelectedBranches] = useState<LocationModel | null>(null);
     const [localSelectedRole, setLocalSelectedRole] = useState<string>('');
     const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
@@ -62,7 +58,6 @@ const AccountSelectionPage = () => {
         initializeEnums();
     }, []);
 
-    // Extract available roles from access token
     useEffect(() => {
         if (accessToken) {
             try {
@@ -81,7 +76,6 @@ const AccountSelectionPage = () => {
         }
     }, [accessToken]);
 
-    // Update the fetchAccounts function
     const fetchAccounts = async () => {
         if (userId && activeStep >= 1 && localSelectedRole && accounts.length === 0) {
             setIsLoadingAccounts(true);
@@ -89,7 +83,7 @@ const AccountSelectionPage = () => {
             try {
                 const response = await apiClient.getAccounts({
                     userId,
-                    role: localSelectedRole, // Use the selected role
+                    role: localSelectedRole,
                     page: 1,
                     pageLength: 100
                 });
@@ -108,11 +102,9 @@ const AccountSelectionPage = () => {
         }
     };
 
-    // Update the dependencies array
     useEffect(() => {
         fetchAccounts();
-    }, [userId, apiClient, accounts.length, setAuthAccounts, activeStep, localSelectedRole]); // Added localSelectedRole
-
+    }, [userId, apiClient, accounts.length, setAuthAccounts, activeStep, localSelectedRole]);
 
     useEffect(() => {
         const fetchSchools = async () => {
@@ -139,8 +131,8 @@ const AccountSelectionPage = () => {
                         setAuthAccounts(updatedAccounts);
 
                         const defaultSchool = fetchedSchools.find(s => s.isDefault);
-                        if (defaultSchool) {
-                            setLocalSelectedBranches(defaultSchool.branches);
+                        if (defaultSchool && defaultSchool.branches.length > 0) {
+                            setLocalSelectedBranches(defaultSchool.branches[0]);
                         }
                     } catch (err) {
                         console.error('Failed to fetch schools:', err);
@@ -167,27 +159,26 @@ const AccountSelectionPage = () => {
 
     const handleAccountChange = (event: any) => {
         setLocalSelectedAccount(event.target.value);
+        setLocalSelectedBranches(null);
         setActiveStep(2);
     };
 
     const handleBranchChange = (event: any) => {
-        const selectedIds = event.target.value as string[];
-        const selected = selectedAccountData?.branches.filter(branch =>
-            selectedIds.includes(branch.id)
-        ) || [];
+        const selectedId = event.target.value as string;
+        const selected = selectedAccountData?.branches.find(branch => branch.id === selectedId) || null;
         setLocalSelectedBranches(selected);
     };
 
     const handleBack = () => {
         setActiveStep(prev => prev - 1);
         if (activeStep === 2) {
-            setLocalSelectedBranches([]);
+            setLocalSelectedBranches(null);
         }
     };
 
     const handleSubmit = () => {
-        if (localSelectedAccount && localSelectedBranches.length > 0) {
-            setAccountSelection(localSelectedAccount, localSelectedBranches);
+        if (localSelectedAccount && localSelectedBranches) {
+            setAccountSelection(localSelectedAccount, [localSelectedBranches]);
             navigate('/app/dashboard', { replace: true });
         }
     };
@@ -244,30 +235,19 @@ const AccountSelectionPage = () => {
                         <Typography variant="body1" mb={2}>
                             Selected Role: <strong>{localSelectedRole}</strong>
                         </Typography>
-
                         <FormControl fullWidth sx={{ mb: 3 }}>
-                            <InputLabel id="branch-select-label">Branches</InputLabel>
+                            <InputLabel id="branch-select-label">Branch</InputLabel>
                             <Select
                                 labelId="branch-select-label"
                                 id="branch-select"
-                                multiple
-                                value={localSelectedBranches.map(b => b.id)}
+                                value={localSelectedBranches?.id || ''}
                                 onChange={handleBranchChange}
-                                input={<OutlinedInput label="Branches" />}
-                                renderValue={(selected) => (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                        {selected.map((id: string) => {
-                                            const branch = selectedAccountData?.branches.find(b => b.id === id);
-                                            return <Chip key={id} label={branch?.name} />;
-                                        })}
-                                    </Box>
-                                )}
+                                input={<OutlinedInput label="Branch" />}
                                 disabled={isLoadingSchools}
                             >
                                 {selectedAccountData?.branches.map((branch) => (
                                     <MenuItem key={branch.id} value={branch.id}>
-                                        <Checkbox checked={localSelectedBranches.some(b => b.id === branch.id)} />
-                                        <ListItemText primary={branch.name} />
+                                        {branch.name}
                                     </MenuItem>
                                 ))}
                             </Select>
@@ -318,14 +298,14 @@ const AccountSelectionPage = () => {
                             <StepLabel>Select School Account</StepLabel>
                         </Step>
                         <Step>
-                            <StepLabel>Select School Branches</StepLabel>
+                            <StepLabel>Select School Branch</StepLabel>
                         </Step>
                     </Stepper>
 
                     <Typography variant="h5" component="h6" gutterBottom textAlign="center">
                         {activeStep === 0 ? 'Select Your Role' :
                             activeStep === 1 ? 'Select Your School Account' :
-                                'Select your School Branch(es)'}
+                                'Select Your School Branch'}
                     </Typography>
 
                     {error && (
@@ -354,7 +334,7 @@ const AccountSelectionPage = () => {
                             disabled={
                                 (activeStep === 0 && !localSelectedRole) ||
                                 (activeStep === 1 && !localSelectedAccount) ||
-                                (activeStep === 2 && localSelectedBranches.length === 0) ||
+                                (activeStep === 2 && !localSelectedBranches) ||
                                 isLoadingAccounts ||
                                 isLoadingSchools
                             }

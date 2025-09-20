@@ -1,4 +1,3 @@
-// src/components/common/PhoneNumberInput.tsx
 import React from 'react';
 import {
     Box,
@@ -7,33 +6,45 @@ import {
     TextField,
     InputLabel,
     FormControl,
-    FormHelperText
+    FormHelperText,
+    Autocomplete,
+    InputAdornment
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { getPhoneTypeConfig } from '../../../utils/phoneTypeConfig';
+import { countries, type ICountry } from 'countries-list';
+import ReactCountryFlag from 'react-country-flag';
+import { ISO3166Countries, findCountryByNumericCode } from '../../../utils/iso3166Countries';
+
+// Extend ICountry to include emoji
+interface ExtendedCountry extends ICountry {
+    emoji: string; // Add emoji property for runtime data
+}
 
 interface Country {
     name: string;
-    code: string;
-    dialCode: string;
-    flag: string;
+    code: string; // ISO country code (e.g., "US")
+    dialCode: string; // Dial code (e.g., "+1")
+    numericCode: string; // Phone numeric code (e.g., "1")
+    isoNumericCode: string; // ISO 3166-1 numeric code (e.g., "840")
+    flag: string; // Emoji fallback, but we use SVG
 }
 
 interface PhoneNumberInputProps {
     phoneType: string;
-    countryCode: string;
+    country: string; // ISO 3166-1 numeric code as string (e.g., "840" for US)
     number: string;
     extension: string;
     onChange: (data: {
         phoneType: string;
-        countryCode: string;
+        country: string; // ISO 3166-1 numeric code as string
         number: string;
         extension: string;
     }) => void;
     errors?: {
         phoneType?: string;
-        countryCode?: string;
+        country?: string;
         number?: string;
         extension?: string;
     };
@@ -45,7 +56,7 @@ interface PhoneNumberInputProps {
 
 const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
     phoneType,
-    countryCode,
+    country,
     number,
     extension,
     onChange,
@@ -71,18 +82,23 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
         });
     }, [enums?.PhoneType]);
 
-    // Prepare country options
-    const countries: Country[] = React.useMemo(() => {
-        return (enums?.Country || []).map((c) => {
-            const [name, code, dialCode, flag] = (c.displayName || "").split("|");
+    // Prepare country options using countries-list and ISO3166 for lookup
+    const countriesData: Country[] = React.useMemo(() => {
+        return ISO3166Countries.map(isoCountry => {
+            const countryData = countries[isoCountry.TwoLetterCode as keyof typeof countries] as ExtendedCountry;
             return {
-                name: name || c.name,
-                code: code || c.name,
-                dialCode: dialCode || '',
-                flag: flag || ''
+                name: isoCountry.Name,
+                code: isoCountry.TwoLetterCode,
+                dialCode: countryData ? `+${countryData.phone}` : '',
+                numericCode: countryData ? countryData.phone.toString() : '',
+                isoNumericCode: isoCountry.NumericCode,
+                flag: countryData ? countryData.emoji : ''
             };
         });
-    }, [enums?.Country]);
+    }, []);
+
+    // Find the selected country for rendering the flag in the input
+    const selectedCountry = countriesData.find(c => c.isoNumericCode === country) || null;
 
     return (
         <Box
@@ -120,7 +136,7 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
 
                         onChange({
                             phoneType: newType,
-                            countryCode,
+                            country,
                             number,
                             extension: newConfig.requiresExtension ? extension : ''
                         });
@@ -135,55 +151,100 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                 {errors.phoneType && <FormHelperText>{errors.phoneType}</FormHelperText>}
             </FormControl>
 
-            {/* Country Select */}
+            {/* Country Autocomplete */}
             <FormControl
                 size="small"
-                error={!!errors.countryCode}
+                error={!!errors.country}
                 sx={{
                     minWidth: 180,
                     flex: isMobile ? '1 1 100%' : '2 1 0'
                 }}
                 fullWidth={isMobile}
             >
-                <InputLabel>Country</InputLabel>
-                <Select
-                    value={countryCode}
-                    label="Country"
-                    onChange={(e) =>
+                <Autocomplete
+                    options={countriesData}
+                    getOptionLabel={(option) => `${option.name}${option.dialCode ? ` (${option.dialCode}, ${option.isoNumericCode})` : ''}`}
+                    renderOption={(props, option) => (
+                        <li {...props}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                {option.code ? (
+                                    <ReactCountryFlag
+                                        countryCode={option.code}
+                                        svg
+                                        style={{
+                                            width: '20px',
+                                            height: '15px',
+                                            marginRight: '8px'
+                                        }}
+                                    />
+                                ) : (
+                                    <span style={{ width: '20px', marginRight: '8px' }}>{option.flag || ''}</span>
+                                )}
+                                {option.name} {option.dialCode ? `(${option.isoNumericCode})` : ''}
+                            </div>
+                        </li>
+                    )}
+                    value={selectedCountry}
+                    onChange={(event, newValue) => {
                         onChange({
                             phoneType,
-                            countryCode: e.target.value,
+                            country: newValue ? newValue.isoNumericCode : '', // Send ISO 3166-1 numeric code
                             number,
                             extension
-                        })
-                    }
-                >
-                    {countries.map((country) => (
-                        <MenuItem key={country.code} value={country.code}>
-                            {`${country.flag} ${country.name} (${country.dialCode})`}
-                        </MenuItem>
-                    ))}
-                </Select>
-                {errors.countryCode && <FormHelperText>{errors.countryCode}</FormHelperText>}
+                        });
+                    }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Country"
+                            placeholder="Select a country"
+                            size="small"
+                            error={!!errors.country}
+                            helperText={errors.country}
+                            InputProps={{
+                                ...params.InputProps,
+                                startAdornment: selectedCountry?.code ? (
+                                    <InputAdornment position="start">
+                                        <ReactCountryFlag
+                                            countryCode={selectedCountry.code}
+                                            svg
+                                            style={{
+                                                width: '20px',
+                                                height: '15px',
+                                                marginRight: '4px'
+                                            }}
+                                        />
+                                    </InputAdornment>
+                                ) : params.InputProps.startAdornment
+                            }}
+                        />
+                    )}
+                    noOptionsText="No countries found"
+                />
             </FormControl>
 
             {/* Phone Number */}
             <TextField
                 label="Phone"
                 value={number}
+                type="tel"
                 size="small"
                 sx={{
                     minWidth: 180,
                     flex: isMobile ? '1 1 100%' : '2 1 0'
                 }}
-                onChange={(e) =>
+                onChange={(e) => {
+                    const numericValue = e.target.value.replace(/[^0-9]/g, ''); // Only allow numbers
                     onChange({
                         phoneType,
-                        countryCode,
-                        number: e.target.value,
+                        country,
+                        number: numericValue,
                         extension
-                    })
-                }
+                    });
+                }}
+                inputProps={{
+                    pattern: '[0-9]*' // Enforce numeric input for browsers
+                }}
                 error={!!errors.number}
                 helperText={errors.number}
                 fullWidth={isMobile}
@@ -208,7 +269,7 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                         if (currentConfig.requiresExtension) {
                             onChange({
                                 phoneType,
-                                countryCode,
+                                country,
                                 number,
                                 extension: e.target.value
                             });

@@ -3,79 +3,117 @@ import BackButton from '../../../components/common/backButton';
 import DynamicForm from '../../../components/common/my-form';
 import { type FormField } from '../../../components/common/my-form';
 import { useEnums } from '../../../hooks/useEnums';
-import { createApiClient } from '../../../utils/apiClient';
+import { useAuth } from '../../../context';
 import AlertMessage from '../../../components/common/message-display/message';
 import { NavigationButton } from '../../../components/common/NavigationButton';
+import { API_BASE_URL } from '../../../utils/apiClient';
 
 const CreateStudent = () => {
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
+    const { apiClient, selectedAccount } = useAuth();
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [subjects, setSubjects] = useState<Array<{ id: string, subjectName: string }>>([]);
+    const [branches, setBranches] = useState<Array<{ id: string, name: string }>>([]);
     const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
+    const [isLoadingBranches, setIsLoadingBranches] = useState(true);
     const [selectedDesignation, setSelectedDesignation] = useState<string | null>(null);
     const [alertMessage, setAlertMessage] = useState<{
         frontendMessage?: { text: string; severity: 'error' | 'warning' | 'info' | 'success' } | null;
         backendMessage?: { text: string; severity: 'error' | 'warning' | 'info' | 'success' } | null;
     }>({ frontendMessage: null, backendMessage: null });
 
+    useEffect(() => {
+        const fetchBranches = async () => {
+            if (selectedAccount) {
+                setIsLoadingBranches(true);
+                setAlertMessage({ frontendMessage: null, backendMessage: null });
+                try {
+                    const response = await apiClient.getDefaultSchools(selectedAccount);
+                    const fetchedBranches = response.regularSchools.flatMap(school =>
+                        school.locations.map((location: any) => ({
+                            id: location.id,
+                            name: location.name
+                        }))
+                    );
+                    setBranches(fetchedBranches);
+                } catch (err) {
+                    console.error('Failed to fetch branches:', err);
+                    setAlertMessage({
+                        frontendMessage: {
+                            text: 'Failed to load branches. Please try again later.',
+                            severity: 'error'
+                        }
+                    });
+                } finally {
+                    setIsLoadingBranches(false);
+                }
+            }
+        };
+        fetchBranches();
+    }, [apiClient, selectedAccount]);
+
     const handleSubmit = async (data: any) => {
         try {
-            // Show loading message
             setAlertMessage({
                 frontendMessage: {
-                    text: 'Submitting staff data...',
+                    text: 'Submitting student data...',
                     severity: 'info'
                 }
             });
 
-            if (data.subjectsTaught && Array.isArray(data.subjectsTaught)) {
-                data.subjectsTaught = data.subjectsTaught.map((id: string) => id);
-            }
+            // Parse enum values to integers
+            data.gender = parseInt(data.gender);
+            data.nationality = parseInt(data.nationality);
 
-            if (data.phone && typeof data.phone === 'object') {
-                data.phone = {
-                    ...data.phone,
-                    phoneType: parseInt(data.phone.phoneType)
-                };
-            }
-
-            console.log('Staff data ready for API:', data);
-
-            // Simulate API call (replace with actual API call when backend is ready)
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Show success message
-            setAlertMessage({
-                frontendMessage: {
-                    text: 'Staff created successfully!',
-                    severity: 'success'
+            // Build the payload to match backend Request structure
+            const payload = {
+                Student: {
+                    FirstName: data.firstName,
+                    LastName: data.lastName,
+                    DateOfBirth: data.dateOfBirth,
+                    Gender: data.gender,
+                    Nationality: data.nationality,
+                    Address: data.address,
+                    Phone: data.phone,
+                    StudentLocation: data.locationId
                 }
-            });
-        } catch (error) {
+            };
+
+            console.log('Student data ready for API:', payload);
+
+            const response = await apiClient.post('/v1/students/create', payload);
+
+            // Assuming success if response has StudentId
+            if (response.StudentId) {
+                setAlertMessage({
+                    frontendMessage: {
+                        text: 'Student created successfully!',
+                        severity: 'success'
+                    }
+                });
+            } else {
+                throw new Error('Unexpected response from server');
+            }
+        } catch (error: any) {
             console.error('Error submitting form:', error);
             setAlertMessage({
                 frontendMessage: {
-                    text: 'Failed to create staff. Please try again.',
+                    text: 'Failed to create student. Please try again.',
                     severity: 'error'
                 },
-                // When backend is ready, you can add backend messages like this:
-                // backendMessage: {
-                //     text: error.response?.data?.message || 'Server error occurred',
-                //     severity: 'error'
-                // }
+                backendMessage: error.message ? {
+                    text: error.message,
+                    severity: 'error'
+                } : null
             });
         }
     };
 
     useEffect(() => {
-        if (!isLoading && enums) {
+        if (!isLoading && !isLoadingBranches && enums) {
             const fields: FormField[] = [
                 { name: 'firstName', label: 'First Name', type: 'text', required: true, colSpan: 1 },
                 { name: 'lastName', label: 'Last Name', type: 'text', required: true, colSpan: 1 },
-                {
-                    name: 'email', label: 'Email Address', type: 'email', required: false,
-                    infoText: 'This will be used to send notifications and informations', colSpan: 1
-                },
                 { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, colSpan: 1 },
                 {
                     name: 'gender',
@@ -99,35 +137,19 @@ const CreateStudent = () => {
                         label: n.displayName || n.name
                     })) || []
                 },
+                {
+                    name: 'locationId',
+                    label: 'Choose School Branch',
+                    infoText: 'This is to assign the student to the associated school location',
+                    type: 'select',
+                    required: true,
+                    colSpan: 1,
+                    options: branches.map(b => ({
+                        value: b.id,
+                        label: b.name
+                    }))
+                },
                 { name: 'address', label: 'Home Address', type: 'address', required: false, colSpan: 3 },
-                { name: 'parentsFirstName', label: 'Parent/Guardian First Name', type: 'text', required: false, colSpan: 1 },
-                { name: 'parentLastName', label: 'Parent/Guardian Last Name', type: 'text', required: false, colSpan: 1 },
-                {
-                    name: 'parentEmail', label: 'Parent/Guardian Email Address', type: 'email', required: false,
-                    infoText: 'This will be used to send notifications and informations to the parent/guardian', colSpan: 1
-                },
-                {
-                    name: 'phone',
-                    label: 'Parent/Guardian Contact Phone',
-                    type: 'phone',
-                    required: false,
-                    colSpan: 3,
-                    errorMessage: 'Please provide a valid phone number',
-                    extraProps: {
-                        enums: {
-                            PhoneType: enums.PhoneType,
-                            Country: enums.Country
-                        }
-                    }
-                },
-                {
-                    name: 'notes',
-                    label: 'Additional Notes',
-                    type: 'multiline',
-                    required: false,
-                    rows: 4,
-                    colSpan: 2
-                },
                 {
                     name: 'profilePicture',
                     label: 'Profile Picture',
@@ -140,16 +162,14 @@ const CreateStudent = () => {
 
             setFormFields(fields);
         }
-    }, [enums, isLoading, selectedDesignation, subjects]);
+    }, [enums, isLoading, isLoadingBranches, selectedDesignation, subjects, branches]);
 
-    if (isLoading && formFields.length === 0) {
+    if (isLoading || isLoadingBranches || formFields.length === 0) {
         return <div>Loading form...</div>;
     }
 
-
     return (
         <div>
-            {/* Alert Message Component */}
             <AlertMessage
                 frontendMessage={alertMessage.frontendMessage}
                 backendMessage={alertMessage.backendMessage}
@@ -159,7 +179,6 @@ const CreateStudent = () => {
             <BackButton />
             <NavigationButton
                 to=""
-                // startIcon={<AddIcon />}
                 sx={{ alignContent: 'flex-end' }}
             >
                 Go to Student List
@@ -172,7 +191,7 @@ const CreateStudent = () => {
                 columns={3}
             />
         </div>
-    )
-}
+    );
+};
 
-export default CreateStudent
+export default CreateStudent;

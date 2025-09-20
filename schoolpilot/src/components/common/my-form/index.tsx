@@ -239,7 +239,7 @@ const DynamicForm: React.FC<FormProps> = ({
                     if (!phone.phoneType) {
                         newErrors[`${field.name}.phoneType`] = 'Phone type is required';
                     }
-                    if (!phone.countryCode) {
+                    if (!phone.country) {
                         newErrors[`${field.name}.countryCode`] = 'Country is required';
                     }
                     const phoneTypeId = parseInt(phone.phoneType);
@@ -247,8 +247,20 @@ const DynamicForm: React.FC<FormProps> = ({
 
                 if (field.type === 'address' && typeof formData[field.name] === 'object') {
                     const address = formData[field.name];
-                    if (!address.addressLine) {
-                        newErrors[field.name] = field.errorMessage || 'Address is required';
+                    if (!address.addressLine1) {
+                        newErrors[`${field.name}.addressLine1`] = 'Address line is required';
+                    }
+                    // if (!address.city) {
+                    //     newErrors[`${field.name}.city`] = 'City is required';
+                    // }
+                    if (!address.postalCode) {
+                        newErrors[`${field.name}.postalCode`] = 'Postal code is required';
+                    }
+                    if (!address.country) {
+                        newErrors[`${field.name}.country`] = 'Country is required';
+                    }
+                    if (!address.state) {
+                        newErrors[`${field.name}.state`] = 'State is required';
                     }
                 }
             }
@@ -537,20 +549,20 @@ const DynamicForm: React.FC<FormProps> = ({
                         </FormLabel>
                         <AddressInput
                             {...(value || {
-                                addressLine: '',
-                                city: '',
+                                addressLine1: '',
+                                // city: '',
                                 postalCode: '',
                                 country: '',
                                 state: ''
                             })}
                             onChange={handleAddressChange(field.name)}
-                            errors={fieldError ? {
-                                addressLine: fieldError,
-                                city: fieldError,
-                                postalCode: fieldError,
-                                country: fieldError,
-                                state: fieldError
-                            } : undefined}
+                            errors={{
+                                addressLine1: errors[`${field.name}.addressLine1`],
+                                // city: errors[`${field.name}.city`],
+                                postalCode: errors[`${field.name}.postalCode`],
+                                country: errors[`${field.name}.country`],
+                                state: errors[`${field.name}.state`]
+                            }}
                         />
                     </Box>
                 );

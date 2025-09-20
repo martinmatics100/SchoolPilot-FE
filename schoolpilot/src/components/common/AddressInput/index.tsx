@@ -2,54 +2,49 @@ import React from 'react';
 import {
     Box,
     TextField,
-    MenuItem,
-    Select,
-    InputLabel,
     FormControl,
-    FormHelperText
+    FormHelperText,
+    InputAdornment
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import ReactCountryFlag from 'react-country-flag';
+import { useEnums } from '../../../hooks/useEnums';
+import { ISO3166Countries, NigerianStates } from '../../../utils/iso3166Countries';
+
+interface CountryOption {
+    code: string;
+    name: string;
+    numericCode: string; // ISO 3166-1 numeric code
+}
+
+interface StateOption {
+    value: string;
+    label: string;
+}
 
 interface AddressInputProps {
-    addressLine: string;
-    city: string;
+    addressLine1: string;
     postalCode: string;
-    country: string;
-    state: string;
+    country: string; // ISO 3166-1 numeric code as string
+    state: string; // State code as string
     onChange: (data: {
-        addressLine: string;
-        city: string;
+        addressLine1: string;
         postalCode: string;
         country: string;
         state: string;
     }) => void;
     errors?: {
-        addressLine?: string;
-        city?: string;
+        addressLine1?: string;
         postalCode?: string;
         country?: string;
         state?: string;
     };
 }
 
-const countries = [
-    { name: 'United States', code: 'US' },
-    { name: 'Nigeria', code: 'NG' },
-    { name: 'United Kingdom', code: 'GB' },
-    { name: 'Germany', code: 'DE' }
-];
-
-const statesByCountry: Record<string, string[]> = {
-    US: ['California', 'New York', 'Texas'],
-    NG: ['Lagos', 'Abuja', 'Rivers'],
-    GB: ['England', 'Scotland', 'Wales'],
-    DE: ['Bavaria', 'Berlin', 'Saxony']
-};
-
 const AddressInput: React.FC<AddressInputProps> = ({
-    addressLine,
-    city,
+    addressLine1,
     postalCode,
     country,
     state,
@@ -58,7 +53,41 @@ const AddressInput: React.FC<AddressInputProps> = ({
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const availableStates = statesByCountry[country] || [];
+    const { enums, isLoading } = useEnums({ fetchPermissionData: false });
+
+    // Prepare country options from ISO3166Countries
+    const availableCountries: CountryOption[] = React.useMemo(() => {
+        return ISO3166Countries.map(country => ({
+            code: country.TwoLetterCode,
+            name: country.Name,
+            numericCode: country.NumericCode
+        }));
+    }, []);
+
+    // Prepare Nigerian states
+    const availableStates: StateOption[] = React.useMemo(() => {
+        return NigerianStates.map(state => ({
+            value: state.code,
+            label: state.name
+        }));
+    }, []);
+
+    // Find the selected country for rendering the flag
+    const selectedCountry = React.useMemo(() => {
+        return availableCountries.find(c => c.numericCode === country);
+    }, [availableCountries, country]);
+
+    // Find the selected state
+    const selectedState = React.useMemo(() => {
+        return availableStates.find(s => s.value === state);
+    }, [availableStates, state]);
+
+    // Check if selected country is Nigeria (numeric code: "566")
+    const isNigeria = country === "566";
+
+    if (isLoading) {
+        return <Box>Loading address data...</Box>;
+    }
 
     return (
         <Box
@@ -78,7 +107,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
             {/* Address Line */}
             <TextField
                 label="Address"
-                value={addressLine}
+                value={addressLine1}
                 size="small"
                 sx={{
                     minWidth: 200,
@@ -86,40 +115,16 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 }}
                 onChange={(e) =>
                     onChange({
-                        addressLine: e.target.value,
-                        city,
+                        addressLine1: e.target.value,
                         postalCode,
                         country,
                         state
                     })
                 }
-                error={!!errors.addressLine}
-                helperText={errors.addressLine}
+                error={!!errors.addressLine1}
+                helperText={errors.addressLine1}
                 fullWidth={isMobile}
             />
-
-            {/* City */}
-            {/* <TextField
-                label="City"
-                value={city}
-                size="small"
-                sx={{
-                    minWidth: 120,
-                    flex: isMobile ? '1 1 100%' : '1 1 0'
-                }}
-                onChange={(e) =>
-                    onChange({
-                        addressLine,
-                        city: e.target.value,
-                        postalCode,
-                        country,
-                        state
-                    })
-                }
-                error={!!errors.city}
-                helperText={errors.city}
-                fullWidth={isMobile}
-            /> */}
 
             {/* Postal Code */}
             <TextField
@@ -132,8 +137,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 }}
                 onChange={(e) =>
                     onChange({
-                        addressLine,
-                        city,
+                        addressLine1,
                         postalCode: e.target.value,
                         country,
                         state
@@ -154,61 +158,102 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 }}
                 fullWidth={isMobile}
             >
-                <InputLabel>Country</InputLabel>
-                <Select
-                    value={country}
-                    label="Country"
-                    onChange={(e) =>
+                <Autocomplete
+                    options={availableCountries}
+                    getOptionLabel={(option: CountryOption) => option.name}
+                    value={selectedCountry || undefined} // FIXED: Use selectedCountry instead of finding by code
+                    onChange={(event, newValue: CountryOption | null) =>
                         onChange({
-                            addressLine,
-                            city,
+                            addressLine1,
                             postalCode,
-                            country: e.target.value,
-                            state: ''
+                            country: newValue ? newValue.numericCode : '',
+                            state: '' // Reset state when country changes
                         })
                     }
-                >
-                    {countries.map((c) => (
-                        <MenuItem key={c.code} value={c.code}>
-                            {c.name}
-                        </MenuItem>
-                    ))}
-                </Select>
-                {errors.country && <FormHelperText>{errors.country}</FormHelperText>}
+                    renderOption={(props, option) => (
+                        <li {...props}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                {option.code && (
+                                    <ReactCountryFlag
+                                        countryCode={option.code}
+                                        svg
+                                        style={{
+                                            width: '20px',
+                                            height: '15px',
+                                            marginRight: '8px'
+                                        }}
+                                    />
+                                )}
+                                {option.name}
+                            </div>
+                        </li>
+                    )}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Country"
+                            size="small"
+                            error={!!errors.country}
+                            helperText={errors.country}
+                            InputProps={{
+                                ...params.InputProps,
+                                startAdornment: selectedCountry?.code ? (
+                                    <InputAdornment position="start">
+                                        <ReactCountryFlag
+                                            countryCode={selectedCountry.code}
+                                            svg
+                                            style={{
+                                                width: '20px',
+                                                height: '15px',
+                                                marginRight: '4px'
+                                            }}
+                                        />
+                                    </InputAdornment>
+                                ) : params.InputProps.startAdornment
+                            }}
+                        />
+                    )}
+                    disableClearable
+                    fullWidth
+                />
             </FormControl>
 
-            {/* State */}
+            {/* State - Only show for Nigeria (numeric code: "566") */}
             <FormControl
                 size="small"
-                disabled={!country}
+                disabled={!isNigeria} // FIXED: Only enable for Nigeria
                 error={!!errors.state}
                 sx={{
                     minWidth: 150,
-                    flex: isMobile ? '1 1 100%' : '1 1 0'
+                    flex: isMobile ? '1 1 100%' : '1 1 0',
+                    display: isNigeria ? 'block' : 'none' // FIXED: Hide when not Nigeria
                 }}
                 fullWidth={isMobile}
             >
-                <InputLabel>State</InputLabel>
-                <Select
-                    value={state}
-                    label="State"
-                    onChange={(e) =>
+                <Autocomplete
+                    options={availableStates}
+                    getOptionLabel={(option: StateOption) => option.label}
+                    value={selectedState || undefined} // FIXED: Use selectedState
+                    onChange={(event, newValue: StateOption | null) =>
                         onChange({
-                            addressLine,
-                            city,
+                            addressLine1,
                             postalCode,
                             country,
-                            state: e.target.value
+                            state: newValue ? newValue.value : ''
                         })
                     }
-                >
-                    {availableStates.map((s) => (
-                        <MenuItem key={s} value={s}>
-                            {s}
-                        </MenuItem>
-                    ))}
-                </Select>
-                {errors.state && <FormHelperText>{errors.state}</FormHelperText>}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="State"
+                            size="small"
+                            error={!!errors.state}
+                            helperText={errors.state}
+                        />
+                    )}
+                    disableClearable
+                    fullWidth
+                />
             </FormControl>
         </Box>
     );

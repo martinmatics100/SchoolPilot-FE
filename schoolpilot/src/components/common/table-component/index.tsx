@@ -38,13 +38,19 @@ interface ReusableTableProps {
     onSortChange?: (sortBy: string, order: 'asc' | 'desc') => void;
     title?: string;
     onSelectedRowsChange?: (selectedRows: any[]) => void;
+    page?: number;
+    onPageChange?: (event: unknown, newPage: number) => void;
+    rowsPerPage?: number;
+    onRowsPerPageChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    totalCount?: number;
+    loading?: boolean;
 }
 
 export const ReusableTable: React.FC<ReusableTableProps> = ({
     columns,
     data,
     defaultRowsPerPage = 10,
-    rowsPerPageOptions = [10, 25, 100],
+    rowsPerPageOptions = [10, 25, 50],
     onRowClick,
     showActionColumn = false,
     actionColumn,
@@ -53,20 +59,40 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     onSortChange,
     title,
     onSelectedRowsChange,
+    page: controlledPage,
+    onPageChange,
+    rowsPerPage: controlledRowsPerPage,
+    onRowsPerPageChange,
+    totalCount,
+    loading = false,
 }) => {
-    const [page, setPage] = React.useState(0);
-    const [rowsPerPage, setRowsPerPage] = React.useState(defaultRowsPerPage);
+    const [internalPage, setInternalPage] = React.useState(0);
+    const [internalRowsPerPage, setInternalRowsPerPage] = React.useState(defaultRowsPerPage);
     const [selectedRows, setSelectedRows] = React.useState<any[]>([]);
 
     const theme = useTheme();
 
+    const currentPage = controlledPage !== undefined ? controlledPage : internalPage;
+    const currentRowsPerPage = controlledRowsPerPage !== undefined ? controlledRowsPerPage : internalRowsPerPage;
+
+    const isServerSide = totalCount !== undefined;
+
     const handleChangePage = (event: unknown, newPage: number) => {
-        setPage(newPage);
+        if (onPageChange) {
+            onPageChange(event, newPage);
+        } else {
+            setInternalPage(newPage);
+        }
     };
 
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setRowsPerPage(+event.target.value);
-        setPage(0);
+        const newRowsPerPage = +event.target.value;
+        if (onRowsPerPageChange) {
+            onRowsPerPageChange(event);
+        } else {
+            setInternalRowsPerPage(newRowsPerPage);
+            setInternalPage(0);
+        }
     };
 
     const handleSort = (columnId: string) => {
@@ -76,9 +102,9 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
         onSortChange(columnId, newOrder);
     };
 
-    const pageData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    const pageData = isServerSide ? data : data.slice(currentPage * currentRowsPerPage, currentPage * currentRowsPerPage + currentRowsPerPage);
 
-    const isRowSelected = (row: any) => selectedRows.some((r) => r.username === row.username);
+    const isRowSelected = (row: any) => selectedRows.some((r) => r.id === row.id);
     const areAllSelected = pageData.every((row) => isRowSelected(row)) && pageData.length > 0;
 
     const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,7 +115,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
             newSelection = [...selectedRows, ...newRows];
         } else {
             newSelection = selectedRows.filter(
-                (row) => !pageData.some((p) => p.username === row.username)
+                (row) => !pageData.some((p) => p.id === row.id)
             );
         }
 
@@ -100,7 +126,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     const handleCheckboxChange = (row: any) => {
         const isSelected = isRowSelected(row);
         const newSelection = isSelected
-            ? selectedRows.filter((r) => r.username !== row.username)
+            ? selectedRows.filter((r) => r.id !== row.id)
             : [...selectedRows, row];
 
         setSelectedRows(newSelection);
@@ -128,7 +154,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                     {title}
                 </div>
             )}
-            <TableContainer sx={{ maxHeight: 500 }}>
+            <TableContainer sx={{ maxHeight: 400 }}>
                 <Table stickyHeader aria-label="sticky table">
                     <TableHead>
                         <TableRow>
@@ -174,65 +200,77 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {pageData.map((row, index) => (
-                            <TableRow
-                                hover
-                                role="checkbox"
-                                tabIndex={-1}
-                                key={`row-${index}`}
-                                onClick={() => onRowClick && onRowClick(row)}
-                                selected={isRowSelected(row)}
-                                sx={{
-                                    cursor: onRowClick ? 'pointer' : 'default',
-                                    backgroundColor: isRowSelected(row) ? '#ffe6e6' : 'inherit',
-                                    '&:hover': {
-                                        backgroundColor: isRowSelected(row) ? '#ffe6e6' : '#f5f5f5', // light grey on hover if not selected
-                                    },
-                                }}
-                            >
-
-                                <TableCell padding="checkbox">
-                                    <Checkbox
-                                        checked={isRowSelected(row)}
-                                        onChange={() => handleCheckboxChange(row)}
-                                        sx={{
-                                            color: 'blue',
-                                            '&.Mui-checked': {
-                                                color: theme.palette.info.main,
-                                            },
-                                            transform: 'scale(1.5)',
-                                        }}
-                                    />
+                        {loading ? (
+                            <TableRow>
+                                <TableCell colSpan={allColumns.length + 1} align="center">
+                                    Loading...
                                 </TableCell>
-                                {columns.map((column) => {
-                                    const value = row[column.id];
-                                    return (
-                                        <TableCell key={`${column.id}-${index}`} align={column.align} sx={{ color: theme.palette.text.secondary }}>
-                                            {column.format ? column.format(value, row, index) : value}
-                                        </TableCell>
-                                    );
-                                })}
-
-                                {showActionColumn && actionColumn && (
-                                    <TableCell
-                                        key={`actions-${index}`}
-                                        align={actionColumn.align || 'right'}
-                                        sx={{ color: 'red' }}
-                                    >
-                                        {actionColumn.render(row, index)}
-                                    </TableCell>
-                                )}
                             </TableRow>
-                        ))}
+                        ) : pageData.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={allColumns.length + 1} align="center">
+                                    No data available
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            pageData.map((row, index) => (
+                                <TableRow
+                                    hover
+                                    role="checkbox"
+                                    tabIndex={-1}
+                                    key={`row-${index}`}
+                                    onClick={() => onRowClick && onRowClick(row)}
+                                    selected={isRowSelected(row)}
+                                    sx={{
+                                        cursor: onRowClick ? 'pointer' : 'default',
+                                        backgroundColor: isRowSelected(row) ? '#ffe6e6' : 'inherit',
+                                        '&:hover': {
+                                            backgroundColor: isRowSelected(row) ? '#ffe6e6' : '#f5f5f5',
+                                        },
+                                    }}
+                                >
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            checked={isRowSelected(row)}
+                                            onChange={() => handleCheckboxChange(row)}
+                                            sx={{
+                                                color: 'blue',
+                                                '&.Mui-checked': {
+                                                    color: theme.palette.info.main,
+                                                },
+                                                transform: 'scale(1.5)',
+                                            }}
+                                        />
+                                    </TableCell>
+                                    {columns.map((column) => {
+                                        const value = row[column.id];
+                                        return (
+                                            <TableCell key={`${column.id}-${index}`} align={column.align} sx={{ color: theme.palette.text.secondary }}>
+                                                {column.format ? column.format(value, row, index) : value}
+                                            </TableCell>
+                                        );
+                                    })}
+                                    {showActionColumn && actionColumn && (
+                                        <TableCell
+                                            key={`actions-${index}`}
+                                            align={actionColumn.align || 'right'}
+                                            sx={{ color: 'red' }}
+                                        >
+                                            {actionColumn.render(row, index)}
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            ))
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
             <TablePagination
                 rowsPerPageOptions={rowsPerPageOptions}
                 component="div"
-                count={data.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
+                count={totalCount ?? data.length}
+                rowsPerPage={currentRowsPerPage}
+                page={currentPage}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 sx={{ color: theme.palette.common.white }}
