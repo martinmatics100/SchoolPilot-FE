@@ -122,6 +122,26 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.TEACHER],
     },
 
+    {
+        id: 11,
+        path: '#',
+        title: 'Result Checker',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Results',
+        roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 11,
+        path: 'exam-sheet',
+        title: 'Result BroadSheet',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Results',
+        roles: [UserRoles.ADMIN],
+    },
+
     // Settings
 
     {

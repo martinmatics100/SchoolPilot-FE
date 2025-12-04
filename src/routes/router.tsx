@@ -35,6 +35,7 @@ const ScoreSheetInput = lazy(() => import('../pages/staffs/result-scores/index')
 const GradingSystems = lazy(() => import('../pages/admin/grading-systems/index'));
 const CommentBank = lazy(() => import('../pages/admin/comments-bank/index'));
 const ReportPreference = lazy(() => import('../pages/admin/result-preference/index'));
+const ExamBroadSheet = lazy(() => import('../pages/admin/broad-sheet/examsheet'));
 
 const routes: RouteObject[] = [
     {
@@ -199,6 +200,14 @@ const routes: RouteObject[] = [
                         element: (
                             <ErrorBoundary>
                                 <ReportPreference />
+                            </ErrorBoundary>
+                        ),
+                    },
+                    {
+                        path: 'exam-sheet',
+                        element: (
+                            <ErrorBoundary>
+                                <ExamBroadSheet />
                             </ErrorBoundary>
                         ),
                     },

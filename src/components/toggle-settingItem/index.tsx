@@ -22,7 +22,7 @@ const ToggleSettingItem: React.FC<ToggleSettingItemProps> = ({
                 justifyContent: "space-between",
                 alignItems: "center",
                 py: 1,
-                borderBottom: "1px solid #e0e0e0",
+                borderBottom: `1px solid ${theme.palette.text.primary}`,
             }}
         >
             <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>{label}</Typography>
