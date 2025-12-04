@@ -32,6 +32,9 @@ const SchoolTerms = lazy(() => import('../pages/admin/academics/terms/index'));
 const SchoolLevels = lazy(() => import('../pages/admin/academics/levels/index'));
 const SchoolClasses = lazy(() => import('../pages/admin/academics/classes/index'));
 const ScoreSheetInput = lazy(() => import('../pages/staffs/result-scores/index'));
+const GradingSystems = lazy(() => import('../pages/admin/grading-systems/index'));
+const CommentBank = lazy(() => import('../pages/admin/comments-bank/index'));
+const ReportPreference = lazy(() => import('../pages/admin/result-preference/index'));
 
 const routes: RouteObject[] = [
     {
@@ -172,6 +175,30 @@ const routes: RouteObject[] = [
                         element: (
                             <ErrorBoundary>
                                 <ScoreSheetInput />
+                            </ErrorBoundary>
+                        ),
+                    },
+                    {
+                        path: 'grading-system',
+                        element: (
+                            <ErrorBoundary>
+                                <GradingSystems />
+                            </ErrorBoundary>
+                        ),
+                    },
+                    {
+                        path: 'comment-bank',
+                        element: (
+                            <ErrorBoundary>
+                                <CommentBank />
+                            </ErrorBoundary>
+                        ),
+                    },
+                    {
+                        path: 'report-reference',
+                        element: (
+                            <ErrorBoundary>
+                                <ReportPreference />
                             </ErrorBoundary>
                         ),
                     },

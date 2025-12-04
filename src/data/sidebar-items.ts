@@ -36,7 +36,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:account-group',
         active: true,
         group: 'MANAGMENT',
-        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+        roles: [UserRoles.ADMIN],
     },
     {
         id: 4,
@@ -123,6 +123,49 @@ const navItems: INavbarItem[] = [
     },
 
     // Settings
+
+    {
+        id: 13,
+        path: 'grading-system',
+        title: 'Grading Systems',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Result Settings',
+        roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 14,
+        path: 'comment-bank',
+        title: 'Comments Bank',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Result Settings',
+        roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 15,
+        path: 'j',
+        title: 'Cognitive Skills',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Result Settings',
+        roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 16,
+        path: 'report-reference',
+        title: 'Result Preference',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Result Settings',
+        roles: [UserRoles.ADMIN],
+    },
+
+
+
 
     {
         id: 12,

@@ -82,11 +82,11 @@ export const deleteUsers = async (ids: string[]) => {
     return response.json();
 };
 
-export const fetchSubjects = async () => {
-    const api = createApiClient();
-    const subjectsData = await api.get(`${BASE_URL}/subjects`);
-    return subjectsData;
-};
+// export const fetchSubjects = async () => {
+//     const api = createApiClient();
+//     const subjectsData = await api.get(`${BASE_URL}/subjects`);
+//     return subjectsData;
+// };
 
 export const fetchBranches = async (selectedAccount: string | null, apiClient: any) => {
     if (!selectedAccount) {
