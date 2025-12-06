@@ -9,6 +9,7 @@ import {
     TableRow,
     Paper,
 } from "@mui/material";
+import { useTheme } from "@mui/material";
 
 interface BroadsheetTableProps {
     students: string[];
@@ -25,14 +26,17 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
     subjects,
     columnWidths,
 }) => {
+
+    const theme = useTheme();
+
     return (
         <Box sx={{ p: 2 }}>
-            <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+            <TableContainer component={Paper} sx={{ overflowX: "auto", bgcolor: theme.palette.background.default }}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ width: columnWidths?.sn || 50 }}>S/N</TableCell>
-                            <TableCell sx={{ width: columnWidths?.name || 200 }}>Student Name</TableCell>
+                            <TableCell sx={{ width: columnWidths?.sn || 50, color: theme.palette.text.secondary }}>S/N</TableCell>
+                            <TableCell sx={{ width: columnWidths?.name || 200, color: theme.palette.text.secondary }}>Student Name</TableCell>
 
                             {/* SUBJECT HEADERS VERTICAL */}
                             {subjects.map((subj, i) => (
@@ -46,40 +50,41 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                                         writingMode: "vertical-rl",
                                         transform: "rotate(180deg)",
                                         fontSize: "12px",
+                                        color: theme.palette.text.secondary
                                     }}
                                 >
                                     {subj}
                                 </TableCell>
                             ))}
 
-                            <TableCell>Total Subjects</TableCell>
-                            <TableCell>Total Obtainable</TableCell>
-                            <TableCell>Total</TableCell>
-                            <TableCell>Average</TableCell>
-                            <TableCell>Percentage</TableCell>
-                            <TableCell>Position</TableCell>
-                            <TableCell>Result Status</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Total Subjects</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Total Obtainable</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Total</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Average</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Percentage</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Position</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary }}>Result Status</TableCell>
                         </TableRow>
                     </TableHead>
 
                     <TableBody>
                         {students.map((student, index) => (
                             <TableRow key={index}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{student}</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>{index + 1}</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>{student}</TableCell>
 
                                 {/* SUBJECT SCORES */}
                                 {subjects.map((_, i) => (
-                                    <TableCell key={i} align="center">–</TableCell>
+                                    <TableCell key={i} align="center" sx={{ color: theme.palette.text.secondary }}>–</TableCell>
                                 ))}
 
-                                <TableCell>{subjects.length}</TableCell>
-                                <TableCell>{subjects.length * 100}</TableCell>
-                                <TableCell>–</TableCell>
-                                <TableCell>–</TableCell>
-                                <TableCell>–</TableCell>
-                                <TableCell>–</TableCell>
-                                <TableCell>–</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>{subjects.length}</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>{subjects.length * 100}</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>–</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>–</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>–</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>–</TableCell>
+                                <TableCell sx={{ color: theme.palette.text.secondary }}>–</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

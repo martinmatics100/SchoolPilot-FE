@@ -8,12 +8,12 @@ const ExampleBroadsheetPage = () => {
     const [selectedTerm, setSelectedTerm] = useState("");
 
     const classes = {
-        JSS1: ["English", "Maths", "Basic Science", "Civic"],
+        JSS1: ["English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT", "English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT", "English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT"],
         JSS2: ["English", "Maths", "Agric", "History"],
         SS1: ["English", "Maths", "Biology", "Physics", "Chemistry"],
     };
 
-    const students = ["John Paul", "Mercy Samuel", "Adeyemi Tolu"];
+    const students = ["John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu"];
 
     const showTable = selectedClass && selectedSession && selectedTerm;
     const subjects = selectedClass ? classes[selectedClass] : [];
@@ -65,7 +65,7 @@ const ExampleBroadsheetPage = () => {
                 <BroadsheetTable
                     students={students}
                     subjects={subjects}
-                    columnWidths={{ sn: 40, name: 200, subject: 55 }}
+                    columnWidths={{ sn: 40, name: 300, subject: 55 }}
                 />
             )}
         </Box>
