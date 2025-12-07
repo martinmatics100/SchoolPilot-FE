@@ -15,6 +15,8 @@ import { fetchClasses, deleteClass, createClass } from '../../../../api/classSer
 import { type ClassModel } from '../../../../types/interfaces/i-class';
 import { ClassSelectionModal } from '../../../../components/class-selection-modal';
 import { createApiClient } from '../../../../utils/apiClient';
+import { AssignTeacherModal } from '../../../../components/assign-teachers-modal';
+import { fetchTeachers, assignTeacherToClass } from '../../../../api/classServices';
 
 const AVAILABLE_CLASS_TEMPLATES: ClassModel[] = [
     { id: '1', className: 'Primary 1', classLevel: 'Primary', formTeacher: '', rawClassLevel: 2 },
@@ -37,10 +39,37 @@ const Classes = () => {
     const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+    const [assigningTeacher, setAssigningTeacher] = useState(false);
 
     const theme = useTheme();
     const { selectedAccount } = getInitialAuthData();
     const { enums, isLoading: isEnumsLoading } = useEnums({ fetchPermissionData: false });
+
+    const handleAssignTeacher = (id: string) => {
+        setSelectedClassId(id);
+        setAssignModalOpen(true);
+    };
+
+    const handleAssignTeacherSubmit = async (teacherId: string) => {
+        if (!selectedClassId) return;
+
+        setAssigningTeacher(true);
+        try {
+            await assignTeacherToClass(selectedAccount, selectedClassId, teacherId);
+
+            setAssignModalOpen(false);
+            setSelectedClassId(null);
+
+            await loadClasses();  // reload class list to show updated teacher
+        } catch (error) {
+            console.error('Error assigning teacher:', error);
+            alert('Failed to assign teacher.');
+        } finally {
+            setAssigningTeacher(false);
+        }
+    };
 
     const classLevelMap = useMemo(() => {
         return (
@@ -159,11 +188,11 @@ const Classes = () => {
         console.log('Edit class:', id);
     };
 
-    const handleAssignTeacher = (id: string) => {
-        console.log('Assign teacher to class:', id);
-        // You can implement a modal or dialog for teacher assignment here
-        alert(`Assign teacher functionality for class ID: ${id}`);
-    };
+    // const handleAssignTeacher = (id: string) => {
+    //     console.log('Assign teacher to class:', id);
+    //     // You can implement a modal or dialog for teacher assignment here
+    //     alert(`Assign teacher functionality for class ID: ${id}`);
+    // };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this class?')) {
@@ -211,27 +240,34 @@ const Classes = () => {
         label: 'Actions',
         minWidth: 200,
         align: 'center' as const,
-        render: (row: ClassModel) => (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                <IconButton
-                    aria-label="assign form teacher"
-                    onClick={() => handleAssignTeacher(row.id)}
-                    title="Reassign Form Teacher"
-                    size="small"
-                >
-                    <PersonIcon color="primary" />
-                </IconButton>
-                <IconButton
-                    aria-label="delete"
-                    onClick={() => handleDelete(row.id)}
-                    title="Delete Class"
-                    size="small"
-                >
-                    <DeleteIcon color="error" />
-                </IconButton>
-            </div>
-        ),
+        render: (row: ClassModel) => {
+            const hasTeacher = row.formTeacher && row.formTeacher !== '-';
+            const title = hasTeacher ? "Reassign Form Teacher" : "Assign Form Teacher";
+
+            return (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                    <IconButton
+                        aria-label={title}
+                        onClick={() => handleAssignTeacher(row.id)}
+                        title={title}
+                        size="small"
+                    >
+                        <PersonIcon color={hasTeacher ? "secondary" : "primary"} />
+                    </IconButton>
+
+                    {/* <IconButton
+                        aria-label="delete"
+                        onClick={() => handleDelete(row.id)}
+                        title="Delete Class"
+                        size="small"
+                    >
+                        <DeleteIcon color="error" />
+                    </IconButton> */}
+                </div>
+            );
+        },
     };
+
 
     if (loading || isEnumsLoading) {
         return (
@@ -279,6 +315,14 @@ const Classes = () => {
                 availableClasses={AVAILABLE_CLASS_TEMPLATES}
                 existingClasses={data}
                 isSubmitting={isCreating}
+            />
+
+            <AssignTeacherModal
+                open={assignModalOpen}
+                onClose={() => setAssignModalOpen(false)}
+                onAssign={handleAssignTeacherSubmit}
+                fetchTeachers={() => fetchTeachers(selectedAccount, enums)}
+                isSubmitting={assigningTeacher}
             />
         </div>
     );

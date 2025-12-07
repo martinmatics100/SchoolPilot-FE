@@ -1,6 +1,6 @@
 import { createApiClient } from '../utils/apiClient';
 
-const BASE_URL = '/v1/accounts';
+const BASE_URL = '/v1/class';
 
 export const fetchTeachers = async (selectedAccount: string | null, enums: any) => {
     if (!selectedAccount) {
@@ -51,7 +51,7 @@ export const fetchClasses = async (selectedAccount: string | null) => {
     }
 
     const api = createApiClient({ selectedAccount });
-    const response = await api.get(`${BASE_URL}/class`);
+    const response = await api.get(`${BASE_URL}`);
     return Array.isArray(response) ? response : (response.items || []);
 };
 
@@ -62,4 +62,23 @@ export const deleteClass = async (selectedAccount: string | null, id: string) =>
 
     const api = createApiClient({ selectedAccount });
     await api.delete(`${BASE_URL}/class/${id}`);
+};
+
+
+export const assignTeacherToClass = async (
+    selectedAccount: string | null,
+    classId: string,
+    teacherAffiliationId: string
+) => {
+    if (!selectedAccount) throw new Error('No account selected');
+
+    const api = createApiClient({ selectedAccount });
+
+    const payload = {
+        ClassId: classId,
+        TeacherAffiliationId: teacherAffiliationId,
+    };
+
+    const response = await api.post(`${BASE_URL}/assign-form-teachers`, payload);
+    return response;
 };
