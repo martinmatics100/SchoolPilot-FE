@@ -35,8 +35,8 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ width: columnWidths?.sn || 50, color: theme.palette.text.secondary }}>S/N</TableCell>
-                            <TableCell sx={{ width: columnWidths?.name || 200, color: theme.palette.text.secondary }}>Student Name</TableCell>
+                            <TableCell sx={{ width: columnWidths?.sn || 10, color: theme.palette.text.secondary }}>S/N</TableCell>
+                            <TableCell sx={{ width: columnWidths?.name || 200, color: theme.palette.text.secondary, whiteSpace: "nowrap" }}>Student Name</TableCell>
 
                             {/* SUBJECT HEADERS VERTICAL */}
                             {subjects.map((subj, i) => (
@@ -57,7 +57,7 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                                 </TableCell>
                             ))}
 
-                            <TableCell sx={{ color: theme.palette.text.secondary }}>Total Subjects</TableCell>
+                            <TableCell sx={{ color: theme.palette.text.secondary, whiteSpace: "nowrap" }}>Total Subjects</TableCell>
                             <TableCell sx={{ color: theme.palette.text.secondary }}>Total Obtainable</TableCell>
                             <TableCell sx={{ color: theme.palette.text.secondary }}>Total</TableCell>
                             <TableCell sx={{ color: theme.palette.text.secondary }}>Average</TableCell>

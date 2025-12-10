@@ -5,12 +5,8 @@ export interface Subject {
 
 export interface SubjectModel {
     id: string;
-    subjectName: string;
-    subjectCode: string;
-    level: number[];
-    category: number[];
-    teacher?: string;
-    createdDate?: string;
+    subjectName: number; // enum value returned from backend
+    classes: string; // comma-separated class names
 }
 
 export interface SubjectsResponse {

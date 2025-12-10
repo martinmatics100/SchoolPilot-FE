@@ -1,7 +1,7 @@
 import { createApiClient } from "../utils/apiClient";
 import { type SubjectsResponse } from "../types/interfaces/i-subject";
 
-const BASE_URL = '/v1/users';
+const BASE_URL = '/v1/subjects';
 
 export const fetchSubjects = async (
     selectedAccount: string | null,
@@ -31,3 +31,8 @@ export const fetchSubjects = async (
         itemCount: response.itemCount || response.totalCount || (response.subjects || response.items || response || []).lenght
     };
 }
+
+export const createSubject = async (apiClient: any, payload: any) => {
+    const response = await apiClient.post(`${BASE_URL}`, payload);
+    return response;
+};

@@ -8,6 +8,7 @@ export interface StudentPayload {
         Address: any;
         Phone: any;
         StudentLocation: string;
+        ClassRoomId: string;
     };
 }
 

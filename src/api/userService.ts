@@ -30,41 +30,41 @@ export const fetchUsers = async (
 };
 
 
-export const fetchTeachers = async (selectedAccount: string | null, enums: any) => {
-    if (!selectedAccount) {
-        throw new Error('No account selected');
-    }
+// export const fetchTeachers = async (selectedAccount: string | null, enums: any) => {
+//     if (!selectedAccount) {
+//         throw new Error('No account selected');
+//     }
 
-    if (!enums) {
-        throw new Error('Enums not loaded');
-    }
+//     if (!enums) {
+//         throw new Error('Enums not loaded');
+//     }
 
-    const api = createApiClient({ selectedAccount });
+//     const api = createApiClient({ selectedAccount });
 
-    const teacherRole = enums?.UserRole?.find((role: any) =>
-        role.name.toLowerCase() === 'teacher' ||
-        role.displayName?.toLowerCase() === 'teacher'
-    )?.value;
+//     const teacherRole = enums?.UserRole?.find((role: any) =>
+//         role.name.toLowerCase() === 'teacher' ||
+//         role.displayName?.toLowerCase() === 'teacher'
+//     )?.value;
 
-    if (!teacherRole) {
-        throw new Error('Teacher role not found in enums');
-    }
+//     if (!teacherRole) {
+//         throw new Error('Teacher role not found in enums');
+//     }
 
-    const queryParams = new URLSearchParams({
-        role: teacherRole.toString(),
-        page: '1',
-        pageLength: '1000',
-        excludeAssignedTeachers: 'true'
-    });
+//     const queryParams = new URLSearchParams({
+//         role: teacherRole.toString(),
+//         page: '1',
+//         pageLength: '1000',
+//         excludeAssignedTeachers: 'true'
+//     });
 
-    const response = await api.get(`${BASE_URL}?${queryParams}`);
-    return response.items?.map((item: any) => ({
-        id: item.id,
-        firstName: item.firstName || '',
-        lastName: item.lastName || '',
-        email: item.email || ''
-    })) || [];
-};
+//     const response = await api.get(`${BASE_URL}?${queryParams}`);
+//     return response.items?.map((item: any) => ({
+//         id: item.id,
+//         firstName: item.firstName || '',
+//         lastName: item.lastName || '',
+//         email: item.email || ''
+//     })) || [];
+// };
 
 export const deleteUsers = async (ids: string[]) => {
     const response = await fetch(`${BASE_URL}/delete`, {

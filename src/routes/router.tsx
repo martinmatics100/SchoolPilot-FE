@@ -30,6 +30,8 @@ const AdminPermissions = lazy(() => import('../pages/admin/permission/index'));
 const ActivityLogPage = lazy(() => import('../pages/admin/audit-trails/activity-log'));
 const SchoolTerms = lazy(() => import('../pages/admin/academics/terms/index'));
 const SchoolLevels = lazy(() => import('../pages/admin/academics/levels/index'));
+const SchoolSubjects = lazy(() => import('../pages/admin/academics/subjects/index'));
+const CreateSubject = lazy(() => import('../pages/admin/academics/subjects/createSubject'));
 const SchoolClasses = lazy(() => import('../pages/admin/academics/classes/index'));
 const ScoreSheetInput = lazy(() => import('../pages/staffs/result-scores/index'));
 const GradingSystems = lazy(() => import('../pages/admin/grading-systems/index'));
@@ -170,6 +172,37 @@ const routes: RouteObject[] = [
                                 <SchoolClasses />
                             </ErrorBoundary>
                         ),
+                    },
+                    // {
+                    //     path: 'academics/subjects',
+                    //     element: (
+                    //         <ErrorBoundary>
+                    //             <SchoolSubjects />
+                    //         </ErrorBoundary>
+                    //     ),
+                    // },
+
+                    {
+                        path: 'academics/subjects',
+                        element: <Outlet />,
+                        children: [
+                            {
+                                index: true,
+                                element: (
+                                    <ErrorBoundary>
+                                        <SchoolSubjects />
+                                    </ErrorBoundary>
+                                ),
+                            },
+                            {
+                                path: "create-subject",
+                                element: (
+                                    <ErrorBoundary>
+                                        <CreateSubject />
+                                    </ErrorBoundary>
+                                ),
+                            }
+                        ]
                     },
                     {
                         path: 'score-sheet',

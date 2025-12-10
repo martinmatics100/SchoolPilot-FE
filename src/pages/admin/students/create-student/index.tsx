@@ -9,6 +9,7 @@ import { fetchBranches } from '../../../../api/userService';
 import { createStudent } from '../../../../api/studentService';
 import { type StudentPayload } from '../../../../types/interfaces/i-student';
 import { type Branch } from '../../../../types/interfaces/i-user';
+import { fetchClasses } from '../../../../api/classServices';
 
 
 const CreateStudent = () => {
@@ -24,6 +25,36 @@ const CreateStudent = () => {
         beMessage?: string;
         httpStatus?: number;
     }>({});
+    const [classes, setClasses] = useState<Array<{ id: string, name: string }>>([]);
+    const [isLoadingClasses, setIsLoadingClasses] = useState(true);
+
+    useEffect(() => {
+        const loadClasses = async () => {
+            if (selectedAccount) {
+                setIsLoadingClasses(true);
+                try {
+                    const fetchedClasses = await fetchClasses(selectedAccount);
+                    setClasses(
+                        fetchedClasses.map((c: any) => ({
+                            id: c.id,
+                            name: c.className
+                        }))
+                    );
+                } catch (err) {
+                    console.error('Failed to fetch classes:', err);
+                    setAlertMessage({
+                        feMessage: 'Failed to load classes. Please try again later.',
+                        httpStatus: 500
+                    });
+                } finally {
+                    setIsLoadingClasses(false);
+                }
+            }
+        };
+
+        loadClasses();
+    }, [selectedAccount]);
+
 
     useEffect(() => {
         const loadBranches = async () => {
@@ -67,7 +98,8 @@ const CreateStudent = () => {
                     Nationality: data.nationality,
                     Address: data.address,
                     Phone: data.phone,
-                    StudentLocation: data.locationId
+                    StudentLocation: data.locationId,
+                    ClassRoomId: data.classId
                 }
             };
 
@@ -92,7 +124,7 @@ const CreateStudent = () => {
     };
 
     useEffect(() => {
-        if (!isLoading && !isLoadingBranches && enums) {
+        if (!isLoading && !isLoadingBranches && !isLoadingClasses && enums) {
             const fields: FormField[] = [
                 { name: 'firstName', label: 'First Name', type: 'text', required: true, placeholder: 'Enter Student First Name', colSpan: 1 },
                 { name: 'lastName', label: 'Last Name', type: 'text', required: true, placeholder: 'Enter Student Last Name', colSpan: 1 },
@@ -134,6 +166,18 @@ const CreateStudent = () => {
                         label: b.name
                     }))
                 },
+                {
+                    name: 'classId',
+                    label: 'Class',
+                    type: 'select',
+                    required: true,
+                    placeholder: 'Select Class',
+                    colSpan: 1,
+                    options: classes.map(cls => ({
+                        value: cls.id,
+                        label: cls.name
+                    }))
+                },
                 { name: 'address', label: 'Home Address', type: 'address', required: false, colSpan: 3 },
                 {
                     name: 'profilePicture',
@@ -147,9 +191,9 @@ const CreateStudent = () => {
 
             setFormFields(fields);
         }
-    }, [enums, isLoading, isLoadingBranches, selectedDesignation, subjects, branches]);
+    }, [enums, isLoading, isLoadingBranches, isLoadingClasses, selectedDesignation, subjects, branches, classes]);
 
-    if (isLoading || isLoadingBranches || formFields.length === 0) {
+    if (isLoading || isLoadingBranches || isLoadingClasses || formFields.length === 0) {
         return <div>Loading form...</div>;
     }
 

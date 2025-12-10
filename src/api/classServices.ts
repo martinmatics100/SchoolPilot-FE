@@ -2,7 +2,10 @@ import { createApiClient } from '../utils/apiClient';
 
 const BASE_URL = '/v1/class';
 
-export const fetchTeachers = async (selectedAccount: string | null, enums: any) => {
+export const fetchTeachers = async (
+    selectedAccount: string | null, 
+    enums: any, 
+    options: { excludeAssignedTeachers?: boolean } = {}) => {
     if (!selectedAccount) {
         throw new Error('No account selected');
     }
@@ -28,7 +31,9 @@ export const fetchTeachers = async (selectedAccount: string | null, enums: any) 
         role: teacherRole.toString(),
         page: '1',
         pageLength: '1000',
-        excludeAssignedTeachers: 'true'
+         excludeAssignedTeachers: String(
+            options.excludeAssignedTeachers ?? true // default TRUE
+        )
     });
 
     const response = await api.get(`/v1/users?${queryParams}`);

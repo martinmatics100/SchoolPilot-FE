@@ -1,170 +1,179 @@
-// import React, { useEffect, useState, useMemo } from "react";
-// import { ReusableTable, type Column } from "../../../../components/table";
-// import { getInitialAuthData } from "../../../../utils/apiClient";
-// import { useEnums } from "../../../../hooks/useEnums";
-// import { NavigationButton } from "../../../../components/navigation-button";
-// import FilterComponent from "../../../../components/filters";
-// import { type FilterConfig } from "../../../../components/filters";
-// import { fetchSubjects } from "../../../../api/subjectServies";
-// import { type SubjectModel } from "../../../../types/interfaces/i-subject";
-// import { Category } from "@mui/icons-material";
+import React, { useEffect, useState, useMemo } from "react";
+import { ReusableTable, type Column } from "../../../../components/table";
+import { getInitialAuthData } from "../../../../utils/apiClient";
+import { useEnums } from "../../../../hooks/useEnums";
+import { NavigationButton } from "../../../../components/navigation-button";
+import { fetchSubjects } from "../../../../api/subjectServies";
+import { type SubjectModel } from "../../../../types/interfaces/i-subject";
+import { Alert, Box, CircularProgress, IconButton, Snackbar } from "@mui/material";
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 
-// const Subjects = () => {
-//   const [data, setData] = useState<SubjectModel[]>([]);
-//   const [page, setPage] = useState(1);
-//   const [rowsPerPage, setRowsPerPage] = useState(10);
-//   const [totalCount, setTotalCount] = useState(0);
-//   const [sortBy, setSortBy] = useState<string>("subjectName");
-//   const [order, setOrder] = useState<`asc` | `desc`>(`asc`);
-//   const [loading, setLoading] = useState(false);
-//   const [snackbar, setSnackbar] = useState<{
-//     open: boolean;
-//     message: string;
-//     severity: "success" | "error";
-//   }>({ open: false, message: "", severity: "success" });
-//   const { selectedAccount } = getInitialAuthData();
-//   const { enums, isLoading: isEnumLoading } = useEnums({
-//     fetchPermissionData: false,
-//   });
+const Subjects = () => {
+    const [data, setData] = useState<SubjectModel[]>([]);
+    const [page, setPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
+    const [sortBy, setSortBy] = useState<string>("subject");
+    const [order, setOrder] = useState<`asc` | `desc`>(`asc`);
+    const [loading, setLoading] = useState(false);
+    const [snackbar, setSnackbar] = useState<{
+        open: boolean;
+        message: string;
+        severity: "success" | "error";
+    }>({ open: false, message: "", severity: "success" });
 
-//   const [filters, setFilters] = useState({
-//     search: "",
-//     level: "",
-//     category: "",
-//     teachers: [] as string[],
-//     createdDated: null as Date | null,
-//   });
+    const { selectedAccount } = getInitialAuthData();
+    const { enums, isLoading: isEnumLoading } = useEnums({ fetchPermissionData: false });
 
-//   const levelOptions = useMemo(() => {
-//     const options =
-//       enums?.SchoolLevels?.map((item: { value: string; name: string }) => ({
-//         value: item.value.toString(),
-//         label: item.name,
-//       })) || [];
-//     return [{ value: "", label: "All Levels" }, ...options];
-//   }, [enums]);
+    const subjectMap = useMemo(() => {
+        return (
+            enums?.AcademicSubjects?.reduce(
+                (acc: Record<string, string>, item: { value: number; displayName?: string; name: string }) => {
+                    acc[item.value.toString()] = item.displayName || item.name;
+                    return acc;
+                },
+                {}
+            ) || {}
+        );
+    }, [enums]);
 
-//   const categoryOptions = useMemo(() => {
-//     const options =
-//       enums?.SubjectCategory?.map((item: { value: string; name: string }) => ({
-//         value: item.value.toString(),
-//         label: item.name,
-//       })) || [];
-//     return [{ value: "", label: "All Categories" }, ...options];
-//   }, [enums]);
+    const getSubjectName = (value?: number | null) => {
+        if (value === undefined || value === null) return 'Unknown';
+        return subjectMap[value.toString()] || `Unknown (${value})`;
+    };
 
-//   const filterConfigs: FilterConfig[] = [
-//     {
-//       type: "single-select",
-//       label: "Level",
-//       value: filters.level,
-//       onChange: (value: string) => {
-//         setFilters((prev) => ({ ...prev, category: value }));
-//         setPage(1);
-//       },
-//       options: levelOptions,
-//     },
-//     {
-//       type: "single-select",
-//       label: "Category",
-//       value: filters.category,
-//       onChange: (value: string) => {
-//         setFilters((prev) => ({ ...prev, category: value }));
-//         setPage(1);
-//       },
-//       options: categoryOptions,
-//     },
-//   ];
+    // Fetch subjects from backend
+    useEffect(() => {
+        if (!selectedAccount) return;
 
-//   const getENumDisplayName = (
-//     enumValue: number,
-//     enumType: "SchoolLevel" | "SubjectCategory"
-//   ) => {
-//     const enumItem = enums?.[enumType]?.find(
-//       (item: { value: string; name: string }) =>
-//         item.value.toString() === enumValue.toString()
-//     );
-//     return enumItem?.name || `Unknown ${enumType} (${enumValue})`;
-//   };
+        setLoading(true);
 
-//   const formatLevels = (levels: number[]) => {
-//     if (!levels || levels.length === 0) return "Not available";
-//     return levels
-//       .map((level) => getENumDisplayName(level, "SchoolLevel"))
-//       .join(", ");
-//   };
+        fetchSubjects(selectedAccount, { page, pageLength: rowsPerPage })
+            .then((response) => {
+                const mappedSubjects = (response.subjects || []).map(s => ({
+                    id: s.id,
+                    subjectName: s.subjectName,       // enum value returned from backend
+                    classes: s.classes || "", // comma-separated string
+                }));
+                setData(mappedSubjects);
+                setTotalCount(response.itemCount || mappedSubjects.length);
+            })
+            .catch((err) => {
+                console.error("Failed to fetch subjects", err);
+                setSnackbar({ open: true, message: "Failed to fetch subjects", severity: "error" });
+                setData([]);
+                setTotalCount(0);
+            })
+            .finally(() => setLoading(false));
+    }, [selectedAccount, page, rowsPerPage]);
 
-//   const formatCategories = (categories: number[]) => {
-//     if (!categories || categories.length === 0) return "Not available";
-//     return categories
-//       .map((category) => getENumDisplayName(category, "SubjectCategory"))
-//       .join(", ");
-//   };
+    // Table columns
+    const columns: Column[] = [
+        {
+            id: "subjectName",
+            label: "Subject Name",
+            minWidth: 150,
+            sortable: true,
+            format: (value: number | undefined | null) => getSubjectName(value),
+        },
+        {
+            id: "classes",
+            label: "Assigned Classes",
+            minWidth: 200,
+            sortable: false,
+            format: (value: string) => value || "Not assigned",
+        },
+    ];
 
-//   useEffect(() => {
-//     if (selectedAccount) {
-//       setLoading(true);
-//       fetchSubjects(selectedAccount, {
-//         page,
-//         pageLength: rowsPerPage,
-//         level: filters.level,
-//         category: filters.category,
-//       })
-//         .then((response) => {
-//           setData(response.subjects || []);
-//           setTotalCount(response.itemCount || response.subjects.length || 0);
-//         })
-//         .catch((error) => {
-//           console.error("Error fething subjects", error);
-//           setSnackbar({
-//             open: true,
-//             message: "Failed to fetch subjects",
-//             severity: "error",
-//           });
-//           setData([]);
-//           setTotalCount(0);
-//         })
-//         .finally(() => setLoading(false));
-//     } else {
-//       setSnackbar({
-//         open: true,
-//         message: "No Account Selected",
-//         severity: "error",
-//       });
-//       setData([]);
-//       setTotalCount(0);
-//     }
-//   }, [
-//     selectedAccount,
-//     page,
-//     rowsPerPage,
-//     sortBy,
-//     order,
-//     filters.level,
-//     filters.category,
-//   ]);
+    // Actions column
+    const actionColumn = {
+        label: "Actions",
+        minWidth: 150,
+        align: "center" as const,
+        render: (row: SubjectModel) => (
+            <div>
+                <IconButton aria-label="edit" onClick={() => handleEdit(row.id)}>
+                    <EditIcon color="primary" />
+                </IconButton>
+                <IconButton aria-label="delete" onClick={() => handleDelete(row.id)}>
+                    <DeleteIcon color="primary" />
+                </IconButton>
+            </div>
+        ),
+    };
 
-//   const columns: Column[] = [
-//     {
-//       id: "subjectName",
-//       label: "subject Name",
-//       minWidth: 150,
-//       sortable: true,
-//       format: (value: string) => value || "Not available",
-//     },
-//     {
-//       id: "subjectCode",
-//       label: "subject COde",
-//       minWidth: 120,
-//       sortable: true,
-//       format: (value: string) => value || "Not available",
-//     },
-//     {
-//       id: "level",
-//       label: "subject Level",
-//       minWidth: 200,
-//       sortable: true,
-//       format: (value: string) => formatLevels(value),
-//     },
-//   ];
-// };
+    const handleEdit = (id: string) => {
+        console.log("Edit subject:", id);
+    };
+
+    const handleDelete = (id: string) => {
+        console.log("Delete subject:", id);
+    };
+
+    const handlePageChange = (event: unknown, newPage: number) => setPage(newPage + 1);
+    const handleRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(1);
+    };
+    const handleSortChange = (sortByField: string, sortOrder: 'asc' | 'desc') => {
+        setSortBy(sortByField);
+        setOrder(sortOrder);
+        setPage(1);
+    };
+
+    if (loading || isEnumLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="240px">
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    return (
+        <div>
+            <h1>Subjects</h1>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '8px' }}>
+                <NavigationButton to="create-subject" sx={{ alignContent: "flex-end" }}>
+                    <AddIcon />
+                </NavigationButton>
+            </div>
+
+            <ReusableTable
+                title="Subject List"
+                columns={columns}
+                data={data}
+                defaultRowsPerPage={rowsPerPage}
+                rowsPerPageOptions={[10, 25, 50]}
+                showActionColumn={true}
+                actionColumn={actionColumn}
+                sortBy={sortBy}
+                order={order}
+                onSortChange={handleSortChange}
+                page={page - 1}
+                onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                totalCount={totalCount}
+                loading={loading || isEnumLoading}
+                showCheckboxes={false}
+                showSorting={true}
+                showPagination={true}
+            />
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}>
+                <Alert
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    severity={snackbar.severity}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+        </div>
+    );
+};
+
+export default Subjects;

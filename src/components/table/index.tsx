@@ -124,9 +124,9 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
   const pageData = isServerSide
     ? data
     : data.slice(
-        currentPage * currentRowsPerPage,
-        currentPage * currentRowsPerPage + currentRowsPerPage
-      );
+      currentPage * currentRowsPerPage,
+      currentPage * currentRowsPerPage + currentRowsPerPage
+    );
 
   const isRowSelected = (row: any) => selectedRows.some((r) => r.id === row.id);
   const areAllSelected =
@@ -164,13 +164,13 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     ...columns,
     ...(showActionColumn && actionColumn
       ? [
-          {
-            id: "actions",
-            label: actionColumn.label,
-            minWidth: actionColumn.minWidth || 100,
-            align: actionColumn.align || "right",
-          },
-        ]
+        {
+          id: "actions",
+          label: actionColumn.label,
+          minWidth: actionColumn.minWidth || 100,
+          align: actionColumn.align || "right",
+        },
+      ]
       : []),
   ];
 
