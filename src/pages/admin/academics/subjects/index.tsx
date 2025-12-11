@@ -44,7 +44,7 @@ const Subjects = () => {
         return subjectMap[value.toString()] || `Unknown (${value})`;
     };
 
-    // Fetch subjects from backend
+
     useEffect(() => {
         if (!selectedAccount) return;
 
@@ -54,8 +54,8 @@ const Subjects = () => {
             .then((response) => {
                 const mappedSubjects = (response.subjects || []).map(s => ({
                     id: s.id,
-                    subjectName: s.subjectName,       // enum value returned from backend
-                    classes: s.classes || "", // comma-separated string
+                    subjectName: s.subjectName,
+                    classes: s.classes || "",
                 }));
                 setData(mappedSubjects);
                 setTotalCount(response.itemCount || mappedSubjects.length);
@@ -69,7 +69,6 @@ const Subjects = () => {
             .finally(() => setLoading(false));
     }, [selectedAccount, page, rowsPerPage]);
 
-    // Table columns
     const columns: Column[] = [
         {
             id: "subjectName",
@@ -87,7 +86,6 @@ const Subjects = () => {
         },
     ];
 
-    // Actions column
     const actionColumn = {
         label: "Actions",
         minWidth: 150,
@@ -133,7 +131,7 @@ const Subjects = () => {
 
     return (
         <div>
-            <h1>Subjects</h1>
+            {/* <h1>Subjects</h1> */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '8px' }}>
                 <NavigationButton to="create-subject" sx={{ alignContent: "flex-end" }}>
                     <AddIcon />

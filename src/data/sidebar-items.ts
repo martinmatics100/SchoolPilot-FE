@@ -111,6 +111,16 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
+    {
+        id: 11,
+        path: '/app/academics/subjects-allocation',
+        title: 'Subjects Allocation',
+        icon: 'mdi:book-open-blank-variant',
+        active: true,
+        group: 'Academics',
+        roles: [UserRoles.ADMIN],
+    },
+
     // Results
     {
         id: 11,
