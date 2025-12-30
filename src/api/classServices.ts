@@ -87,3 +87,31 @@ export const assignTeacherToClass = async (
     const response = await api.post(`${BASE_URL}/assign-form-teachers`, payload);
     return response;
 };
+
+
+// 1️⃣ Get classes taught by teacher
+export const fetchTeacherClasses = async (
+  selectedAccount: string | null
+) => {
+  if (!selectedAccount) throw new Error("No account selected");
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.get(`${BASE_URL}/class-teacher-list`);
+
+  return response.items || [];
+};
+
+// 2️⃣ Get subjects taught by teacher in a class
+export const fetchTeacherSubjectsByClass = async (
+  selectedAccount: string | null,
+  classId: string
+) => {
+  if (!selectedAccount) throw new Error("No account selected");
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.get(
+    `${BASE_URL}/subject-teacher-list?classId=${classId}`
+  );
+
+  return response.items || [];
+};

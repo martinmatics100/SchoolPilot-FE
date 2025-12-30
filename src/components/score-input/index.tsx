@@ -1,188 +1,194 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-    Box,
-    Button,
-    FormControl,
-    Grid,
-    InputLabel,
-    MenuItem,
-    Paper,
-    Select,
-    type SelectChangeEvent,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography,
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+} from "@mui/material";
+import { useAuth } from "../../context";
+import { fetchStudentScoresBySubject } from "../../api/studentService";
+import { useTheme } from "@mui/material";
 
-// Define types for props and state
 export interface Student {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
 }
 
 export interface Subject {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
 }
 
 export interface Score {
-    test: number | null;
-    exam: number | null;
+  test: number | null;
+  exam: number | null;
 }
 
-export interface ScoreInputProps {
-    students: Student[];
-    subjects: Subject[];
-    onSubmit: (scores: Record<string, Record<string, Score>>) => void; // Callback for submitting scores
-    selectedClass?: string; // Optional class prop for pre-selection
+interface Props {
+  students: Student[];
+  subjects: Subject[];
+  classId: string;
+  schoolSession: number;
+  schoolTerm: number;
+  onSubmit: (scores: any) => void;
 }
 
-const ScoreInputComponent: React.FC<ScoreInputProps> = ({ students, subjects, onSubmit }) => {
+const ScoreInputComponent: React.FC<Props> = ({
+  subjects,
+  classId,
+  schoolSession,
+  schoolTerm,
+  onSubmit,
+}) => {
+  const { selectedAccount } = useAuth();
 
-    const theme = useTheme();
+  const theme = useTheme();
 
-    const [selectedClass, setSelectedClass] = useState<string>('');
-    const [selectedSubject, setSelectedSubject] = useState<string>('');
-    const [scores, setScores] = useState<Record<string, Score>>({});
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [scores, setScores] = useState<Record<string, Score>>({});
 
-    // Initialize scores when component mounts or subject changes
-    useEffect(() => {
-        const initialScores: Record<string, Score> = {};
-        students.forEach((student) => {
-            initialScores[student.id] = { test: null, exam: null };
-        });
-        setScores(initialScores);
-    }, [students, selectedSubject]);
+  /* Fetch scores when subject changes */
+  useEffect(() => {
+    if (!selectedSubject || !selectedAccount) return;
 
-    const handleClassChange = (event: SelectChangeEvent) => {
-        const newClass = event.target.value as string;
-        setSelectedClass(newClass);
-        // Clear selected subject when class changes
-        setSelectedSubject('');
-        // Clear scores when class changes
-        setScores({});
-    };
+    fetchStudentScoresBySubject({
+      selectedAccount,
+      classId,
+      subjectId: selectedSubject,
+      schoolSession,
+      schoolTerm,
+    }).then((data) => {
+      const mappedStudents = data.map((s: any) => ({
+        id: s.studentId,
+        name: s.studentName,
+      }));
 
-    const handleSubjectChange = (event: SelectChangeEvent) => {
-        setSelectedSubject(event.target.value as string);
-    };
-
-    const handleScoreChange = (studentId: string, type: 'test' | 'exam', value: string) => {
-        const numValue = parseFloat(value) || null;
-        setScores((prev) => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                [type]: numValue,
-            },
-        }));
-    };
-
-    const handleSubmit = () => {
-        const allScores: Record<string, Record<string, Score>> = {
-            [selectedSubject]: scores,
+      const mappedScores: Record<string, Score> = {};
+      data.forEach((s: any) => {
+        mappedScores[s.studentId] = {
+          test:
+            s.scores.find((x: any) => x.assessmentName === "Test")?.score ??
+            null,
+          exam:
+            s.scores.find((x: any) => x.assessmentName === "Exam")?.score ??
+            null,
         };
-        onSubmit(allScores);
-    };
+      });
 
-    return (
-        <Box sx={{ padding: 2, maxWidth: '100%', overflowX: 'auto' }}>
-            <Typography variant="h5" gutterBottom>
-                Input Test and Exam Scores
-            </Typography>
-            <Grid container spacing={2} sx={{ mb: 2 }} alignItems="flex-start">
-                <Grid item xs={12} sm={6} md={6}>
-                    <FormControl fullWidth>
-                        <InputLabel id="class-select-label">Select Class</InputLabel>
-                        <Select
-                            labelId="class-select-label"
-                            value={selectedClass}
-                            label="Select Class"
-                            onChange={handleClassChange}
-                        >
-                            <MenuItem value="class1">Class 1</MenuItem>
-                            <MenuItem value="class2">Class 2</MenuItem>
-                            <MenuItem value="class3">Class 3</MenuItem>
-                            {/* Add more classes as needed */}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={6}>
-                    <FormControl fullWidth disabled={!selectedClass}>
-                        <InputLabel id="subject-select-label">Select Subject</InputLabel>
-                        <Select
-                            labelId="subject-select-label"
-                            value={selectedSubject}
-                            label="Select Subject"
-                            onChange={handleSubjectChange}
-                            disabled={!selectedClass}
-                        >
-                            {subjects.map((subject) => (
-                                <MenuItem key={subject.id} value={subject.id}>
-                                    {subject.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-            </Grid>
+      setStudents(mappedStudents);
+      setScores(mappedScores);
+    });
+  }, [selectedSubject]);
 
-            {selectedSubject && (
-                <TableContainer component={Paper}>
-                    <Table aria-label="scores table" size="small" sx={{ bgcolor: theme.palette.background.default }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Student Name</TableCell>
-                                <TableCell>Test Score</TableCell>
-                                <TableCell>Exam Score</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {students.map((student) => (
-                                <TableRow key={student.id}>
-                                    <TableCell>{student.name}</TableCell>
-                                    <TableCell>
-                                        <TextField
-                                            type="number"
-                                            size="medium"
-                                            value={scores[student.id]?.test ?? ''}
-                                            onChange={(e) => handleScoreChange(student.id, 'test', e.target.value)}
-                                            inputProps={{ min: 0, max: 100 }}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <TextField
-                                            type="number"
-                                            size="medium"
-                                            value={scores[student.id]?.exam ?? ''}
-                                            onChange={(e) => handleScoreChange(student.id, 'exam', e.target.value)}
-                                            inputProps={{ min: 0, max: 100 }}
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+  const handleScoreChange = (
+    studentId: string,
+    type: "test" | "exam",
+    value: string
+  ) => {
+    setScores((prev) => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [type]: value === "" ? null : Number(value),
+      },
+    }));
+  };
 
-            <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmit}
-                disabled={!selectedSubject}
-                sx={{ mt: 2 }}
-            >
-                Submit Scores
-            </Button>
-        </Box>
-    );
+  return (
+    <Box mt={2}>
+      <FormControl fullWidth sx={{ mb: 2 }}>
+        <InputLabel>Select Subject</InputLabel>
+        <Select
+          value={selectedSubject}
+          label="Select Subject"
+          onChange={(e) => setSelectedSubject(e.target.value)}
+        >
+          {subjects.map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {selectedSubject && (
+        <>
+          <TableContainer
+            component={Paper}
+            sx={{ bgcolor: theme.palette.background.default }}
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ color: theme.palette.text.secondary }}>
+                    Student
+                  </TableCell>
+                  <TableCell sx={{ color: theme.palette.text.secondary }}>
+                    Test
+                  </TableCell>
+                  <TableCell sx={{ color: theme.palette.text.secondary }}>
+                    Exam
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {students.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontWeight: "900",
+                        fontSize: "18px",
+                      }}
+                    >
+                      {s.name}
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        value={scores[s.id]?.test ?? ""}
+                        onChange={(e) =>
+                          handleScoreChange(s.id, "test", e.target.value)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        value={scores[s.id]?.exam ?? ""}
+                        onChange={(e) =>
+                          handleScoreChange(s.id, "exam", e.target.value)
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Button
+            variant="contained"
+            sx={{ mt: 2 }}
+            onClick={() => onSubmit({ subjectId: selectedSubject, scores })}
+          >
+            Submit Scores
+          </Button>
+        </>
+      )}
+    </Box>
+  );
 };
 
 export default ScoreInputComponent;

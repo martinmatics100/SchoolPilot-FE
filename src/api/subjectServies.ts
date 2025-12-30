@@ -69,3 +69,46 @@ export const fetchSubjectsForAllocation = async (
         pageCount: response.pageCount ?? 1
     };
 }
+
+export const AssignTeacherToSubjectClass = async (apiClient: any, payload: any) => {
+    const response = await apiClient.post(`/v1/subjects/assign-subjects`, payload);
+    return response;
+};
+
+export const fetchSubjectTeacherAssignments = async (selectedAccount: string | null) => {
+    if (!selectedAccount) throw new Error("No account selected");
+
+    const api = createApiClient({ selectedAccount });
+    const response = await api.get(`/v1/subjects/assign-subjects-list`);
+
+    // Expected response: Array<{ subjectName, teachers: [{ teacherName, classes: [] }] }>
+    return response.items || response || [];
+};
+
+export const fetchSubjectTeacherAssessment = async (selectedAccount: string | null) => {
+    if (!selectedAccount) throw new Error("No account selected");
+
+    const api = createApiClient({ selectedAccount });
+    const response = await api.get(`/v1/subjects/assessment-list`);
+
+    // Expected response: Array<{ subjectName, teachers: [{ teacherName, classes: [] }] }>
+    return response.items || response || [];
+};
+
+export const createSubjectAssessment = async (selectedAccount: string | null,
+    payload: {
+        subjectId: string;
+        schoolSession: number;
+        schoolTerm: number;
+    }
+) => {
+    if (!selectedAccount) {
+        throw new Error("No account selected");
+    }
+
+    const api = createApiClient({ selectedAccount });
+
+    const response = await api.post(`/v1/subjects/create-assessment`, payload);
+
+    return response;
+};

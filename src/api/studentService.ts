@@ -37,3 +37,32 @@ export const deleteStudent = async (selectedAccount: string | null, id: string) 
     const api = createApiClient({ selectedAccount });
     await api.delete(`${BASE_URL}/${id}`);
 };
+
+export const fetchStudentScoresBySubject = async ({
+  selectedAccount,
+  classId,
+  subjectId,
+  schoolSession,
+  schoolTerm,
+}: {
+  selectedAccount: string;
+  classId: string;
+  subjectId: string;
+  schoolSession: number;
+  schoolTerm: number;
+}) => {
+  const api = createApiClient({ selectedAccount });
+
+  const params = new URLSearchParams({
+    classId,
+    subjectId,
+    schoolSession: schoolSession.toString(),
+    schoolTerm: schoolTerm.toString(),
+  });
+
+  const response = await api.get(
+    `/v1/students/get-scores?${params.toString()}`
+  );
+
+  return response.items ?? [];
+};

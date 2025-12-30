@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
     AUTH_DATA: 'authData',
     SELECTED_BRANCHES: 'selectedBranches',
     APP_ENUMS: 'appEnums',
-    SELECTED_ROLE: 'selectedRole'
+    SELECTED_ROLE: 'selectedRole',
+    CURRENT_USER: 'currentUser'
 } as const;
 
 // Default values

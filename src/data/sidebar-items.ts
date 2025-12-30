@@ -120,6 +120,15 @@ const navItems: INavbarItem[] = [
         group: 'Academics',
         roles: [UserRoles.ADMIN],
     },
+    {
+        id: 12,
+        path: '/app/academics/assessment',
+        title: 'Assessments',
+        icon: 'mdi:book-open-blank-variant',
+        active: true,
+        group: 'Academics',
+        roles: [UserRoles.ADMIN],
+    },
 
     // Results
     {

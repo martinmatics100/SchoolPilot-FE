@@ -39,6 +39,7 @@ const CommentBank = lazy(() => import('../pages/admin/comments-bank/index'));
 const ReportPreference = lazy(() => import('../pages/admin/result-preference/index'));
 const ExamBroadSheet = lazy(() => import('../pages/admin/broad-sheet/examsheet'));
 const SubjectsAllocation = lazy(() => import('../pages/admin/academics/subject-allocation/index'));
+const Assessment = lazy(() => import('../pages/admin/academics/assessment/index'));
 
 const routes: RouteObject[] = [
     {
@@ -182,7 +183,14 @@ const routes: RouteObject[] = [
                             </ErrorBoundary>
                         ),
                     },
-
+                    {
+                        path: 'academics/assessment',
+                        element: (
+                            <ErrorBoundary>
+                                <Assessment />
+                            </ErrorBoundary>
+                        ),
+                    },
                     {
                         path: 'academics/subjects',
                         element: <Outlet />,
