@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useState,
+  useCallback,
   useEffect,
   type ReactNode,
   useMemo,
@@ -24,6 +25,8 @@ import {
 
 import { STORAGE_KEYS } from "../constants/apiConstants";
 import type { CurrentUser } from "../types/apiTypes/apiTypes";
+import { logoutUser } from "../api/userService";
+import { useNavigate } from "react-router-dom";
 
 interface ContextAccount {
   id: string;
@@ -35,7 +38,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<LoginResult>;
   role: UserRoles | null;
-  logout: () => void;
+  logout: () => Promise<void>;
   selectedAccount: string | null;
   selectedBranches: LocationModel[];
   setAccountSelection: (accountId: string, branches: LocationModel[]) => void;
@@ -53,6 +56,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  // const navigate = useNavigate();
   const initialApiAuthData = getInitialAuthData();
   const initialUser = getCurrentUser();
   const initialRole = localStorage.getItem("selectedRole") as UserRoles | null;
@@ -401,13 +405,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const logout = () => {
-    // Clearing accessToken will trigger the main useEffect to clear all other states
-    setAccessToken(null);
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-  };
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser(apiClient); // <-- Pass apiClient here
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      // Clear local auth state
+      setIsAuthenticated(false);
+      setRole(null);
+      setSelectedAccount(null);
+      setSelectedBranches([]);
+      setUserEmail(null);
+      setUserId(null);
+      setAccounts([]);
+      setAccessToken(null);
+      setCurrentUser(null);
+
+      // Clear persisted auth data
+      localStorage.removeItem(STORAGE_KEYS.AUTH_DATA);
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_ROLE);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_ACCOUNT);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCHES);
+
+      // navigate("/authentication/login");
+    }
+  }, [apiClient]);
 
   return (
     <AuthContext.Provider

@@ -8,6 +8,7 @@ import {
 import { SchoolService } from "../../../api/schoolService";
 import { useAuth } from "../../../context";
 import { useEnums } from "../../../hooks/useEnums";
+import { saveClassStudentScores } from "../../../api/studentService";
 
 const ScoreInput: React.FC = () => {
   const { selectedAccount } = useAuth();
@@ -20,7 +21,6 @@ const ScoreInput: React.FC = () => {
   const [schoolSession, setSchoolSession] = useState<number | null>(null);
   const [schoolTerm, setSchoolTerm] = useState<number | null>(null);
 
-  /* Get current session & term */
   useEffect(() => {
     SchoolService.getSchoolDetails().then((data) => {
       if (!data) return;
@@ -35,26 +35,34 @@ const ScoreInput: React.FC = () => {
   }, [selectedAccount]);
 
   useEffect(() => {
-    if (!selectedClass || !enums) return;
+    if (!selectedClass || !selectedAccount) return;
 
-    fetchTeacherSubjectsByClass(selectedAccount, selectedClass).then((data) => {
-      const mapped = data.map((s: any) => {
-        const enumItem = enums.AcademicSubjects?.find(
-          (e: any) => String(e.value) === String(s.subject)
-        );
+    fetchTeacherSubjectsByClass(selectedAccount, selectedClass).then(
+      (items) => {
+        const mapped = items.map((x: any) => {
+          const enumItem = enums.AcademicSubjects?.find(
+            (e: any) => e.value === x.subject
+          );
 
-        return {
-          id: s.subjectId,
-          name: enumItem?.displayName || enumItem?.name,
-        };
-      });
+          return {
+            id: x.subjectId,
+            name: enumItem?.name ?? "Subject",
+          };
+        });
 
-      setSubjects(mapped);
-    });
-  }, [selectedClass, selectedAccount, enums]);
+        setSubjects(mapped);
+      }
+    );
+  }, [selectedClass, selectedAccount, enums.AcademicSubjects]);
 
-  const handleSubmit = (scores: any) => {
-    console.log("Scores submitted:", scores);
+  const handleSubmit = async (payload: any) => {
+    try {
+      await saveClassStudentScores(selectedAccount, payload);
+      alert("Scores saved successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save scores");
+    }
   };
 
   return (
@@ -74,10 +82,8 @@ const ScoreInput: React.FC = () => {
         ))}
       </TextField>
 
-      {selectedClass && subjects.length > 0 && schoolSession && schoolTerm && (
+      {selectedClass && schoolSession !== null && schoolTerm !== null && (
         <ScoreInputComponent
-          key={selectedClass}
-          students={[]} // populated after subject select
           subjects={subjects}
           classId={selectedClass}
           schoolSession={schoolSession}

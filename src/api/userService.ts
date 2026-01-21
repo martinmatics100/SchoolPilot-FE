@@ -107,3 +107,12 @@ export const createStaff = async (apiClient: any, payload: any) => {
     const response = await apiClient.post(`${BASE_URL}/create-invite`, payload);
     return response;
 };
+
+export const logoutUser = async (apiClient: any) => {
+  if (!apiClient) throw new Error('API client is required for logout');
+  const response = await apiClient.post(`${BASE_URL}/logout`);
+  if (!response) {
+    throw new Error('Failed to logout');
+  }
+  return response;
+};

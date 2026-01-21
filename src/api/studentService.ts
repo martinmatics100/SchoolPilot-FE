@@ -66,3 +66,34 @@ export const fetchStudentScoresBySubject = async ({
 
   return response.items ?? [];
 };
+
+export const createStudentsBulk = async (
+  selectedAccount: string | null,
+  payload: {
+    students: {
+      firstName: string;
+      lastName: string;
+      gender: number;
+      classRoomId: string;
+    }[];
+  }
+) => {
+  if (!selectedAccount) {
+    throw new Error("No account selected");
+  }
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.post("/v1/students/bulk-create", payload);
+  return response;
+};
+
+export const saveClassStudentScores = async (
+  selectedAccount: string | null,
+  payload: any
+) => {
+  if (!selectedAccount) throw new Error("No account selected");
+
+  const api = createApiClient({ selectedAccount });
+
+  return api.post(`/v1/students/save-scores`, payload);
+};

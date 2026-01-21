@@ -10,6 +10,7 @@ import {
 } from "../../../../api/subjectServies";
 import { createSubjectAssessment } from "../../../../api/subjectServies";
 import SubjectAssessmentTable from "../../../../components/subjectAssessmentTable";
+import { type CreateSubjectAssessmentPayload } from "../../../../types/interfaces/i-subject";
 
 const CreateSubjectAssessment = () => {
   const { enums } = useEnums({ fetchPermissionData: false });
@@ -80,9 +81,9 @@ const CreateSubjectAssessment = () => {
           colSpan: 1,
         },
         {
-          name: "subjectId",
+          name: "subjectIds",
           label: "Subject",
-          type: "select",
+          type: "multiselect",
           required: true,
           options: subjectOptions,
           colSpan: 1,
@@ -141,8 +142,8 @@ const CreateSubjectAssessment = () => {
       setAlertMessage({ feMessage: "Creating assessment..." });
       setLoading(true);
 
-      const payload = {
-        subjectId: data.subjectId,
+      const payload: CreateSubjectAssessmentPayload = {
+        subjectIds: data.subjectIds,
         schoolSession: Number(data.schoolSession),
         schoolTerm: Number(data.schoolTerm),
       };

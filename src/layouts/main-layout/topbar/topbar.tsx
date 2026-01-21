@@ -227,7 +227,10 @@ const Topbar = ({
                 }}
                 color={theme.palette.text.secondary}
               >
-                {getGreeting(now)}, {currentUser.firstName}.
+                <span style={{ color: theme.palette.error.main }}>
+                  {getGreeting(now)}
+                </span>
+                , {currentUser.firstName}
               </Typography>
 
               <Typography

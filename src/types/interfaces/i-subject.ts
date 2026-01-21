@@ -32,3 +32,9 @@ export interface SubjectModelForAllocationResponse {
     currentPage: number;
     pageCount: number;
 }
+
+export interface CreateSubjectAssessmentPayload {
+  subjectIds: string[];
+  schoolSession: number;
+  schoolTerm: number;
+}

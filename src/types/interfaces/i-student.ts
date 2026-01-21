@@ -9,6 +9,7 @@ export interface StudentPayload {
         Phone: any;
         StudentLocation: string;
         ClassRoomId: string;
+        StreamType: number | null;
     };
 }
 

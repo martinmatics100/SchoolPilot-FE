@@ -1,39 +1,33 @@
 import { createApiClient } from "../utils/apiClient";
-import { type SubjectsResponse, type SubjectModelForAllocationResponse } from "../types/interfaces/i-subject";
+import { type SubjectsResponse, type SubjectModelForAllocationResponse, type CreateSubjectAssessmentPayload } from "../types/interfaces/i-subject";
 
 const BASE_URL = '/v1/subjects';
 
-export const fetchSubjects = async (
-    selectedAccount: string | null,
-    options: {page: number; pageLength: number; level?: string; category?: string}
-): Promise<SubjectsResponse> => {
-    if(!selectedAccount){
-        throw new Error("No account selected")
-    }
+export const fetchClassesWithSubjects = async (
+  selectedAccount: string | null,
+  options: { page: number; pageLength: number }
+) => {
+  if (!selectedAccount) {
+    throw new Error("No account selected");
+  }
 
-    const api = createApiClient({selectedAccount});
-    const params = new URLSearchParams();
-    params.append('page', options.page.toString());
-    params.append('pageLength', options.pageLength.toString());
+  const api = createApiClient({ selectedAccount });
 
-    if (options.level){
-        params.append('level', options.level);
-    }
+  const params = new URLSearchParams();
+  params.append("page", options.page.toString());
+  params.append("pageLength", options.pageLength.toString());
 
-    if (options.category){
-        params.append('category', options.category);
-    }
+  const response = await api.get(`/v1/subjects?${params.toString()}`);
 
-    const url = `/v1/subjects?${params.toString()}`;
-    const response = await api.get(url);
-    return{
-        subjects: response.subjects || response.items || response || [],
-        itemCount: response.itemCount || response.totalCount || (response.subjects || response.items || response || []).lenght
-    };
-}
+  return {
+    items: response.items || [],
+    itemCount: response.itemCount ?? 0,
+  };
+};
+
 
 export const createSubject = async (apiClient: any, payload: any) => {
-    const response = await apiClient.post(`${BASE_URL}`, payload);
+    const response = await apiClient.post(`${BASE_URL}/assign-subjects-to-class`, payload);
     return response;
 };
 
@@ -96,11 +90,7 @@ export const fetchSubjectTeacherAssessment = async (selectedAccount: string | nu
 };
 
 export const createSubjectAssessment = async (selectedAccount: string | null,
-    payload: {
-        subjectId: string;
-        schoolSession: number;
-        schoolTerm: number;
-    }
+    payload: CreateSubjectAssessmentPayload
 ) => {
     if (!selectedAccount) {
         throw new Error("No account selected");
@@ -112,3 +102,12 @@ export const createSubjectAssessment = async (selectedAccount: string | null,
 
     return response;
 };
+
+export const fetchClassSubjects = async (
+  apiClient: any,
+  classId: string | number
+) => {
+  const response = await apiClient.get(`/v1/subjects/get-class-subjects?classId=${classId}`);
+  return response.subjects || []; // now returns SubjectDto[]
+};
+

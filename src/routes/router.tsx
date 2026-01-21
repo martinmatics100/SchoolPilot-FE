@@ -1,316 +1,399 @@
-import { lazy, Suspense, type ReactElement, type PropsWithChildren } from 'react';
-import { Navigate, Outlet, type RouteObject, createBrowserRouter } from 'react-router-dom';
-import PageLoader from '../components/loading/pageLoader';
-import Splash from '../components/loading/splash';
-import { rootPaths } from './paths';
-import paths from './paths';
-import NavigationHandler from '../helpers/navigation-helper';
-import { ProtectedRoute } from './protected-route';
-import ErrorBoundary from '../components/error-boundary';
+import {
+  lazy,
+  Suspense,
+  type ReactElement,
+  type PropsWithChildren,
+} from "react";
+import {
+  Navigate,
+  Outlet,
+  type RouteObject,
+  createBrowserRouter,
+} from "react-router-dom";
+import PageLoader from "../components/loading/pageLoader";
+import Splash from "../components/loading/splash";
+import { rootPaths } from "./paths";
+import paths from "./paths";
+import NavigationHandler from "../helpers/navigation-helper";
+import { ProtectedRoute } from "./protected-route";
+import ErrorBoundary from "../components/error-boundary";
 
-
-const App = lazy<() => ReactElement>(() => import('./../App'));
+const App = lazy<() => ReactElement>(() => import("./../App"));
 const MainLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
-    () => import('../../src/layouts/main-layout')
+  () => import("../../src/layouts/main-layout")
 );
 const AuthLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
-    () => import('../../src/layouts/auth-layout')
+  () => import("../../src/layouts/auth-layout")
 );
 
-const LoginPage = lazy<() => ReactElement>(() => import('../pages/authentication/login/index'));
-const AccountSelection = lazy<() => ReactElement>(() => import('../pages/account-selection/index'));
-const WelcomePage = lazy(() => import('../../src/pages/admin/welcome/index'));
-const LoginSuccessPage = lazy<() => ReactElement>(() => import('../pages/authentication/login/login-success'));
-const AdminUserListManagementPage = lazy<() => ReactElement>(() => import('../pages/admin/users/user-list/index'));
-const AdminCreateUserPage = lazy<() => ReactElement>(() => import('../pages/admin/users/create-user/index'));
-const AdminStudentListManagementPage = lazy<() => ReactElement>(() => import('../pages/admin/students/student-list/index'));
-const AdminCreateStudentPage = lazy<() => ReactElement>(() => import('../pages/admin/students/create-student/index'));
-const AdminDashboardAnalytics = lazy<() => ReactElement>(() => import('../pages/admin/dashboard-analytics/index'));
-const AdminPermissions = lazy(() => import('../pages/admin/permission/index'));
-const ActivityLogPage = lazy(() => import('../pages/admin/audit-trails/activity-log'));
-const SchoolTerms = lazy(() => import('../pages/admin/academics/terms/index'));
-const SchoolLevels = lazy(() => import('../pages/admin/academics/levels/index'));
-const SchoolSubjects = lazy(() => import('../pages/admin/academics/subjects/index'));
-const CreateSubject = lazy(() => import('../pages/admin/academics/subjects/createSubject'));
-const SchoolClasses = lazy(() => import('../pages/admin/academics/classes/index'));
-const ScoreSheetInput = lazy(() => import('../pages/staffs/result-scores/index'));
-const GradingSystems = lazy(() => import('../pages/admin/grading-systems/index'));
-const CommentBank = lazy(() => import('../pages/admin/comments-bank/index'));
-const ReportPreference = lazy(() => import('../pages/admin/result-preference/index'));
-const ExamBroadSheet = lazy(() => import('../pages/admin/broad-sheet/examsheet'));
-const SubjectsAllocation = lazy(() => import('../pages/admin/academics/subject-allocation/index'));
-const Assessment = lazy(() => import('../pages/admin/academics/assessment/index'));
+const LoginPage = lazy<() => ReactElement>(
+  () => import("../pages/authentication/login/index")
+);
+const AccountSelection = lazy<() => ReactElement>(
+  () => import("../pages/account-selection/index")
+);
+const WelcomePage = lazy(() => import("../../src/pages/admin/welcome/index"));
+const LoginSuccessPage = lazy<() => ReactElement>(
+  () => import("../pages/authentication/login/login-success")
+);
+const AdminUserListManagementPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/users/user-list/index")
+);
+const AdminCreateUserPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/users/create-user/index")
+);
+const AdminStudentListManagementPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/students/student-list/index")
+);
+const AdminCreateStudentPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/students/create-student/index")
+);
+const AdminBulkCreateStudentPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/students/bulk-create-student/index")
+);
+const AdminDashboardAnalytics = lazy<() => ReactElement>(
+  () => import("../pages/admin/dashboard-analytics/index")
+);
+const AdminPermissions = lazy(() => import("../pages/admin/permission/index"));
+const ActivityLogPage = lazy(
+  () => import("../pages/admin/audit-trails/activity-log")
+);
+const SchoolTerms = lazy(() => import("../pages/admin/academics/terms/index"));
+const SchoolLevels = lazy(
+  () => import("../pages/admin/academics/levels/index")
+);
+const SchoolSubjects = lazy(
+  () => import("../pages/admin/academics/subjects/index")
+);
+const CreateSubject = lazy(
+  () => import("../pages/admin/academics/subjects/createSubject")
+);
+const SchoolClasses = lazy(
+  () => import("../pages/admin/academics/classes/index")
+);
+const CreateClass = lazy(
+  () => import("../pages/admin/academics/classes/createClass")
+);
+const ScoreSheetInput = lazy(
+  () => import("../pages/staffs/result-scores/index")
+);
+const GradingSystems = lazy(
+  () => import("../pages/admin/grading-systems/index")
+);
+const CommentBank = lazy(() => import("../pages/admin/comments-bank/index"));
+const ReportPreference = lazy(
+  () => import("../pages/admin/result-preference/index")
+);
+const ExamBroadSheet = lazy(
+  () => import("../pages/admin/broad-sheet/examsheet")
+);
+const SubjectsAllocation = lazy(
+  () => import("../pages/admin/academics/subject-allocation/index")
+);
+const Assessment = lazy(
+  () => import("../pages/admin/academics/assessment/index")
+);
 
 const routes: RouteObject[] = [
-    {
+  {
+    element: (
+      <ErrorBoundary>
+        <Suspense fallback={<Splash />}>
+          <NavigationHandler>
+            <App />
+          </NavigationHandler>
+        </Suspense>
+      </ErrorBoundary>
+    ),
+    children: [
+      {
+        path: paths.home,
         element: (
-            <ErrorBoundary>
-                <Suspense fallback={<Splash />}>
-                    <NavigationHandler>
-                        <App />
-                    </NavigationHandler>
-                </Suspense>
-            </ErrorBoundary>
+          <ErrorBoundary>
+            <ProtectedRoute requireAccountSelection={false}>
+              <AccountSelection />
+            </ProtectedRoute>
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: "/app",
+        element: (
+          <ProtectedRoute requireAccountSelection={true}>
+            <MainLayout>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </MainLayout>
+          </ProtectedRoute>
         ),
         children: [
-            {
-                path: paths.home,
+          {
+            path: "welcome",
+            element: (
+              <ErrorBoundary>
+                <WelcomePage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "analytics",
+            element: (
+              <ErrorBoundary>
+                <AdminDashboardAnalytics />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "users",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
                 element: (
-                    <ErrorBoundary>
-                        <ProtectedRoute requireAccountSelection={false}>
-                            <AccountSelection />
-                        </ProtectedRoute>
-                    </ErrorBoundary>
+                  <ErrorBoundary>
+                    <AdminUserListManagementPage />
+                  </ErrorBoundary>
                 ),
-            },
-            {
-                path: '/app',
+              },
+              {
+                path: "create-user",
                 element: (
-                    <ProtectedRoute requireAccountSelection={true}>
-                        <MainLayout>
-                            <Suspense fallback={<PageLoader />}>
-                                <Outlet />
-                            </Suspense>
-                        </MainLayout>
-                    </ProtectedRoute>
+                  <ErrorBoundary>
+                    <AdminCreateUserPage />
+                  </ErrorBoundary>
                 ),
-                children: [
-                    {
-                        path: 'welcome',
-                        element: (
-                            <ErrorBoundary>
-                                <WelcomePage />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'analytics',
-                        element: (
-                            <ErrorBoundary>
-                                <AdminDashboardAnalytics />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'users',
-                        element: <Outlet />,
-                        children: [
-                            {
-                                index: true,
-                                element: (
-                                    <ErrorBoundary>
-                                        <AdminUserListManagementPage />
-                                    </ErrorBoundary>
-                                ),
-                            },
-                            {
-                                path: "create-user",
-                                element: (
-                                    <ErrorBoundary>
-                                        <AdminCreateUserPage />
-                                    </ErrorBoundary>
-                                ),
-                            }
-                        ]
-                    },
-                    {
-                        path: 'students',
-                        element: <Outlet />,
-                        children: [
-                            {
-                                index: true,
-                                element: (
-                                    <ErrorBoundary>
-                                        <AdminStudentListManagementPage />
-                                    </ErrorBoundary>
-                                ),
-                            },
-                            {
-                                path: "create-student",
-                                element: (
-                                    <ErrorBoundary>
-                                        <AdminCreateStudentPage />
-                                    </ErrorBoundary>
-                                ),
-                            }
-                        ]
-                    },
-                    {
-                        path: 'permission',
-                        element: (
-                            <ErrorBoundary>
-                                <AdminPermissions />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'audit',
-                        element: (
-                            <ErrorBoundary>
-                                <ActivityLogPage />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/terms',
-                        element: (
-                            <ErrorBoundary>
-                                <SchoolTerms />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/levels',
-                        element: (
-                            <ErrorBoundary>
-                                <SchoolLevels />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/classes',
-                        element: (
-                            <ErrorBoundary>
-                                <SchoolClasses />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/subjects-allocation',
-                        element: (
-                            <ErrorBoundary>
-                                <SubjectsAllocation />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/assessment',
-                        element: (
-                            <ErrorBoundary>
-                                <Assessment />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'academics/subjects',
-                        element: <Outlet />,
-                        children: [
-                            {
-                                index: true,
-                                element: (
-                                    <ErrorBoundary>
-                                        <SchoolSubjects />
-                                    </ErrorBoundary>
-                                ),
-                            },
-                            {
-                                path: "create-subject",
-                                element: (
-                                    <ErrorBoundary>
-                                        <CreateSubject />
-                                    </ErrorBoundary>
-                                ),
-                            }
-                        ]
-                    },
-                    {
-                        path: 'score-sheet',
-                        element: (
-                            <ErrorBoundary>
-                                <ScoreSheetInput />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'grading-system',
-                        element: (
-                            <ErrorBoundary>
-                                <GradingSystems />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'comment-bank',
-                        element: (
-                            <ErrorBoundary>
-                                <CommentBank />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'report-reference',
-                        element: (
-                            <ErrorBoundary>
-                                <ReportPreference />
-                            </ErrorBoundary>
-                        ),
-                    },
-                    {
-                        path: 'exam-sheet',
-                        element: (
-                            <ErrorBoundary>
-                                <ExamBroadSheet />
-                            </ErrorBoundary>
-                        ),
-                    },
-                ]
-            },
-            {
-                path: rootPaths.authRoot,
+              },
+            ],
+          },
+          {
+            path: "students",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
                 element: (
-                    <AuthLayout>
-                        <Suspense fallback={<PageLoader />}>
-                            <Outlet />
-                        </Suspense>
-                    </AuthLayout>
+                  <ErrorBoundary>
+                    <AdminStudentListManagementPage />
+                  </ErrorBoundary>
                 ),
-                children: [
-                    {
-                        path: paths.login,
-                        element: (
-                            <ProtectedRoute requireAccountSelection={false}>
-                                <LoginPage />
-                            </ProtectedRoute>
-                        ),
-                    },
-                    {
-                        path: 'welcome',
-                        element: (
-                            <ProtectedRoute requireAccountSelection={false}>
-                                <LoginSuccessPage />
-                            </ProtectedRoute>
-                        ),
-                    },
-                    {
-                        path: '*',
-                        element: (
-                            <ProtectedRoute>
-                                <Navigate to={paths.home} replace />
-                            </ProtectedRoute>
-                        ),
-                    }
-                ],
-            },
-            // {
-            //     path: paths.signup,
-            //     element: (
-            //         <Suspense fallback={<PageLoader />}>
-            //             <ErrorBoundary>
-            //                 <CreatSchoolAccountPage />
-            //             </ErrorBoundary>
-            //         </Suspense>
-            //     ),
-            // },
-            {
-                path: rootPaths.authRoot,
-                element: <Navigate to={paths.login} replace />,
-            },
-        ]
-    }
-]
+              },
+              {
+                path: "create-student",
+                element: (
+                  <ErrorBoundary>
+                    <AdminCreateStudentPage />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "bulk-create-student",
+                element: (
+                  <ErrorBoundary>
+                    <AdminBulkCreateStudentPage />
+                  </ErrorBoundary>
+                ),
+              },
+            ],
+          },
+          {
+            path: "permission",
+            element: (
+              <ErrorBoundary>
+                <AdminPermissions />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "audit",
+            element: (
+              <ErrorBoundary>
+                <ActivityLogPage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "academics/terms",
+            element: (
+              <ErrorBoundary>
+                <SchoolTerms />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "academics/levels",
+            element: (
+              <ErrorBoundary>
+                <SchoolLevels />
+              </ErrorBoundary>
+            ),
+          },
+          // {
+          //   path: "academics/classes",
+          //   element: (
+          //     <ErrorBoundary>
+          //       <SchoolClasses />
+          //     </ErrorBoundary>
+          //   ),
+          // },
+          {
+            path: "academics/subjects-allocation",
+            element: (
+              <ErrorBoundary>
+                <SubjectsAllocation />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "academics/assessment",
+            element: (
+              <ErrorBoundary>
+                <Assessment />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "academics/subjects",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <ErrorBoundary>
+                    <SchoolSubjects />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "create-subject",
+                element: (
+                  <ErrorBoundary>
+                    <CreateSubject />
+                  </ErrorBoundary>
+                ),
+              },
+            ],
+          },
+          {
+            path: "academics/classes",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <ErrorBoundary>
+                    <SchoolClasses />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "create-class",
+                element: (
+                  <ErrorBoundary>
+                    <CreateClass />
+                  </ErrorBoundary>
+                ),
+              },
+            ],
+          },
+          {
+            path: "score-sheet",
+            element: (
+              <ErrorBoundary>
+                <ScoreSheetInput />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "grading-system",
+            element: (
+              <ErrorBoundary>
+                <GradingSystems />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "comment-bank",
+            element: (
+              <ErrorBoundary>
+                <CommentBank />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "report-reference",
+            element: (
+              <ErrorBoundary>
+                <ReportPreference />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "exam-sheet",
+            element: (
+              <ErrorBoundary>
+                <ExamBroadSheet />
+              </ErrorBoundary>
+            ),
+          },
+        ],
+      },
+      {
+        path: rootPaths.authRoot,
+        element: (
+          <AuthLayout>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </AuthLayout>
+        ),
+        children: [
+          {
+            path: paths.login,
+            element: (
+              <ProtectedRoute requireAccountSelection={false}>
+                <LoginPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "welcome",
+            element: (
+              <ProtectedRoute requireAccountSelection={false}>
+                <LoginSuccessPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "*",
+            element: (
+              <ProtectedRoute>
+                <Navigate to={paths.home} replace />
+              </ProtectedRoute>
+            ),
+          },
+        ],
+      },
+      // {
+      //     path: paths.signup,
+      //     element: (
+      //         <Suspense fallback={<PageLoader />}>
+      //             <ErrorBoundary>
+      //                 <CreatSchoolAccountPage />
+      //             </ErrorBoundary>
+      //         </Suspense>
+      //     ),
+      // },
+      {
+        path: rootPaths.authRoot,
+        element: <Navigate to={paths.login} replace />,
+      },
+    ],
+  },
+];
 
 const options: { basename: string } = {
-    basename: '/schoolpilot',
+  basename: "/schoolpilot",
 };
 
 const router = createBrowserRouter(routes, options);

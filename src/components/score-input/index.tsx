@@ -19,28 +19,23 @@ import { useAuth } from "../../context";
 import { fetchStudentScoresBySubject } from "../../api/studentService";
 import { useTheme } from "@mui/material";
 
-export interface Student {
+interface Student {
   id: string;
   name: string;
 }
 
-export interface Subject {
-  id: string;
-  name: string;
-}
-
-export interface Score {
-  test: number | null;
-  exam: number | null;
+interface AssessmentScore {
+  subjectAssessmentId: string;
+  assessmentName: string;
+  score: number | null;
 }
 
 interface Props {
-  students: Student[];
-  subjects: Subject[];
+  subjects: { id: string; name: string }[];
   classId: string;
   schoolSession: number;
   schoolTerm: number;
-  onSubmit: (scores: any) => void;
+  onSubmit: (payload: any) => void;
 }
 
 const ScoreInputComponent: React.FC<Props> = ({
@@ -51,14 +46,18 @@ const ScoreInputComponent: React.FC<Props> = ({
   onSubmit,
 }) => {
   const { selectedAccount } = useAuth();
-
   const theme = useTheme();
 
   const [selectedSubject, setSelectedSubject] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
-  const [scores, setScores] = useState<Record<string, Score>>({});
+  const [scores, setScores] = useState<Record<string, AssessmentScore[]>>({});
 
-  /* Fetch scores when subject changes */
+  useEffect(() => {
+    setSelectedSubject("");
+    setStudents([]);
+    setScores({});
+  }, [classId, subjects]);
+
   useEffect(() => {
     if (!selectedSubject || !selectedAccount) return;
 
@@ -74,36 +73,55 @@ const ScoreInputComponent: React.FC<Props> = ({
         name: s.studentName,
       }));
 
-      const mappedScores: Record<string, Score> = {};
+      const mappedScores: Record<string, AssessmentScore[]> = {};
       data.forEach((s: any) => {
-        mappedScores[s.studentId] = {
-          test:
-            s.scores.find((x: any) => x.assessmentName === "Test")?.score ??
-            null,
-          exam:
-            s.scores.find((x: any) => x.assessmentName === "Exam")?.score ??
-            null,
-        };
+        mappedScores[s.studentId] = s.scores.map((x: any) => ({
+          subjectAssessmentId: x.assessmentId,
+          assessmentName: x.assessmentName,
+          score: x.score ?? null,
+        }));
       });
 
       setStudents(mappedStudents);
       setScores(mappedScores);
     });
-  }, [selectedSubject]);
+  }, [selectedSubject, selectedAccount]);
 
   const handleScoreChange = (
     studentId: string,
-    type: "test" | "exam",
+    assessmentId: string,
     value: string
   ) => {
     setScores((prev) => ({
       ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        [type]: value === "" ? null : Number(value),
-      },
+      [studentId]: prev[studentId].map((s) =>
+        s.subjectAssessmentId === assessmentId
+          ? { ...s, score: value === "" ? null : Number(value) }
+          : s
+      ),
     }));
   };
+
+  const handleSubmit = () => {
+    const payload = {
+      classId,
+      subjectId: selectedSubject,
+      schoolSession,
+      schoolTerm,
+      students: Object.entries(scores).map(([studentId, scores]) => ({
+        studentId,
+        scores: scores.map((s) => ({
+          subjectAssessmentId: s.subjectAssessmentId,
+          score: s.score,
+        })),
+      })),
+    };
+
+    onSubmit(payload);
+  };
+
+  const assessmentHeaders =
+    students.length > 0 ? scores[students[0].id] ?? [] : [];
 
   return (
     <Box mt={2}>
@@ -131,58 +149,51 @@ const ScoreInputComponent: React.FC<Props> = ({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: theme.palette.text.secondary }}>
-                    Student
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.secondary }}>
-                    Test
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.secondary }}>
-                    Exam
-                  </TableCell>
+                  <TableCell>Student</TableCell>
+                  {assessmentHeaders.map((a) => (
+                    <TableCell key={a.subjectAssessmentId}>
+                      {a.assessmentName}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
+
               <TableBody>
                 {students.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell
                       sx={{
+                        fontWeight: 700,
+                        fontSize: "16px",
                         color: theme.palette.text.secondary,
-                        fontWeight: "900",
-                        fontSize: "18px",
                       }}
                     >
                       {s.name}
                     </TableCell>
-                    <TableCell>
-                      <TextField
-                        type="number"
-                        value={scores[s.id]?.test ?? ""}
-                        onChange={(e) =>
-                          handleScoreChange(s.id, "test", e.target.value)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        type="number"
-                        value={scores[s.id]?.exam ?? ""}
-                        onChange={(e) =>
-                          handleScoreChange(s.id, "exam", e.target.value)
-                        }
-                      />
-                    </TableCell>
+
+                    {scores[s.id]?.map((a) => (
+                      <TableCell key={a.subjectAssessmentId}>
+                        <TextField
+                          type="number"
+                          value={a.score ?? ""}
+                          onChange={(e) =>
+                            handleScoreChange(
+                              s.id,
+                              a.subjectAssessmentId,
+                              e.target.value
+                            )
+                          }
+                          inputProps={{ min: 0 }}
+                        />
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
 
-          <Button
-            variant="contained"
-            sx={{ mt: 2 }}
-            onClick={() => onSubmit({ subjectId: selectedSubject, scores })}
-          >
+          <Button variant="contained" sx={{ mt: 2 }} onClick={handleSubmit}>
             Submit Scores
           </Button>
         </>
