@@ -1,75 +1,238 @@
-import React, { useState } from "react";
-import { Box, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+} from "@mui/material";
 import BroadsheetTable from "../../../components/broad-sheetTable";
+import { useEnums } from "../../../hooks/useEnums";
+import { useAuth } from "../../../context";
+import { fetchClasses, fetchClassBroadsheet } from "../../../api/classServices";
 
 const ExampleBroadsheetPage = () => {
-    const [selectedClass, setSelectedClass] = useState<keyof typeof classes | "">("");
-    const [selectedSession, setSelectedSession] = useState("");
-    const [selectedTerm, setSelectedTerm] = useState("");
+  const { enums, isLoading } = useEnums({ fetchPermissionData: false });
+  const { apiClient, selectedAccount } = useAuth();
 
-    const classes = {
-        JSS1: ["English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT", "English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT", "English Language", "Mathematics", "Basic Science", "Civic Edu", "Security Edu", "ICT"],
-        JSS2: ["English", "Maths", "Agric", "History"],
-        SS1: ["English", "Maths", "Biology", "Physics", "Chemistry"],
-    };
+  const [classes, setClasses] = useState<{ value: string; label: string }[]>(
+    [],
+  );
+  const [sessions, setSessions] = useState<{ value: string; label: string }[]>(
+    [],
+  );
+  const [terms, setTerms] = useState<{ value: string; label: string }[]>([]);
 
-    const students = ["John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu", "John Paul", "Mercy Samuel", "Adeyemi Tolu"];
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSession, setSelectedSession] = useState("");
+  const [selectedTerm, setSelectedTerm] = useState("");
 
-    const showTable = selectedClass && selectedSession && selectedTerm;
-    const subjects = selectedClass ? classes[selectedClass] : [];
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [showBroadsheet, setShowBroadsheet] = useState(false);
+  const [loadingSheet, setLoadingSheet] = useState(false);
 
-    return (
-        <Box sx={{ p: 2 }}>
-            {/* DROPDOWNS */}
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
-                <FormControl sx={{ minWidth: 150 }}>
-                    <InputLabel>Class</InputLabel>
-                    <Select
-                        value={selectedClass}
-                        onChange={(e) => setSelectedClass(e.target.value)}
-                    >
-                        {Object.keys(classes).map((cls) => (
-                            <MenuItem key={cls} value={cls}>{cls}</MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+  // Fetch classes
+  useEffect(() => {
+    if (!selectedAccount) return;
 
-                <FormControl sx={{ minWidth: 150 }}>
-                    <InputLabel>Session</InputLabel>
-                    <Select
-                        value={selectedSession}
-                        disabled={!selectedClass}
-                        onChange={(e) => setSelectedSession(e.target.value)}
-                    >
-                        <MenuItem value="2023/2024">2023/2024</MenuItem>
-                        <MenuItem value="2024/2025">2024/2025</MenuItem>
-                    </Select>
-                </FormControl>
+    fetchClasses(selectedAccount).then((res) => {
+      setClasses(
+        (res || []).map((c: any) => ({
+          value: c.id,
+          label: c.className,
+        })),
+      );
+    });
+  }, [selectedAccount]);
 
-                <FormControl sx={{ minWidth: 150 }}>
-                    <InputLabel>Term</InputLabel>
-                    <Select
-                        value={selectedTerm}
-                        disabled={!selectedSession}
-                        onChange={(e) => setSelectedTerm(e.target.value)}
-                    >
-                        <MenuItem value="1st Term">1st Term</MenuItem>
-                        <MenuItem value="2nd Term">2nd Term</MenuItem>
-                        <MenuItem value="3rd Term">3rd Term</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
+  // Load enums
+  useEffect(() => {
+    if (isLoading || !enums) return;
 
-            {/* BROADSHEET TABLE */}
-            {showTable && (
-                <BroadsheetTable
-                    students={students}
-                    subjects={subjects}
-                    columnWidths={{ sn: 40, name: 300, subject: 55 }}
-                />
-            )}
-        </Box>
+    setSessions(
+      (enums.SchoolSessions || []).map((s: any) => ({
+        value: String(s.value),
+        label: s.displayName || s.name,
+      })),
     );
+
+    setTerms(
+      (enums.SchoolTerms || []).map((t: any) => ({
+        value: String(t.value),
+        label: t.displayName || t.name,
+      })),
+    );
+  }, [isLoading, enums]);
+
+  const readyToView = selectedClass && selectedSession && selectedTerm;
+
+  // VIEW BROADSHEET
+  const handleViewBroadsheet = async () => {
+    try {
+      setLoadingSheet(true);
+
+      const response = await fetchClassBroadsheet(apiClient, {
+        classId: selectedClass,
+        schoolSession: Number(selectedSession),
+        schoolTerm: Number(selectedTerm),
+      });
+
+      const data = response?.data ?? response;
+
+      // Map subject enum values → display names
+      const subjectLabels = (data.subjects || []).map(
+        (subjectValue: number) => {
+          const enumMatch = enums?.AcademicSubjects?.find(
+            (e: any) => e.value === subjectValue,
+          );
+          return (
+            enumMatch?.displayName || enumMatch?.name || String(subjectValue)
+          );
+        },
+      );
+
+      setSubjects(subjectLabels);
+      setStudents(data.students || []);
+      setShowBroadsheet(true);
+    } catch (err) {
+      console.error("Failed to load broadsheet", err);
+    } finally {
+      setLoadingSheet(false);
+    }
+  };
+
+  // Download CSV
+  const handleDownload = () => {
+    const header = [
+      "S/N",
+      "Student Name",
+      ...subjects,
+      "Total Subjects",
+      "Total Obtainable",
+      "Total Score",
+      "Average",
+      "Percentage",
+      "Position",
+      "Result Status",
+    ].join(",");
+
+    const rows = students.map((s, i) => {
+      const scores = (s.subjects || []).map(
+        (sub: any) => sub.totalScore ?? "-",
+      );
+      return [
+        i + 1,
+        s.studentName,
+        ...scores,
+        s.totalSubjects,
+        s.totalObtainable,
+        s.totalScore,
+        s.average,
+        s.percentage,
+        s.position,
+        s.resultStatus,
+      ].join(",");
+    });
+
+    const csvContent = [header, ...rows].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "broadsheet.csv";
+    link.click();
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <Box sx={{ p: 2 }}>
+      {/* FILTERS */}
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel>Class</InputLabel>
+          <Select
+            value={selectedClass}
+            onChange={(e) => {
+              setSelectedClass(e.target.value);
+              setShowBroadsheet(false);
+            }}
+          >
+            {classes.map((cls) => (
+              <MenuItem key={cls.value} value={cls.value}>
+                {cls.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel>Session</InputLabel>
+          <Select
+            value={selectedSession}
+            disabled={!selectedClass}
+            onChange={(e) => {
+              setSelectedSession(e.target.value);
+              setSelectedTerm("");
+            }}
+          >
+            {sessions.map((s) => (
+              <MenuItem key={s.value} value={s.value}>
+                {s.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel>Term</InputLabel>
+          <Select
+            value={selectedTerm}
+            disabled={!selectedSession}
+            onChange={(e) => setSelectedTerm(e.target.value)}
+          >
+            {terms.map((t) => (
+              <MenuItem key={t.value} value={t.value}>
+                {t.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {readyToView && !showBroadsheet && (
+        <Button
+          variant="contained"
+          onClick={handleViewBroadsheet}
+          disabled={loadingSheet}
+        >
+          {loadingSheet ? "Loading..." : "View Broadsheet"}
+        </Button>
+      )}
+
+      {showBroadsheet && (
+        <Box>
+          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            <Button variant="outlined" onClick={() => window.print()}>
+              Print
+            </Button>
+            <Button variant="outlined" onClick={handleDownload}>
+              Download
+            </Button>
+          </Box>
+
+          <BroadsheetTable
+            students={students}
+            subjects={subjects}
+            columnWidths={{ sn: 40, name: 300, subject: 55 }}
+          />
+        </Box>
+      )}
+    </Box>
+  );
 };
 
 export default ExampleBroadsheetPage;

@@ -115,3 +115,19 @@ export const fetchTeacherSubjectsByClass = async (
 
   return response.items || [];
 };
+
+export const fetchClassBroadsheet = async (
+  apiClient: any,
+  payload: {
+    classId: string;
+    schoolSession: number;
+    schoolTerm: number;
+  }
+) => {
+  const response = await apiClient.post(
+    "/v1/class/class-broadsheet",
+    payload
+  );
+
+  return response;
+};

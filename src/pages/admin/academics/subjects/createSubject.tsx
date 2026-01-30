@@ -31,7 +31,7 @@ const CreateSubject = () => {
         res.map((c: any) => ({
           value: c.id,
           label: c.className,
-        }))
+        })),
       );
     });
   }, [selectedAccount]);
@@ -63,7 +63,7 @@ const CreateSubject = () => {
         enumsFromLocal.map((s: any) => ({
           value: String(s.value),
           label: s.displayName || s.name,
-        }))
+        })),
       );
     }
   };
@@ -110,7 +110,7 @@ const CreateSubject = () => {
 
       const newlyAssigned = data.subjectIds.map((id: string) => id.toString());
       setAvailableSubjects((prev) =>
-        prev.filter((s) => !newlyAssigned.includes(s.value))
+        prev.filter((s) => !newlyAssigned.includes(s.value)),
       );
       setSelectedSubjects([]);
     } catch (error) {

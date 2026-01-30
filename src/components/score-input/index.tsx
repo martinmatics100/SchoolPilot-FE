@@ -90,14 +90,14 @@ const ScoreInputComponent: React.FC<Props> = ({
   const handleScoreChange = (
     studentId: string,
     assessmentId: string,
-    value: string
+    value: string,
   ) => {
     setScores((prev) => ({
       ...prev,
       [studentId]: prev[studentId].map((s) =>
         s.subjectAssessmentId === assessmentId
           ? { ...s, score: value === "" ? null : Number(value) }
-          : s
+          : s,
       ),
     }));
   };
@@ -121,7 +121,7 @@ const ScoreInputComponent: React.FC<Props> = ({
   };
 
   const assessmentHeaders =
-    students.length > 0 ? scores[students[0].id] ?? [] : [];
+    students.length > 0 ? (scores[students[0].id] ?? []) : [];
 
   return (
     <Box mt={2}>
@@ -176,14 +176,41 @@ const ScoreInputComponent: React.FC<Props> = ({
                         <TextField
                           type="number"
                           value={a.score ?? ""}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                              e.preventDefault();
+                            }
+                          }}
                           onChange={(e) =>
                             handleScoreChange(
                               s.id,
                               a.subjectAssessmentId,
-                              e.target.value
+                              e.target.value,
                             )
                           }
-                          inputProps={{ min: 0 }}
+                          inputProps={{
+                            min: 0,
+                            inputMode: "numeric",
+                            pattern: "[0-9]*",
+                          }}
+                          sx={{
+                            width: "120px",
+                            "& input": {
+                              textAlign: "center",
+                              fontSize: "1.2rem",
+                              fontWeight: 600,
+                              padding: "10px",
+                            },
+                            "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
+                              {
+                                WebkitAppearance: "none",
+                                margin: 0,
+                              },
+                            "& input[type=number]": {
+                              MozAppearance: "textfield",
+                            },
+                          }}
                         />
                       </TableCell>
                     ))}

@@ -74,7 +74,7 @@ const navItems: INavbarItem[] = [
     {
         id: 7,
         path: '/app/academics/terms',
-        title: 'Terms',
+        title: 'Terms-Assessments',
         icon: 'mdi:calendar',
         active: true,
         group: 'Academics',
@@ -111,29 +111,29 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    {
-        id: 11,
-        path: '/app/academics/subjects-allocation',
-        title: 'Subjects Allocation',
-        icon: 'mdi:book-open-blank-variant',
-        active: true,
-        group: 'Academics',
-        roles: [UserRoles.ADMIN],
-    },
-    {
-        id: 12,
-        path: '/app/academics/assessment',
-        title: 'Assessments',
-        icon: 'mdi:book-open-blank-variant',
-        active: true,
-        group: 'Academics',
-        roles: [UserRoles.ADMIN],
-    },
+    // {
+    //     id: 11,
+    //     path: '/app/academics/subjects-allocation',
+    //     title: 'Subjects Allocation',
+    //     icon: 'mdi:book-open-blank-variant',
+    //     active: true,
+    //     group: 'Academics',
+    //     roles: [UserRoles.ADMIN],
+    // },
+    // {
+    //     id: 12,
+    //     path: '/app/academics/assessment',
+    //     title: 'Assessments',
+    //     icon: 'mdi:book-open-blank-variant',
+    //     active: true,
+    //     group: 'Academics',
+    //     roles: [UserRoles.ADMIN],
+    // },
 
     // Results
     {
         id: 11,
-        path: 'score-sheet',
+        path: '/app/score-sheet',
         title: 'Scores Sheet',
         icon: 'mdi:cog',
         active: true,
@@ -142,7 +142,7 @@ const navItems: INavbarItem[] = [
     },
 
     {
-        id: 11,
+        id: 12,
         path: '#',
         title: 'Result Checker',
         icon: 'mdi:cog',
@@ -152,8 +152,8 @@ const navItems: INavbarItem[] = [
     },
 
     {
-        id: 11,
-        path: 'exam-sheet',
+        id: 13,
+        path: '/app/exam-sheet',
         title: 'Result BroadSheet',
         icon: 'mdi:cog',
         active: true,
@@ -164,8 +164,8 @@ const navItems: INavbarItem[] = [
     // Settings
 
     {
-        id: 13,
-        path: 'grading-system',
+        id: 14,
+        path: '/app/grading-system',
         title: 'Grading Systems',
         icon: 'mdi:cog',
         active: true,
@@ -174,8 +174,8 @@ const navItems: INavbarItem[] = [
     },
 
     {
-        id: 14,
-        path: 'comment-bank',
+        id: 15,
+        path: '/app/comment-bank',
         title: 'Comments Bank',
         icon: 'mdi:cog',
         active: true,
@@ -184,8 +184,8 @@ const navItems: INavbarItem[] = [
     },
 
     {
-        id: 15,
-        path: 'j',
+        id: 16,
+        path: '#',
         title: 'Cognitive Skills',
         icon: 'mdi:cog',
         active: true,
@@ -194,8 +194,8 @@ const navItems: INavbarItem[] = [
     },
 
     {
-        id: 16,
-        path: 'report-reference',
+        id: 17,
+        path: '/app/report-reference',
         title: 'Result Preference',
         icon: 'mdi:cog',
         active: true,
@@ -207,7 +207,7 @@ const navItems: INavbarItem[] = [
 
 
     {
-        id: 12,
+        id: 18,
         path: '#',
         title: 'School Settings',
         icon: 'mdi:cog',

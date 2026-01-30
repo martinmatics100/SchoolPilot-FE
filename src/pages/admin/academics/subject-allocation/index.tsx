@@ -90,12 +90,12 @@ const AssignSubjectTeacher = () => {
         {
           page: 1,
           pageLength: 200,
-        }
+        },
       );
 
       const mappedSubjects = subjectResponse.items.map((s: any) => {
         const subjectEnum = enums?.AcademicSubjects?.find(
-          (e) => String(e.value).trim() === String(s.subject).trim()
+          (e) => String(e.value).trim() === String(s.subject).trim(),
         );
 
         return {

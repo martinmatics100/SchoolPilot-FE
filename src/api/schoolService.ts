@@ -1,5 +1,6 @@
 import { createApiClient, getInitialAuthData } from "../utils/apiClient";
 import { type SchoolDetails, type SchoolSlimResponse, type SchoolTerm, type SchoolTermsResponse } from "../types/interfaces/i-school";
+import { type AssessmentTypeConfig } from "../types/interfaces/i-assessment";
 
 export class SchoolService {
     /**
@@ -87,6 +88,36 @@ export class SchoolService {
             throw error;
         }
     }
+
+  static async getAssessmentTypes(): Promise<AssessmentTypeConfig[]> {
+  const { selectedAccount } = getInitialAuthData();
+  if (!selectedAccount) throw new Error("No account selected");
+
+  try {
+    const api = createApiClient({ selectedAccount });
+    const response = await api.get<{ configs: AssessmentTypeConfig[] }>("/v1/accounts/assessment-type");
+    return response.configs || [];
+  } catch (error) {
+    console.error("Error fetching assessment types:", error);
+    throw error;
+  }
+}
+
+  /** Create or update max score for an assessment type */
+static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxScore: number }[]): Promise<void> {
+  const { selectedAccount } = getInitialAuthData();
+  if (!selectedAccount) throw new Error("No account selected");
+
+  try {
+    const api = createApiClient({ selectedAccount });
+    await api.post("/v1/accounts/assessment-type", { configs });
+  } catch (error) {
+    console.error("Error updating assessment types batch:", error);
+    throw error;
+  }
+}
+
+
 
     // /**
     //  * Delete a school term

@@ -20,78 +20,78 @@ import ErrorBoundary from "../components/error-boundary";
 
 const App = lazy<() => ReactElement>(() => import("./../App"));
 const MainLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
-  () => import("../../src/layouts/main-layout")
+  () => import("../../src/layouts/main-layout"),
 );
 const AuthLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
-  () => import("../../src/layouts/auth-layout")
+  () => import("../../src/layouts/auth-layout"),
 );
 
 const LoginPage = lazy<() => ReactElement>(
-  () => import("../pages/authentication/login/index")
+  () => import("../pages/authentication/login/index"),
 );
 const AccountSelection = lazy<() => ReactElement>(
-  () => import("../pages/account-selection/index")
+  () => import("../pages/account-selection/index"),
 );
 const WelcomePage = lazy(() => import("../../src/pages/admin/welcome/index"));
 const LoginSuccessPage = lazy<() => ReactElement>(
-  () => import("../pages/authentication/login/login-success")
+  () => import("../pages/authentication/login/login-success"),
 );
 const AdminUserListManagementPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/users/user-list/index")
+  () => import("../pages/admin/users/user-list/index"),
 );
 const AdminCreateUserPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/users/create-user/index")
+  () => import("../pages/admin/users/create-user/index"),
 );
 const AdminStudentListManagementPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/students/student-list/index")
+  () => import("../pages/admin/students/student-list/index"),
 );
 const AdminCreateStudentPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/students/create-student/index")
+  () => import("../pages/admin/students/create-student/index"),
 );
 const AdminBulkCreateStudentPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/students/bulk-create-student/index")
+  () => import("../pages/admin/students/bulk-create-student/index"),
 );
 const AdminDashboardAnalytics = lazy<() => ReactElement>(
-  () => import("../pages/admin/dashboard-analytics/index")
+  () => import("../pages/admin/dashboard-analytics/index"),
 );
 const AdminPermissions = lazy(() => import("../pages/admin/permission/index"));
 const ActivityLogPage = lazy(
-  () => import("../pages/admin/audit-trails/activity-log")
+  () => import("../pages/admin/audit-trails/activity-log"),
 );
 const SchoolTerms = lazy(() => import("../pages/admin/academics/terms/index"));
 const SchoolLevels = lazy(
-  () => import("../pages/admin/academics/levels/index")
+  () => import("../pages/admin/academics/levels/index"),
 );
 const SchoolSubjects = lazy(
-  () => import("../pages/admin/academics/subjects/index")
+  () => import("../pages/admin/academics/subjects/index"),
 );
 const CreateSubject = lazy(
-  () => import("../pages/admin/academics/subjects/createSubject")
+  () => import("../pages/admin/academics/subjects/createSubject"),
 );
 const SchoolClasses = lazy(
-  () => import("../pages/admin/academics/classes/index")
+  () => import("../pages/admin/academics/classes/index"),
 );
 const CreateClass = lazy(
-  () => import("../pages/admin/academics/classes/createClass")
+  () => import("../pages/admin/academics/classes/createClass"),
 );
 const ScoreSheetInput = lazy(
-  () => import("../pages/staffs/result-scores/index")
+  () => import("../pages/staffs/result-scores/index"),
 );
 const GradingSystems = lazy(
-  () => import("../pages/admin/grading-systems/index")
+  () => import("../pages/admin/grading-systems/index"),
 );
 const CommentBank = lazy(() => import("../pages/admin/comments-bank/index"));
 const ReportPreference = lazy(
-  () => import("../pages/admin/result-preference/index")
+  () => import("../pages/admin/result-preference/index"),
 );
 const ExamBroadSheet = lazy(
-  () => import("../pages/admin/broad-sheet/examsheet")
+  () => import("../pages/admin/broad-sheet/examsheet"),
 );
 const SubjectsAllocation = lazy(
-  () => import("../pages/admin/academics/subject-allocation/index")
+  () => import("../pages/admin/academics/subject-allocation/index"),
 );
 const Assessment = lazy(
-  () => import("../pages/admin/academics/assessment/index")
+  () => import("../pages/admin/academics/assessment/index"),
 );
 
 const routes: RouteObject[] = [

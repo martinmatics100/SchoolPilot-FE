@@ -1,102 +1,160 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import EditableTable, { type Column } from "../../../components/editable-table";
 import {
-    Box,
-    Typography,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    Button
+  Box,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
 } from "@mui/material";
+import { useAuth } from "../../../context";
+import { fetchClasses } from "../../../api/classServices";
+import {
+  fetchGradingSystemByClass,
+  saveGradingSystem,
+} from "../../../api/gradeServices";
 
 const GradingSystem: React.FC = () => {
+  const { selectedAccount } = useAuth();
 
-    const [selectedClass, setSelectedClass] = useState("");
-    const [showTable, setShowTable] = useState(false);
+  const [classes, setClasses] = useState<{ value: string; label: string }[]>(
+    [],
+  );
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [showTable, setShowTable] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
 
-    const columns: Column[] = [
-        { key: "lowerBound", label: "Lower Boundary", type: "number", width: 20 },
-        { key: "upperBound", label: "Upper Boundary", type: "number", width: 120 },
-        { key: "gradeName", label: "Grade Name", width: 100 },
-        { key: "gradeRemark", label: "Grade Remark", width: 150 },
-        { key: "gradePoint", label: "Grade Point", type: "number", width: 120 },
-        { key: "descriptor", label: "Grade Descriptor", width: 500 },
-    ];
+  /* ------------------ TABLE COLUMNS ------------------ */
+  const columns: Column[] = [
+    {
+      key: "lowerBound",
+      label: "Lower Boundary Mark",
+      type: "number",
+      width: 150,
+    },
+    {
+      key: "upperBound",
+      label: "Upper Boundary Mark",
+      type: "number",
+      width: 150,
+    },
+    { key: "gradeName", label: "Grade Name", width: 150 },
+    { key: "gradeRemark", label: "Grade Remark", width: 150 },
+    { key: "gradePoint", label: "Grade Point", type: "number", width: 150 },
+    { key: "descriptor", label: "Grade Descriptor", width: 500 },
+  ];
 
-    const [rows, setRows] = useState<any[]>([]);
+  /* ------------------ FETCH CLASSES ON LOAD ------------------ */
+  useEffect(() => {
+    if (!selectedAccount) return;
 
-    const handleView = () => {
-        if (!selectedClass) return;
+    fetchClasses(selectedAccount).then((res) => {
+      setClasses(
+        res.map((c: any) => ({
+          value: c.id,
+          label: c.className,
+        })),
+      );
+    });
+  }, [selectedAccount]);
 
-        // Load data for selected class (static for now)
-        setRows([
-            {
-                lowerBound: 70,
-                upperBound: 100,
-                gradeName: "A",
-                gradeRemark: "Excellent",
-                gradePoint: 5,
-                descriptor: "Excellent grade, keep it up",
-            },
-            {
-                lowerBound: 60,
-                upperBound: 69,
-                gradeName: "B",
-                gradeRemark: "Very Good",
-                gradePoint: 4,
-                descriptor: "Nice score, try harder next time",
-            },
-        ]);
+  /* ------------------ VIEW GRADING SYSTEM ------------------ */
+  const handleView = async () => {
+    if (!selectedClass || !selectedAccount) return;
 
-        setShowTable(true);
-    };
+    try {
+      const grades = await fetchGradingSystemByClass(
+        selectedAccount,
+        selectedClass,
+      );
 
-    return (
-        <Box sx={{ p: 2 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-                Grading System Settings
-            </Typography>
+      setRows(grades); // empty array if none exists
+      setShowTable(true);
+    } catch (error) {
+      console.error("Failed to load grading system", error);
+      setRows([]);
+      setShowTable(true);
+    }
+  };
 
-            {/* CLASS SELECTOR */}
-            <Box sx={{ maxWidth: 300, mb: 2 }}>
-                <FormControl fullWidth>
-                    <InputLabel>Select Class</InputLabel>
-                    <Select
-                        value={selectedClass}
-                        label="Select Class"
-                        onChange={(e) => {
-                            setSelectedClass(e.target.value);
-                            setShowTable(false); // hide table if class changes
-                        }}
-                    >
-                        <MenuItem value="class1">Class 1</MenuItem>
-                        <MenuItem value="class2">Class 2</MenuItem>
-                        <MenuItem value="class3">Class 3</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
+  const handleSave = async () => {
+    if (!selectedClass || !selectedAccount) return;
 
-            {/* VIEW BUTTON */}
+    try {
+      await saveGradingSystem(selectedAccount, {
+        classId: selectedClass,
+        grades: rows,
+      });
+
+      alert("Grading system saved successfully");
+    } catch (error) {
+      console.error("Failed to save grading system", error);
+      alert("Failed to save grading system");
+    }
+  };
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Grading System Settings
+      </Typography>
+
+      {/* CLASS SELECTOR */}
+      <Box sx={{ maxWidth: 300, mb: 2 }}>
+        <FormControl fullWidth>
+          <InputLabel>Select Class</InputLabel>
+          <Select
+            value={selectedClass}
+            label="Select Class"
+            onChange={(e) => {
+              setSelectedClass(e.target.value);
+              setShowTable(false);
+            }}
+          >
+            {classes.map((cls) => (
+              <MenuItem key={cls.value} value={cls.value}>
+                {cls.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* VIEW BUTTON */}
+      <Button
+        variant="contained"
+        disabled={!selectedClass}
+        sx={{ mb: 3 }}
+        onClick={handleView}
+      >
+        View Grading System
+      </Button>
+
+      {/* TABLE + SAVE BUTTON (ONLY AFTER VIEW CLICK) */}
+      {showTable && (
+        <>
+          <EditableTable
+            columns={columns}
+            rows={rows}
+            onChange={(updated) => setRows(updated)}
+          />
+
+          <Box sx={{ mt: 3 }}>
             <Button
-                variant="contained"
-                disabled={!selectedClass}
-                sx={{ mb: 3 }}
-                onClick={handleView}
+              variant="contained"
+              color="primary"
+              disabled={!rows.length}
+              onClick={handleSave}
             >
-                View Grading System
+              Save Grading System
             </Button>
-
-            {/* TABLE ONLY SHOWS WHEN CLASS IS SELECTED */}
-            {showTable && (
-                <EditableTable
-                    columns={columns}
-                    rows={rows}
-                    onChange={(updated) => setRows(updated)}
-                />
-            )}
-        </Box>
-    );
+          </Box>
+        </>
+      )}
+    </Box>
+  );
 };
 
 export default GradingSystem;
