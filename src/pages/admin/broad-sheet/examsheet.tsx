@@ -10,7 +10,11 @@ import {
 import BroadsheetTable from "../../../components/broad-sheetTable";
 import { useEnums } from "../../../hooks/useEnums";
 import { useAuth } from "../../../context";
-import { fetchClasses, fetchClassBroadsheet } from "../../../api/classServices";
+import {
+  fetchClasses,
+  fetchClassBroadsheet,
+  printClassBroadsheet,
+} from "../../../api/classServices";
 
 const ExampleBroadsheetPage = () => {
   const { enums, isLoading } = useEnums({ fetchPermissionData: false });
@@ -146,6 +150,28 @@ const ExampleBroadsheetPage = () => {
     link.click();
   };
 
+  const handlePrint = async () => {
+    try {
+      const response = await printClassBroadsheet(apiClient, {
+        classId: selectedClass,
+        schoolSession: Number(selectedSession),
+        schoolTerm: Number(selectedTerm),
+      });
+
+      // Convert blob to URL
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      // Option 1: open in new tab
+      window.open(url);
+
+      // Option 2: embed in iframe
+      // document.getElementById("pdfFrame").src = url;
+    } catch (err) {
+      console.error("Failed to print broadsheet", err);
+    }
+  };
+
   if (isLoading) return null;
 
   return (
@@ -216,7 +242,7 @@ const ExampleBroadsheetPage = () => {
       {showBroadsheet && (
         <Box>
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <Button variant="outlined" onClick={() => window.print()}>
+            <Button variant="outlined" onClick={handlePrint}>
               Print
             </Button>
             <Button variant="outlined" onClick={handleDownload}>
