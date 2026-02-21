@@ -1,4 +1,5 @@
 import { createApiClient } from "../utils/apiClient";
+import { type UpdateStudentPayload } from "../types/interfaces/i-student";
 
 const BASE_URL = '/v1/students';
 
@@ -96,4 +97,28 @@ export const saveClassStudentScores = async (
   const api = createApiClient({ selectedAccount });
 
   return api.post(`/v1/students/save-scores`, payload);
+};
+
+export const getStudentById = async (selectedAccount: string | null, id: string) => {
+  if (!selectedAccount) {
+    throw new Error('No account selected');
+  }
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.get(`${BASE_URL}/${id}`);
+  return response;
+};
+
+export const updateStudent = async (
+  selectedAccount: string | null,
+  id: string,
+  payload: UpdateStudentPayload
+) => {
+  if (!selectedAccount) {
+    throw new Error('No account selected');
+  }
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.put(`${BASE_URL}/${id}`, payload);
+  return response;
 };

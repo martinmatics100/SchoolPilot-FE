@@ -25,7 +25,7 @@ interface Student {
   totalScore: number;
   average: number;
   percentage: number;
-  position: number;
+  positionText: string; 
   resultStatus: string;
 }
 
@@ -104,16 +104,16 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                 Total Obtainable
               </TableCell>
               <TableCell sx={{ color: theme.palette.text.secondary }}>
-                Total
+                Grand Total
               </TableCell>
               <TableCell sx={{ color: theme.palette.text.secondary }}>
                 Average
               </TableCell>
+              {/* <TableCell sx={{ color: theme.palette.text.secondary }}>
+                Percentage (%)
+              </TableCell> */}
               <TableCell sx={{ color: theme.palette.text.secondary }}>
-                Percentage
-              </TableCell>
-              <TableCell sx={{ color: theme.palette.text.secondary }}>
-                Position
+                Class Position
               </TableCell>
               <TableCell sx={{ color: theme.palette.text.secondary }}>
                 Result Status
@@ -154,11 +154,11 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                 <TableCell sx={{ color: theme.palette.text.secondary }}>
                   {student.average}
                 </TableCell>
-                <TableCell sx={{ color: theme.palette.text.secondary }}>
+                {/* <TableCell sx={{ color: theme.palette.text.secondary }}>
                   {student.percentage}
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ color: theme.palette.text.secondary }}>
-                  {student.position}
+                  {student.positionText}
                 </TableCell>
                 <TableCell sx={{ color: theme.palette.text.secondary }}>
                   {student.resultStatus}

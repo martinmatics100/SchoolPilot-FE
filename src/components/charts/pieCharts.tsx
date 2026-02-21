@@ -66,25 +66,37 @@ const PieChart: React.FC<PieChartProps> = ({
                 ) || [
                         "#64B5F6", "#FF869A", "#FFE082", "#81C784", "#B39DDB",
                     ],
-                borderWidth: 1,
+                borderWidth: 2,
             },
         ],
     };
 
     const options: ChartOptions<"pie"> = {
         responsive: true,
+        maintainAspectRatio: false, // Important: allows chart to scale better with larger fonts
         plugins: {
             legend: {
                 display: showLegend,
                 position: "top",
+                labels: {
+                    // --- INCREASED LEGEND FONT SIZE ---
+                    font: {
+                        size: 16, // Labels like "Males", "Females"
+                        family: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                    },
+                    padding: 20,
+                    usePointStyle: true,
+                },
             },
             tooltip: {
+                titleFont: { size: 16 },
+                bodyFont: { size: 14 },
                 callbacks: {
-                    label: (tooltipItem: { dataIndex: number }) => {
+                    label: (tooltipItem: any) => {
                         const index = tooltipItem.dataIndex;
                         const label = chartData.labels[index];
                         const value = chartData.datasets[0].data[index];
-                        return `${label}: ${value}`;
+                        return ` ${label}: ${value}`;
                     },
                 },
             },
@@ -93,25 +105,30 @@ const PieChart: React.FC<PieChartProps> = ({
                     color: "#fff",
                     formatter: (value: number, context: any) => {
                         const index = context.dataIndex;
-                        return `${chartData.labels[index]} (${value})`;
+                        // Using \n to put the number on a new line so it stays inside the slice
+                        return `${chartData.labels[index]}\n${value}`;
                     },
+                    // --- INCREASED DATALABEL FONT SIZE ---
                     font: {
-                        size: 14,
+                        size: 18, // Text inside the pie slices
                         weight: "bold",
                     },
                     anchor: "center",
                     align: "center",
-                    rotation: 90,
+                    textAlign: "center",
+                    display: (context: any) => {
+                        // Optional: only show label if the slice is big enough
+                        return context.dataset.data[context.dataIndex] > 0;
+                    }
                 }
-                : undefined,
+                : { display: false },
         },
     };
 
-
     return (
-        <div style={{ maxWidth: "400px", margin: "0 auto" }}>
+        <Box sx={{ width: "100%", height: { xs: 300, md: 350 }, margin: "0 auto" }}>
             <Pie data={chartData} options={options} />
-        </div>
+        </Box>
     );
 };
 

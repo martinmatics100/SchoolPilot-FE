@@ -134,24 +134,14 @@ export const fetchClassBroadsheet = async (
 
 export const printClassBroadsheet = async (
   apiClient: any,
-  payload: {
-    classId: string;
-    schoolSession: number;
-    schoolTerm: number;
-  }
+  payload: { classId: string; schoolSession: number; schoolTerm: number }
 ) => {
   const queryParams = new URLSearchParams({
     ClassId: payload.classId,
     SchoolSession: String(payload.schoolSession),
     SchoolTerm: String(payload.schoolTerm),
-  });
+  }).toString();
 
-  // Important: tell axios/fetch to expect binary data
-  const response = await apiClient.post(
-    `/v1/class/class-broadsheet/print?${queryParams.toString()}`,
-    null, // no body, only query params
-    { responseType: "blob" } // ensures we get a PDF blob
-  );
-
-  return response;
+  // Passing 'true' at the end for the isBlob parameter
+  return await apiClient.post(`/v1/class/class-broadsheet/print?${queryParams}`, null, true);
 };

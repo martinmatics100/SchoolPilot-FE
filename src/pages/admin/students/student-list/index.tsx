@@ -20,6 +20,7 @@ import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import { fetchStudents } from "../../../../api/studentService";
 import { type Student } from "../../../../types/interfaces/i-student";
 import { type StatusConfig } from "../../../../types/interfaces/i-user";
+import EditStudentDrawer from "../edit-student-drawer";
 
 const statusConfig: StatusConfig = {
   active: {
@@ -70,6 +71,9 @@ const StudentList = () => {
   const [rawStudents, setRawStudents] = useState<any[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   const theme = useTheme();
   const { selectedAccount } = getInitialAuthData();
@@ -259,7 +263,24 @@ const StudentList = () => {
   };
 
   const handleEdit = (id: string) => {
-    console.log("Edit student:", id);
+    setSelectedStudentId(id);
+    setEditDrawerOpen(true);
+  };
+
+  // Add function to refresh data after successful update
+  const refreshStudents = () => {
+    if (selectedAccount) {
+      fetchStudents(selectedAccount, page, rowsPerPage)
+        .then(({ items, itemCount }) => {
+          setRawStudents(items || []);
+          setTotalCount(itemCount || 0);
+        })
+        .catch((error) => {
+          console.error("Error fetching students:", error);
+          setData([]);
+          setTotalCount(0);
+        });
+    }
   };
 
   // const handleDelete = async (id: string) => {
@@ -385,6 +406,15 @@ const StudentList = () => {
         onRowsPerPageChange={handleRowsPerPageChange}
         totalCount={totalCount}
         loading={loading || isEnumsLoading}
+      />
+      <EditStudentDrawer
+        open={editDrawerOpen}
+        onClose={() => {
+          setEditDrawerOpen(false);
+          setSelectedStudentId(null);
+        }}
+        studentId={selectedStudentId}
+        onSuccess={refreshStudents}
       />
     </div>
   );

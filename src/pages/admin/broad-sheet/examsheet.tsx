@@ -15,6 +15,7 @@ import {
   fetchClassBroadsheet,
   printClassBroadsheet,
 } from "../../../api/classServices";
+import { CircularProgress } from "@mui/material";
 
 const ExampleBroadsheetPage = () => {
   const { enums, isLoading } = useEnums({ fetchPermissionData: false });
@@ -36,6 +37,7 @@ const ExampleBroadsheetPage = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [showBroadsheet, setShowBroadsheet] = useState(false);
   const [loadingSheet, setLoadingSheet] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Fetch classes
   useEffect(() => {
@@ -118,7 +120,7 @@ const ExampleBroadsheetPage = () => {
       "Total Score",
       "Average",
       "Percentage",
-      "Position",
+      "PositionText",
       "Result Status",
     ].join(",");
 
@@ -152,23 +154,55 @@ const ExampleBroadsheetPage = () => {
 
   const handlePrint = async () => {
     try {
-      const response = await printClassBroadsheet(apiClient, {
+      setIsPrinting(true);
+      const blob = await printClassBroadsheet(apiClient, {
         classId: selectedClass,
         schoolSession: Number(selectedSession),
         schoolTerm: Number(selectedTerm),
       });
 
-      // Convert blob to URL
-      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
 
-      // Option 1: open in new tab
-      window.open(url);
+      // 1. Create the iframe
+      const iframe = document.createElement("iframe");
 
-      // Option 2: embed in iframe
-      // document.getElementById("pdfFrame").src = url;
+      // 2. Instead of display: none, use visibility: hidden 
+      // Some browsers won't render/print a 0-pixel or display:none element correctly
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = url;
+
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        // 3. Give the PDF a tiny bit of time to internalize in the iframe
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+
+          setIsPrinting(false);
+
+          // 4. IMPORTANT: Wait longer before cleanup
+          // We wait for the user to interact with the print dialog
+          // Re-checking every second if the window is still focused is overkill,
+          // so we just give it a generous 2-minute window or wait for focus to return.
+          const focusHandler = () => {
+            window.removeEventListener('focus', focusHandler);
+            setTimeout(() => {
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(iframe);
+            }, 500);
+          };
+          window.addEventListener('focus', focusHandler);
+        }, 500);
+      };
     } catch (err) {
       console.error("Failed to print broadsheet", err);
+      setIsPrinting(false);
     }
   };
 
@@ -242,8 +276,8 @@ const ExampleBroadsheetPage = () => {
       {showBroadsheet && (
         <Box>
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <Button variant="outlined" onClick={handlePrint}>
-              Print
+            <Button variant="outlined" onClick={handlePrint} disabled={isPrinting} startIcon={isPrinting ? <CircularProgress size={20} color="inherit" /> : null}>
+              {isPrinting ? "Printing in progress..." : "Print"}
             </Button>
             <Button variant="outlined" onClick={handleDownload}>
               Download

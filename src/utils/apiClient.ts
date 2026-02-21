@@ -172,10 +172,18 @@ const safeFetch = async (input: RequestInfo, init: RequestInit = {}): Promise<Re
   return response;
 };
 
-const handleResponse = async <T = any>(response: Response): Promise<T> => {
+// 1. Update handleResponse to check for blob requirement
+const handleResponse = async <T = any>(response: Response, isBlob: boolean = false): Promise<T> => {
+  if (isBlob) {
+    return (await response.blob()) as unknown as T;
+  }
+
   const responseText = await response.text();
-  try { return responseText ? JSON.parse(responseText) as T : {} as T; } 
-  catch { return {} as T; }
+  try {
+    return responseText ? (JSON.parse(responseText) as T) : ({} as T);
+  } catch {
+    return {} as T;
+  }
 };
 
 // --- API Client ---
@@ -202,15 +210,20 @@ export const createApiClient = ({
     'X-Time-Zone': currentTimeZone,
   };
 
-  const requestWithTokenRefresh = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  const requestWithTokenRefresh = async <T>(url: string, options: RequestInit = {}, isBlob: boolean = false): Promise<T> => {
     const headers = { ...baseHeaders, ...options.headers };
     const response = await safeFetch(`${API_BASE_URL}${url}`, { ...options, headers });
-    return handleResponse<T>(response);
+    return handleResponse<T>(response, isBlob);
   };
 
   return {
     get: <T = any>(url: string) => requestWithTokenRefresh<T>(url, { method: 'GET' }),
-    post: <T = any>(url: string, body: any) => requestWithTokenRefresh<T>(url, { method: 'POST', body: JSON.stringify(body) }),
+    // 3. Update post signature to allow a boolean flag for blobs
+    post: <T = any>(url: string, body: any, isBlob: boolean = false) =>
+      requestWithTokenRefresh<T>(url, {
+        method: 'POST',
+        body: body ? JSON.stringify(body) : null
+      }, isBlob),
     put: <T = any>(url: string, body: any) => requestWithTokenRefresh<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
     delete: <T = any>(url: string) => requestWithTokenRefresh<T>(url, { method: 'DELETE' }),
 

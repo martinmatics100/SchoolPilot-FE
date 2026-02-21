@@ -1,3 +1,5 @@
+// In studentService.ts - Update the interfaces to match backend
+
 export interface StudentPayload {
     Student: {
         FirstName: string;
@@ -24,4 +26,39 @@ export interface Student {
     rawGender: number;
     rawStatus: number;
     schoolName: string;
+}
+
+// Backend GetStudentById.Result structure
+export interface StudentDetail {
+    id: string;
+    schoolId: string;
+    schoolName: string;
+    firstName: string;
+    lastName: string;
+    gender: string;        // This comes as description from GetEnumDescription()
+    status: string;        // This comes as description from GetEnumDescription()
+    createdOn?: string;
+    modifiedOn?: string;
+    classRoomId: string;
+    className: string;
+    dateOfBirth?: string;
+    // Note: Email, PhoneNumber, Address, etc are commented out in backend
+}
+
+// Backend UpdateStudent.Command structure
+export interface UpdateStudentPayload {
+    Id: string;
+    SchoolId: string;
+    FirstName: string;
+    LastName: string;
+    Gender: number;        // Backend expects enum value
+    Status: number;        // Backend expects enum value
+    ClassRoomId: string;
+    Email?: string;
+    PhoneNumber?: string;
+    DateOfBirth?: string;
+    Address?: string;
+    EmergencyContactName?: string;
+    EmergencyContactPhone?: string;
+    Notes?: string;
 }

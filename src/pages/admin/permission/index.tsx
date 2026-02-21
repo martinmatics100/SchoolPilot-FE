@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     TableContainer,
     Table,
@@ -12,11 +12,19 @@ import {
     Box,
     Divider,
     useTheme,
-    CircularProgress
+    CircularProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    type SelectChangeEvent,
+    Alert
 } from '@mui/material';
 import { useEnums } from '../../../hooks/useEnums';
 import { createApiClient } from '../../../utils/apiClient';
 import { ActionButton } from '../../../components/action-button';
+import { fetchUsers } from '../../../api/userService';
+import { getInitialAuthData } from '../../../utils/apiClient';
 
 interface PermissionActions {
     [key: string]: boolean;
@@ -43,16 +51,23 @@ interface UserPermission {
     value: boolean;
 }
 
+interface User {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+}
+
 const PermissionTable: React.FC = () => {
     const theme = useTheme();
+    const { selectedAccount } = getInitialAuthData();
     const {
         enums,
         permissionGroups,
         permissionDependencies,
-        isLoading,
-        error
+        isLoading: enumsLoading,
+        error: enumsError
     } = useEnums({ fetchPermissionData: true });
-
 
     const buttonContainerStyles = {
         position: 'sticky',
@@ -75,94 +90,105 @@ const PermissionTable: React.FC = () => {
     };
 
     const [permissions, setPermissions] = useState<ParentModule[]>([]);
-    const [currentUserId, setcurrentUserId] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string>('');
+    const [users, setUsers] = useState<User[]>([]);
+    const [usersLoading, setUsersLoading] = useState(false);
     const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [permissionsError, setPermissionsError] = useState<string | null>(null);
+    const [isPermissionsLoading, setIsPermissionsLoading] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-    const handleSavePermissions = async () => {
-        if (!currentUserId) return;
-
-        setIsSaving(true);
-        try {
-            const apiClient = createApiClient();
-
-            const permissionsToSave: UserPermission[] = [];
-
-            permissions.forEach(parentModule => {
-                parentModule.features.forEach(feature => {
-                    feature.availableActions.forEach(actionName => {
-                        const actionObj = enums.PermissionActions?.find(a => a.name.toLowerCase() === actionName);
-                        if (actionObj) {
-
-                            const originalPermission = userPermissions.find(
-                                perm => perm.resource === feature.id && perm.action === actionObj.value
-                            );
-
-                            permissionsToSave.push({
-                                resource: feature.id,
-
-                                resourceType: originalPermission?.resourceType ?? parseInt(parentModule.id),
-                                action: actionObj.value,
-                                value: feature.permissions[actionName] || false
-                            });
-                        }
-                    });
-                });
-            });
-
-            await apiClient.put(`/v1/users/${currentUserId}/permissions`, {
-                permissions: permissionsToSave
-            });
-
-            setUserPermissions(permissionsToSave);
-            setHasChanges(false);
-
-            console.log('Permissions saved successfully');
-        } catch (error) {
-            console.error('Failed to save permissions:', error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
+    // Fetch users list
     useEffect(() => {
-        const fetchSubjects = async () => {
+        const loadUsers = async () => {
+            if (!selectedAccount) {
+                setPermissionsError('No account selected');
+                return;
+            }
+
+            setUsersLoading(true);
+            setPermissionsError(null);
             try {
-                const apiClient = createApiClient();
-                const userData = await apiClient.getCurrentUser();
-                setcurrentUserId(userData.id);
+                const { items } = await fetchUsers(selectedAccount, 1, 1000);
+                setUsers(items || []);
             } catch (error) {
-                console.error('Error fetching subjects:', error)
+                console.error('Error fetching users:', error);
+                setPermissionsError('Failed to fetch users');
+                setUsers([]);
+            } finally {
+                setUsersLoading(false);
             }
         };
 
-        fetchSubjects();
+        loadUsers();
+    }, [selectedAccount]);
+
+    // Get current user ID on component mount
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const apiClient = createApiClient();
+                const userData = await apiClient.getCurrentUser();
+                setCurrentUserId(userData.id);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+
+        fetchCurrentUser();
     }, []);
 
+    // Set default selected user to current user when both are available
+    useEffect(() => {
+        if (currentUserId && users.length > 0 && !selectedUserId) {
+            setSelectedUserId(currentUserId);
+        }
+    }, [currentUserId, users, selectedUserId]);
+
+    // Fetch permissions for selected user - SIMPLIFIED
     useEffect(() => {
         const fetchUserPermissions = async () => {
-            if (!currentUserId || !enums.PermissionActions) return;
+            if (!selectedUserId || !enums?.PermissionActions) {
+                return;
+            }
+
+            setIsPermissionsLoading(true);
+            setPermissionsError(null);
+            setSaveSuccess(false);
 
             try {
                 const apiClient = createApiClient();
-                const permissions = await apiClient.get(`/v1/users/${currentUserId}/permissions`);
-                setUserPermissions(permissions);
+                const response = await apiClient.get(`/v1/users/${selectedUserId}/permissions`);
+                setUserPermissions(response || []);
             } catch (error) {
                 console.error('Error fetching user permissions:', error);
+                setPermissionsError('Failed to fetch user permissions');
+                setUserPermissions([]);
+            } finally {
+                setIsPermissionsLoading(false);
+                setInitialLoadComplete(true);
             }
         };
 
         fetchUserPermissions();
-    }, [currentUserId, enums.PermissionActions]);
+    }, [selectedUserId, enums?.PermissionActions]); // Remove enums.PermissionActions from dependencies to prevent re-fetching
 
-    useEffect(() => {
-        if (permissionGroups.length > 0 && enums.ParentPermission && enums.PermissionActions) {
-            initializePermissionData();
+    // Build permissions structure - ONLY when all required data is available
+    const buildPermissionsStructure = useCallback(() => {
+        if (!permissionGroups.length ||
+            !enums?.ParentPermission ||
+            !enums?.PermissionActions ||
+            !userPermissions ||
+            isPermissionsLoading) {
+            return;
         }
-    }, [permissionGroups, enums]);
 
-    const initializePermissionData = () => {
+        console.log('Building permissions structure for user:', selectedUserId);
+
         const parentPermissions = enums.ParentPermission || [];
         const permissionActions = enums.PermissionActions || [];
 
@@ -183,8 +209,13 @@ const PermissionTable: React.FC = () => {
                         .filter(action => featureAvailableActions.includes(action.value))
                         .map(action => action.name.toLowerCase());
 
-                    const permissions = initializeFeaturePermissions(permission?.value, featureActions);
+                    // Initialize all permissions to false
+                    const permissionsObj: PermissionActions = {};
+                    featureActions.forEach(action => {
+                        permissionsObj[action] = false;
+                    });
 
+                    // Apply user permissions if they exist
                     if (userPermissions.length > 0) {
                         featureActions.forEach(actionName => {
                             const actionObj = permissionActions.find(a => a.name.toLowerCase() === actionName);
@@ -194,7 +225,7 @@ const PermissionTable: React.FC = () => {
                                         perm.action === actionObj.value
                                 );
                                 if (userPermission?.value === true) {
-                                    permissions[actionName] = true;
+                                    permissionsObj[actionName] = true;
                                 }
                             }
                         });
@@ -203,7 +234,7 @@ const PermissionTable: React.FC = () => {
                     return {
                         id: permission?.value?.toString() || `perm-${groupIndex}-${permIndex}`,
                         name: permission?.name || 'Unnamed Permission',
-                        permissions,
+                        permissions: permissionsObj,
                         availableActions: featureActions
                     };
                 });
@@ -217,17 +248,19 @@ const PermissionTable: React.FC = () => {
         });
 
         setPermissions(transformedData);
-    };
+        setHasChanges(false); // Reset changes when building new structure
+    }, [permissionGroups, enums, userPermissions, isPermissionsLoading, selectedUserId]);
 
+    // Trigger build when user permissions change
     useEffect(() => {
-        if (permissionGroups.length > 0 && enums.ParentPermission && enums.PermissionActions && userPermissions) {
-            initializePermissionData();
+        if (!isPermissionsLoading) {
+            buildPermissionsStructure();
         }
-    }, [permissionGroups, enums, userPermissions]);
+    }, [userPermissions, isPermissionsLoading, buildPermissionsStructure]);
 
+    // Check for changes
     useEffect(() => {
-        if (userPermissions.length > 0) {
-
+        if (userPermissions.length > 0 && permissions.length > 0 && enums?.PermissionActions) {
             const changesExist = permissions.some(parentModule =>
                 parentModule.features.some(feature =>
                     Object.entries(feature.permissions).some(([actionName, isAllowed]) => {
@@ -239,12 +272,24 @@ const PermissionTable: React.FC = () => {
                         );
 
                         return (originalPermission?.value || false) !== isAllowed;
-                    }
-                    )
-                ));
+                    })
+                )
+            );
             setHasChanges(changesExist);
+        } else {
+            setHasChanges(false);
         }
-    }, [permissions, userPermissions, enums.PermissionActions]);
+    }, [permissions, userPermissions, enums?.PermissionActions]);
+
+    const handleUserChange = (event: SelectChangeEvent) => {
+        const newUserId = event.target.value;
+        setSelectedUserId(newUserId);
+        setHasChanges(false);
+        setPermissions([]); // Clear permissions
+        setUserPermissions([]); // Clear user permissions
+        setSaveSuccess(false);
+        setInitialLoadComplete(false);
+    };
 
     const initializeFeaturePermissions = (permissionId: number, actions: string[]): PermissionActions => {
         const defaultPermissions: PermissionActions = {};
@@ -255,7 +300,7 @@ const PermissionTable: React.FC = () => {
     };
 
     const applyDependencies = (
-        permissions: PermissionActions,
+        permissionsObj: PermissionActions,
         action: string,
         checked: boolean,
         featureId: string
@@ -270,20 +315,19 @@ const PermissionTable: React.FC = () => {
         if (dependencies && checked) {
             dependencies.forEach(depValue => {
                 const depAction = enums.PermissionActions?.find(a => a.value === depValue);
-                if (depAction && typeof permissions[depAction.name.toLowerCase()] === 'boolean') {
-                    permissions[depAction.name.toLowerCase()] = true;
+                if (depAction && typeof permissionsObj[depAction.name.toLowerCase()] === 'boolean') {
+                    permissionsObj[depAction.name.toLowerCase()] = true;
                 }
             });
         }
 
         if (!checked) {
-
             Object.entries(permissionDependencies).forEach(([key, deps]) => {
                 const [permId, permAction] = key.split('_');
                 if (permId === featureId && deps.includes(actionValue)) {
                     const dependentAction = enums.PermissionActions?.find(a => a.value === parseInt(permAction));
-                    if (dependentAction && typeof permissions[dependentAction.name.toLowerCase()] === 'boolean') {
-                        permissions[dependentAction.name.toLowerCase()] = false;
+                    if (dependentAction && typeof permissionsObj[dependentAction.name.toLowerCase()] === 'boolean') {
+                        permissionsObj[dependentAction.name.toLowerCase()] = false;
                     }
                 }
             });
@@ -392,7 +436,6 @@ const PermissionTable: React.FC = () => {
                             parentModule.moduleActions.forEach(action => {
                                 if (typeof newPermissions[action] === 'boolean') {
                                     newPermissions[action] = checked;
-
                                     applyDependencies(newPermissions, action, checked, feature.id);
                                 }
                             });
@@ -522,6 +565,60 @@ const PermissionTable: React.FC = () => {
         ));
     };
 
+    const handleSavePermissions = async () => {
+        if (!selectedUserId) return;
+
+        setIsSaving(true);
+        setPermissionsError(null);
+        setSaveSuccess(false);
+
+        try {
+            const apiClient = createApiClient();
+
+            const permissionsToSave: UserPermission[] = [];
+
+            permissions.forEach(parentModule => {
+                parentModule.features.forEach(feature => {
+                    feature.availableActions.forEach(actionName => {
+                        const actionObj = enums.PermissionActions?.find(a => a.name.toLowerCase() === actionName);
+                        if (actionObj) {
+                            const originalPermission = userPermissions.find(
+                                perm => perm.resource === feature.id && perm.action === actionObj.value
+                            );
+
+                            permissionsToSave.push({
+                                resource: feature.id,
+                                resourceType: originalPermission?.resourceType ?? parseInt(parentModule.id),
+                                action: actionObj.value,
+                                value: feature.permissions[actionName] || false
+                            });
+                        }
+                    });
+                });
+            });
+
+            await apiClient.put(`/v1/users/${selectedUserId}/permissions`, {
+                permissions: permissionsToSave
+            });
+
+            // Update local userPermissions state with saved permissions
+            setUserPermissions(permissionsToSave);
+            setHasChanges(false);
+            setSaveSuccess(true);
+
+            // Clear success message after 3 seconds
+            setTimeout(() => {
+                setSaveSuccess(false);
+            }, 3000);
+
+        } catch (error) {
+            console.error('Failed to save permissions:', error);
+            setPermissionsError('Failed to save permissions');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const customCheckboxStyle = {
         transform: 'scale(1.35)',
         color: theme.palette.grey[500],
@@ -530,7 +627,9 @@ const PermissionTable: React.FC = () => {
         },
     };
 
-    if (isLoading) {
+    const isLoading = enumsLoading || usersLoading || isPermissionsLoading;
+
+    if (enumsLoading) {
         return (
             <Box display="flex" justifyContent="center" mt={4}>
                 <CircularProgress />
@@ -538,10 +637,10 @@ const PermissionTable: React.FC = () => {
         );
     }
 
-    if (error) {
+    if (enumsError) {
         return (
             <Box color="error.main" p={4} textAlign="center">
-                Error loading permissions: {error}
+                Error loading permissions: {enumsError}
             </Box>
         );
     }
@@ -550,169 +649,291 @@ const PermissionTable: React.FC = () => {
     const maxActionColumns = Math.max(0, ...permissions.map(p => p.moduleActions.length));
 
     return (
-        < Box sx={{ position: 'relative', minHeight: '80%' }}>
-            <Box sx={tableContainerStyles}>
-                <TableContainer component={Paper} sx={{ overflow: 'auto', mx: 'auto', maxHeight: 'calc(100vh - 270px)', bgcolor: theme.palette.background.default }}>
-                    <Table stickyHeader aria-label="permission table">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', minWidth: 200, bgcolor: theme.palette.background.default }}>
-                                    <Box display="flex" alignItems="center">
-                                        <Checkbox
-                                            checked={masterCheckboxState.checked}
-                                            indeterminate={masterCheckboxState.indeterminate}
-                                            onChange={(e) => handleMasterCheckboxChange(e.target.checked)}
-                                            sx={{ mr: 1, ...customCheckboxStyle }}
+        <Box sx={{ position: 'relative', minHeight: '80%' }}>
+            {/* User Selector */}
+            <Box sx={{
+                maxWidth: 1500,
+                mx: 'auto',
+                mt: 2,
+                mb: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                flexWrap: 'wrap'
+            }}>
+                <FormControl sx={{ minWidth: 300, flex: 1 }}>
+                    <InputLabel id="user-select-label">Select User</InputLabel>
+                    <Select
+                        labelId="user-select-label"
+                        id="user-select"
+                        value={selectedUserId}
+                        label="Select User"
+                        onChange={handleUserChange}
+                        disabled={usersLoading || users.length === 0}
+                    >
+                        {usersLoading ? (
+                            <MenuItem disabled>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <CircularProgress size={20} />
+                                    Loading users...
+                                </Box>
+                            </MenuItem>
+                        ) : (
+                            users.map((user) => (
+                                <MenuItem key={user.id} value={user.id}>
+                                    {`${user.firstName} ${user.lastName} (${user.email})`}
+                                </MenuItem>
+                            ))
+                        )}
+                    </Select>
+                </FormControl>
+
+                {currentUserId && selectedUserId && currentUserId !== selectedUserId && (
+                    <Typography variant="body2" color="warning.main" sx={{ display: 'flex', alignItems: 'center' }}>
+                        ⚠️ You are editing permissions for another user
+                    </Typography>
+                )}
+            </Box>
+
+            {/* Success Message */}
+            {saveSuccess && (
+                <Box sx={{ maxWidth: 1500, mx: 'auto', mb: 2 }}>
+                    <Alert severity="success" onClose={() => setSaveSuccess(false)}>
+                        Permissions saved successfully!
+                    </Alert>
+                </Box>
+            )}
+
+            {/* Error Display */}
+            {permissionsError && (
+                <Box sx={{ maxWidth: 1500, mx: 'auto', mb: 2 }}>
+                    <Alert severity="error" onClose={() => setPermissionsError(null)}>
+                        {permissionsError}
+                    </Alert>
+                </Box>
+            )}
+
+            {/* Loading State for Permissions */}
+            {isPermissionsLoading && (
+                <Box display="flex" justifyContent="center" mt={4}>
+                    <CircularProgress />
+                </Box>
+            )}
+
+            {/* No User Selected State */}
+            {/* {!selectedUserId && !isPermissionsLoading && (
+                <Box display="flex" justifyContent="center" mt={4}>
+                    <Typography variant="h6" color="text.secondary">
+                        Please select a user to view and edit permissions
+                    </Typography>
+                </Box>
+            )} */}
+
+            {/* Permission Table */}
+            {!isPermissionsLoading && permissions.length > 0 && selectedUserId && (
+                <Box sx={tableContainerStyles}>
+                    <TableContainer component={Paper} sx={{
+                        overflow: 'auto',
+                        mx: 'auto',
+                        maxHeight: 'calc(100vh - 350px)',
+                        bgcolor: theme.palette.background.default
+                    }}>
+                        <Table stickyHeader aria-label="permission table">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{
+                                        fontWeight: 'bold',
+                                        minWidth: 200,
+                                        bgcolor: theme.palette.background.default
+                                    }}>
+                                        <Box display="flex" alignItems="center">
+                                            <Checkbox
+                                                checked={masterCheckboxState.checked}
+                                                indeterminate={masterCheckboxState.indeterminate}
+                                                onChange={(e) => handleMasterCheckboxChange(e.target.checked)}
+                                                sx={{ mr: 1, ...customCheckboxStyle }}
+                                            />
+                                            <Typography variant="caption" fontWeight="bold">
+                                                SELECT ALL PERMISSIONS
+                                            </Typography>
+                                        </Box>
+                                    </TableCell>
+                                    {Array.from({ length: maxActionColumns }).map((_, i) => (
+                                        <TableCell
+                                            key={`empty-header-col-${i}`}
+                                            sx={{ bgcolor: theme.palette.background.default }}
                                         />
-                                        <Typography variant="caption" fontWeight="bold">
-                                            SELECT ALL PERMISSIONS
-                                        </Typography>
-                                    </Box>
-                                </TableCell>
-                                {Array.from({ length: maxActionColumns }).map((_, i) => (
-                                    <TableCell
-                                        key={`empty-header-col-${i}`}
-                                        sx={{ bgcolor: theme.palette.background.default }}
-                                    />
-                                ))}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {permissions.map((parentModule, index) => {
-                                const { checked, indeterminate } = getParentCheckboxState(parentModule);
-                                return (
-                                    <React.Fragment key={`module-${parentModule.id}`}>
-                                        <TableRow sx={{ bgcolor: theme.palette.text.muted }}>
-                                            <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
-                                                <Box display="flex" alignItems="center" py={1}>
-                                                    <Checkbox
-                                                        checked={checked}
-                                                        indeterminate={indeterminate}
-                                                        onChange={(e) => handleParentCheckboxChange(parentModule.id, e.target.checked)}
-                                                        sx={{ mr: 1, ...customCheckboxStyle }}
-                                                    />
-                                                    <Typography variant="h6" component="span" fontSize="1.05rem" sx={{ color: "#000000" }}>
-                                                        {parentModule.name.toUpperCase()}
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
-                                            {parentModule.moduleActions.map((action, actionIndex) => {
-                                                const { checked: colChecked, indeterminate: colIndeterminate, disabled: colDisabled } = getModuleColumnCheckboxState(parentModule, action);
-                                                return (
-                                                    <TableCell
-                                                        key={`${parentModule.id}-${action}-header-${actionIndex}`}
-                                                        align="center"
-                                                        sx={{ fontWeight: '900', color: "#000000" }}
-                                                    >
-                                                        <Box display="flex" alignItems="center" justifyContent="center">
-                                                            <Checkbox
-                                                                checked={colChecked}
-                                                                indeterminate={colIndeterminate}
-                                                                onChange={(e) => handleModuleColumnCheckboxChange(parentModule.id, action, e.target.checked)}
-                                                                disabled={colDisabled}
-                                                                sx={{ mr: 0.5, ...customCheckboxStyle }}
-                                                            />
-                                                            <Typography variant="body2" textTransform="capitalize">
-                                                                {action}
-                                                            </Typography>
-                                                        </Box>
-                                                    </TableCell>
-                                                );
-                                            })}
-                                            {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
-                                                <TableCell
-                                                    key={`empty-${parentModule.id}-${i}`}
-                                                />
-                                            ))}
-                                        </TableRow>
-
-                                        {parentModule.features.map(feature => {
-                                            const featureRowChecked = isFeatureRowChecked(feature, parentModule.moduleActions);
-                                            const featureRowIndeterminate = isFeatureRowIndeterminate(feature, parentModule.moduleActions);
-                                            return (
-                                                <TableRow key={`feature-${parentModule.id}-${feature.id}`}>
-                                                    <TableCell sx={{ pl: 6 }}>
-                                                        <Box display="flex" alignItems="center">
-                                                            <Checkbox
-                                                                checked={featureRowChecked}
-                                                                indeterminate={featureRowIndeterminate}
-                                                                onChange={(e) => handleFeatureRowCheckboxChange(parentModule.id, feature.id, e.target.checked)}
-                                                                sx={{ mr: 1, ...customCheckboxStyle }}
-                                                            />
-                                                            <Typography variant="body2">{feature.name}</Typography>
-                                                        </Box>
-                                                    </TableCell>
-                                                    {parentModule.moduleActions.map((action, actionIndex) => {
-
-                                                        if (!feature.availableActions.includes(action)) {
-                                                            return (
-                                                                <TableCell
-                                                                    key={`empty-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
-                                                                    align="center"
-                                                                >
-                                                                    <Box width={48} height={48} />
-                                                                </TableCell>
-                                                            );
-                                                        }
-                                                        return (
-                                                            <TableCell
-                                                                key={`action-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
-                                                                align="center"
-                                                            >
+                                    ))}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {permissions.map((parentModule, index) => {
+                                    const { checked, indeterminate } = getParentCheckboxState(parentModule);
+                                    return (
+                                        <React.Fragment key={`module-${parentModule.id}`}>
+                                            <TableRow sx={{ bgcolor: theme.palette.text.muted }}>
+                                                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                                    <Box display="flex" alignItems="center" py={1}>
+                                                        <Checkbox
+                                                            checked={checked}
+                                                            indeterminate={indeterminate}
+                                                            onChange={(e) => handleParentCheckboxChange(parentModule.id, e.target.checked)}
+                                                            sx={{ mr: 1, ...customCheckboxStyle }}
+                                                        />
+                                                        <Typography variant="h6" component="span" fontSize="1.05rem" sx={{ color: "#000000" }}>
+                                                            {parentModule.name.toUpperCase()}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
+                                                {parentModule.moduleActions.map((action, actionIndex) => {
+                                                    const {
+                                                        checked: colChecked,
+                                                        indeterminate: colIndeterminate,
+                                                        disabled: colDisabled
+                                                    } = getModuleColumnCheckboxState(parentModule, action);
+                                                    return (
+                                                        <TableCell
+                                                            key={`${parentModule.id}-${action}-header-${actionIndex}`}
+                                                            align="center"
+                                                            sx={{ fontWeight: '900', color: "#000000" }}
+                                                        >
+                                                            <Box display="flex" alignItems="center" justifyContent="center">
                                                                 <Checkbox
-                                                                    checked={feature.permissions[action]}
-                                                                    onChange={(e) => handleFeatureActionCheckboxChange(
+                                                                    checked={colChecked}
+                                                                    indeterminate={colIndeterminate}
+                                                                    onChange={(e) => handleModuleColumnCheckboxChange(
                                                                         parentModule.id,
-                                                                        feature.id,
                                                                         action,
                                                                         e.target.checked
                                                                     )}
-                                                                    sx={customCheckboxStyle}
+                                                                    disabled={colDisabled}
+                                                                    sx={{ mr: 0.5, ...customCheckboxStyle }}
                                                                 />
-                                                            </TableCell>
-                                                        );
-                                                    })}
-                                                    {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
-                                                        <TableCell
-                                                            key={`empty-feature-${parentModule.id}-${feature.id}-${i}`}
-                                                        />
-                                                    ))}
-                                                </TableRow>
-                                            );
-                                        })}
-
-                                        {index < permissions.length - 1 && (
-                                            <TableRow key={`divider-${parentModule.id}`}>
-                                                <TableCell colSpan={maxActionColumns + 1} sx={{ p: 0 }}>
-                                                    <Divider sx={{ my: 1, backgroundColor: theme.palette.divider }} />
-                                                </TableCell>
+                                                                <Typography variant="body2" textTransform="capitalize">
+                                                                    {action}
+                                                                </Typography>
+                                                            </Box>
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                                {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
+                                                    <TableCell
+                                                        key={`empty-${parentModule.id}-${i}`}
+                                                    />
+                                                ))}
                                             </TableRow>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Box>
-            <Box sx={buttonContainerStyles}>
-                <ActionButton
-                    onClick={handleSavePermissions}
-                    loading={isSaving}
-                    disabled={isSaving || !hasChanges}
-                    variant="contained"
-                    sx={{
-                        minWidth: 120,
-                        fontWeight: 'bold',
-                        textTransform: 'none',
-                        fontSize: '1rem',
-                        backgroundColor: theme.palette.common.white,
-                        mr: 2,
-                    }}
-                >
-                    Save Permissions
-                </ActionButton>
-            </Box>
+
+                                            {parentModule.features.map(feature => {
+                                                const featureRowChecked = isFeatureRowChecked(feature, parentModule.moduleActions);
+                                                const featureRowIndeterminate = isFeatureRowIndeterminate(feature, parentModule.moduleActions);
+                                                return (
+                                                    <TableRow key={`feature-${parentModule.id}-${feature.id}`}>
+                                                        <TableCell sx={{ pl: 6 }}>
+                                                            <Box display="flex" alignItems="center">
+                                                                <Checkbox
+                                                                    checked={featureRowChecked}
+                                                                    indeterminate={featureRowIndeterminate}
+                                                                    onChange={(e) => handleFeatureRowCheckboxChange(
+                                                                        parentModule.id,
+                                                                        feature.id,
+                                                                        e.target.checked
+                                                                    )}
+                                                                    sx={{ mr: 1, ...customCheckboxStyle }}
+                                                                />
+                                                                <Typography variant="body2">{feature.name}</Typography>
+                                                            </Box>
+                                                        </TableCell>
+                                                        {parentModule.moduleActions.map((action, actionIndex) => {
+                                                            if (!feature.availableActions.includes(action)) {
+                                                                return (
+                                                                    <TableCell
+                                                                        key={`empty-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
+                                                                        align="center"
+                                                                    >
+                                                                        <Box width={48} height={48} />
+                                                                    </TableCell>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <TableCell
+                                                                    key={`action-${parentModule.id}-${feature.id}-${action}-${actionIndex}`}
+                                                                    align="center"
+                                                                >
+                                                                    <Checkbox
+                                                                        checked={feature.permissions[action]}
+                                                                        onChange={(e) => handleFeatureActionCheckboxChange(
+                                                                            parentModule.id,
+                                                                            feature.id,
+                                                                            action,
+                                                                            e.target.checked
+                                                                        )}
+                                                                        sx={customCheckboxStyle}
+                                                                    />
+                                                                </TableCell>
+                                                            );
+                                                        })}
+                                                        {Array.from({ length: Math.max(0, maxActionColumns - parentModule.moduleActions.length) }).map((_, i) => (
+                                                            <TableCell
+                                                                key={`empty-feature-${parentModule.id}-${feature.id}-${i}`}
+                                                            />
+                                                        ))}
+                                                    </TableRow>
+                                                );
+                                            })}
+
+                                            {index < permissions.length - 1 && (
+                                                <TableRow key={`divider-${parentModule.id}`}>
+                                                    <TableCell colSpan={maxActionColumns + 1} sx={{ p: 0 }}>
+                                                        <Divider sx={{ my: 1, backgroundColor: theme.palette.divider }} />
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
+            )}
+
+            {/* No Permissions State */}
+            {!isPermissionsLoading && permissions.length === 0 && selectedUserId && !isPermissionsLoading && initialLoadComplete && (
+                <Box display="flex" justifyContent="center" mt={4}>
+                    <Typography variant="h6" color="text.secondary">
+                        No permissions found for this user
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Save Button */}
+            {selectedUserId && !isPermissionsLoading && permissions.length > 0 && (
+                <Box sx={buttonContainerStyles}>
+                    <ActionButton
+                        onClick={handleSavePermissions}
+                        loading={isSaving}
+                        disabled={isSaving || !hasChanges || !selectedUserId}
+                        variant="contained"
+                        sx={{
+                            minWidth: 120,
+                            fontWeight: 'bold',
+                            textTransform: 'none',
+                            fontSize: '1rem',
+                            backgroundColor: theme.palette.common.white,
+                            mr: 2,
+                            '&:hover': {
+                                backgroundColor: theme.palette.grey[100],
+                            },
+                            '&.Mui-disabled': {
+                                backgroundColor: theme.palette.grey[300],
+                            }
+                        }}
+                    >
+                        Save Permissions
+                    </ActionButton>
+                </Box>
+            )}
         </Box>
     );
 };
