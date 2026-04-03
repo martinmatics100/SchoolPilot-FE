@@ -18,6 +18,7 @@ import FilterComponent from '../../../../components/filters';
 import { type FilterConfig } from '../../../../components/filters';
 import { fetchUsers, deleteUsers } from '../../../../api/userService';
 import { type UserModel, type StatusConfig } from '../../../../types/interfaces/i-user';
+import PageError from '../../../../components/states/pageError';
 
 
 const statusConfig: StatusConfig = {
@@ -35,21 +36,26 @@ const statusConfig: StatusConfig = {
 
 
 const Index = () => {
+
     const [data, setData] = useState<UserModel[]>([]);
+    const [rawUsers, setRawUsers] = useState<any[]>([]);
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalCount, setTotalCount] = useState(0);
     const [sortBy, setSortBy] = useState<string>('username');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const [selectedRows, setSelectedRows] = useState<string[]>([]);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [snackbar, setSnackbar] = useState<{
-        open: boolean;
-        message: string;
-        severity: 'success' | 'error';
-    }>({ open: false, message: '', severity: 'success' });
-    const [rawUsers, setRawUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const [pageError, setPageError] = useState(false);
+
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success' as 'success' | 'error'
+    });
+
     const theme = useTheme();
     const { selectedAccount } = getInitialAuthData();
     const { enums, isLoading: isEnumsLoading } = useEnums({ fetchPermissionData: false });
@@ -63,7 +69,7 @@ const Index = () => {
 
     const roleOptions = useMemo(() => {
         const options =
-            enums?.UserRole?.map((item: { value: string; name: string }) => ({
+            enums?.UserRole?.map((item: any) => ({
                 value: item.value.toString(),
                 label: item.name,
             })) || [
@@ -71,6 +77,7 @@ const Index = () => {
                 { value: 'Teacher', label: 'Teacher' },
                 { value: 'Student', label: 'Student' },
             ];
+
         return [{ value: '', label: 'All Roles' }, ...options];
     }, [enums]);
 
@@ -79,50 +86,87 @@ const Index = () => {
             type: 'single-select',
             label: 'User Role',
             value: filters.role,
-            onChange: (value: string) => setFilters((prev) => ({ ...prev, role: value })),
+            onChange: (value: string) =>
+                setFilters((prev) => ({ ...prev, role: value })),
             options: roleOptions,
         },
     ];
 
+
     const userStatusMap = useMemo(() => {
         return (
-            enums?.UserStatus?.reduce(
-                (acc: Record<string, string>, item: { value: number; displayName: string; name: string }) => {
-                    acc[item.value] = item.displayName || item.name;
-                    return acc;
-                },
-                {},
-            ) || {}
+            enums?.UserStatus?.reduce((acc: any, item: any) => {
+                acc[item.value] = item.displayName || item.name;
+                return acc;
+            }, {}) || {}
         );
     }, [enums]);
 
     const genderMap = useMemo(() => {
         return (
-            enums?.Gender?.reduce(
-                (acc: Record<string, string>, item: { value: number; displayName: string; name: string }) => {
-                    acc[item.value] = item.displayName || item.name;
-                    return acc;
-                },
-                {},
-            ) || {}
+            enums?.Gender?.reduce((acc: any, item: any) => {
+                acc[item.value] = item.displayName || item.name;
+                return acc;
+            }, {}) || {}
         );
     }, [enums]);
 
     const roleMap = useMemo(() => {
         return (
-            enums?.UserRole?.reduce(
-                (acc: Record<string, string>, item: { value: number; displayName: string; name: string }) => {
-                    acc[item.value] = item.displayName || item.name;
-                    return acc;
-                },
-                {},
-            ) || {}
+            enums?.UserRole?.reduce((acc: any, item: any) => {
+                acc[item.value] = item.displayName || item.name;
+                return acc;
+            }, {}) || {}
         );
     }, [enums]);
 
+
+    const loadUsers = async () => {
+
+        if (!selectedAccount) {
+            setPageError(true);
+            return;
+        }
+
+        try {
+
+            setLoading(true);
+            setPageError(false);
+
+            const { items, itemCount } = await fetchUsers(
+                selectedAccount,
+                page,
+                rowsPerPage,
+                filters.role
+            );
+
+            setRawUsers(items || []);
+            setTotalCount(itemCount || 0);
+
+        } catch (error) {
+
+            console.error('Error fetching users:', error);
+            setPageError(true);
+
+        } finally {
+
+            setLoading(false);
+
+        }
+    };
+
+
     useEffect(() => {
+        loadUsers();
+    }, [page, rowsPerPage, sortBy, order, selectedAccount, filters.role]);
+
+
+    useEffect(() => {
+
         if (rawUsers.length > 0 && !isEnumsLoading && enums) {
+
             const mappedData = rawUsers.map((item: any) => {
+
                 const genderValue = item.gender?.toString();
                 const roleValue = item.role?.toString();
                 const statusValue = item.status?.toString();
@@ -145,50 +189,58 @@ const Index = () => {
                     rawStatus: item.status,
                     rawRole: item.role,
                 };
+
             });
+
             setData(mappedData);
+
         } else if (rawUsers.length === 0) {
+
             setData([]);
+
         }
+
     }, [rawUsers, isEnumsLoading, enums, userStatusMap, genderMap, roleMap]);
 
-    // Fetch users
-    useEffect(() => {
-        if (selectedAccount) {
-            fetchUsers(selectedAccount, page, rowsPerPage, filters.role)
-                .then(({ items, itemCount }) => {
-                    setRawUsers(items || []);
-                    setTotalCount(itemCount || 0);
-                })
-                .catch((error) => {
-                    console.error('Error fetching users:', error);
-                    setSnackbar({
-                        open: true,
-                        message: 'Failed to fetch users',
-                        severity: 'error',
-                    });
-                    setData([]);
-                    setTotalCount(0);
-                })
-                .finally(() => setLoading(false));
-        } else {
-            console.error('No account selected');
-            setSnackbar({
-                open: true,
-                message: 'No account selected',
-                severity: 'error',
-            });
-            setData([]);
-            setTotalCount(0);
-        }
-    }, [page, rowsPerPage, sortBy, order, selectedAccount, filters.role]);
+
+    const retryFetchUsers = () => {
+        loadUsers();
+    };
+
+
+    if (pageError) {
+
+        return (
+            <PageError
+                title="users"
+                action="loading"
+                ticketUrl="/support"
+                onRetry={retryFetchUsers}
+            />
+        );
+
+    }
+
+
+    if (loading || isEnumsLoading) {
+
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                <CircularProgress />
+            </Box>
+        );
+
+    }
+
 
     const getStatusConfig = (status: string) => {
         const normalizedStatus = status.toLowerCase();
         return statusConfig[normalizedStatus as keyof StatusConfig] || statusConfig.default;
     };
 
+
     const columns: Column[] = [
+
         {
             id: 'fullName',
             label: 'Full Name',
@@ -205,142 +257,96 @@ const Index = () => {
                 </div>
             ),
         },
+
         {
             id: 'email',
             label: 'Email',
             minWidth: 150,
             sortable: true,
-            format: (value: string) => value || 'Not available',
         },
+
         {
             id: 'gender',
             label: 'Gender',
             minWidth: 100,
             sortable: true,
-            format: (value: string) => value || 'Not available',
         },
+
         {
             id: 'role',
             label: 'Role',
             minWidth: 100,
             sortable: true,
-            format: (value: string) => value || 'Not available',
         },
+
         {
             id: 'status',
             label: 'Status',
             minWidth: 100,
             align: 'center',
             format: (value: string, row: UserModel) => {
+
                 const currentStatus = !isEnumsLoading && enums
                     ? (userStatusMap[row.rawStatus?.toString()] || 'Unknown').toLowerCase()
                     : value;
+
                 const config = getStatusConfig(currentStatus);
                 const StatusIcon = config.icon;
 
                 return (
-                    <span
-                        style={{
-                            color: config.textColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
+                    <span style={{
+                        color: config.textColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
                         <StatusIcon color={config.color as any} />
-                        <span style={{ marginLeft: 4, textTransform: 'capitalize' }}>{currentStatus}</span>
+                        <span style={{ marginLeft: 4 }}>{currentStatus}</span>
                     </span>
                 );
+
             },
         },
+
         {
             id: 'schoolName',
             label: 'School',
             minWidth: 150,
             sortable: true,
-            format: (value: string) => value || 'Not available',
         },
+
     ];
 
+
     const actionColumn = {
+
         label: 'Actions',
         minWidth: 150,
         align: 'center' as const,
+
         render: (row: any) => (
+
             <div>
-                <IconButton aria-label="edit" onClick={() => handleEdit(row.id)}>
+
+                <IconButton onClick={() => console.log('Edit', row.id)}>
                     <EditIcon color="primary" />
                 </IconButton>
-                <IconButton aria-label="delete" onClick={() => handleDelete(row.id)}>
+
+                <IconButton onClick={() => console.log('Delete', row.id)}>
                     <DeleteIcon color="error" />
                 </IconButton>
+
             </div>
+
         ),
+
     };
 
-    const handleEdit = (id: string) => {
-        console.log('Edit user:', id);
-    };
-
-    const handleDelete = (id: string) => {
-        console.log('Delete user:', id);
-        setData((prev) => prev.filter((user) => user.id !== id));
-    };
-
-    const handleDeleteSelected = async () => {
-        if (selectedRows.length === 0) return;
-
-        setIsDeleting(true);
-        try {
-            await deleteUsers(selectedRows);
-            setData((prev) => prev.filter((user) => !selectedRows.includes(user.id)));
-            setSelectedRows([]);
-            setSnackbar({
-                open: true,
-                message: `Successfully deleted ${selectedRows.length} user(s)`,
-                severity: 'success',
-            });
-        } catch (error) {
-            console.error('Error deleting users:', error);
-            setSnackbar({
-                open: true,
-                message: 'Failed to delete users',
-                severity: 'error',
-            });
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    const handleSortChange = (sortByField: string, sortOrder: 'asc' | 'desc') => {
-        setSortBy(sortByField);
-        setOrder(sortOrder);
-        setPage(1);
-    };
-
-    const handlePageChange = (event: unknown, newPage: number) => {
-        setPage(newPage + 1);
-    };
-
-    const handleRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(1);
-    };
-
-    const handleSnackbarClose = () => {
-        setSnackbar((prev) => ({ ...prev, open: false }));
-    };
-
-    if (loading || isEnumsLoading) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <CircularProgress />
-            </Box>
-        );
-    }
 
     return (
+
         <div>
+
             <div
                 style={{
                     display: 'flex',
@@ -349,60 +355,121 @@ const Index = () => {
                     marginBottom: '8px',
                 }}
             >
+
                 <NavigationButton
-                    onClick={handleDeleteSelected}
-                    sx={{
-                        alignContent: 'flex-end',
-                        backgroundColor: 'red',
-                        color: 'white',
-                        '&:hover': { backgroundColor: '#cc0000' },
-                        '&.Mui-disabled': {
-                            backgroundColor: '#ff6666',
-                            color: '#cccccc',
-                        },
+                    onClick={async () => {
+
+                        if (selectedRows.length === 0) return;
+
+                        setIsDeleting(true);
+
+                        try {
+
+                            await deleteUsers(selectedRows);
+
+                            setData((prev) =>
+                                prev.filter((user) => !selectedRows.includes(user.id))
+                            );
+
+                            setSelectedRows([]);
+
+                            setSnackbar({
+                                open: true,
+                                message: `Deleted ${selectedRows.length} users`,
+                                severity: 'success',
+                            });
+
+                        } catch {
+
+                            setSnackbar({
+                                open: true,
+                                message: 'Failed to delete users',
+                                severity: 'error',
+                            });
+
+                        } finally {
+
+                            setIsDeleting(false);
+
+                        }
+
                     }}
+
                     disabled={selectedRows.length === 0 || isDeleting}
+
                 >
                     <DeleteIcon /> [{selectedRows.length}]
                 </NavigationButton>
-                <NavigationButton
-                    to="create-user"
-                    sx={{ alignContent: 'flex-end' }}
-                >
+
+
+                <NavigationButton to="create-user">
                     <AddIcon />
                 </NavigationButton>
+
             </div>
+
+
             <FilterComponent filters={filterConfigs} />
+
+
             <ReusableTable
+
                 title="Users List"
                 columns={columns}
                 data={data}
+
                 defaultRowsPerPage={rowsPerPage}
                 rowsPerPageOptions={[10, 25, 50]}
-                showActionColumn={true}
+
+                showActionColumn
                 actionColumn={actionColumn}
+
                 sortBy={sortBy}
                 order={order}
-                onSortChange={handleSortChange}
-                onSelectedRowsChange={(selected) => setSelectedRows(selected)}
+
                 page={page - 1}
-                onPageChange={handlePageChange}
                 rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={handleRowsPerPageChange}
+
                 totalCount={totalCount}
+
+                onSortChange={(field, sortOrder) => {
+                    setSortBy(field);
+                    setOrder(sortOrder);
+                }}
+
+                onPageChange={(event, newPage) => {
+                    setPage(newPage + 1);
+                }}
+
+                onRowsPerPageChange={(event) => {
+                    setRowsPerPage(parseInt(event.target.value, 10));
+                    setPage(1);
+                }}
+
+                onSelectedRowsChange={(selected) => setSelectedRows(selected)}
+
                 loading={loading || isEnumsLoading}
+
             />
+
+
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
-                onClose={handleSnackbarClose}
+                onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
             >
-                <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+                <Alert
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                >
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
         </div>
+
     );
+
 };
 
 export default Index;

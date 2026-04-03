@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
     Drawer,
     IconButton,
     Typography,
     Box,
     CircularProgress,
+    Avatar,
+    Paper,
 } from "@mui/material";
+import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../../components/base/iconifyIcon";
 import DynamicForm, { type FormField } from "../../../../components/my-form";
 import { useEnums } from "../../../../hooks/useEnums";
@@ -20,6 +23,21 @@ import {
 import { type Branch } from "../../../../types/interfaces/i-user";
 import { type StudentDetail, type UpdateStudentPayload } from "../../../../types/interfaces/i-student";
 
+interface AddressData {
+    addressLine1: string;
+    addressLine2?: string | null;
+    city?: string | null;
+    state: string;
+    zipCode?: string | null;
+    county?: string | null;
+    country: string;
+}
+
+interface StudentDetailWithAddress extends StudentDetail {
+    address?: AddressData;
+    photoUrl?: string | null;
+}
+
 interface EditStudentDrawerProps {
     open: boolean;
     onClose: () => void;
@@ -33,6 +51,7 @@ const EditStudentDrawer = ({
     studentId,
     onSuccess,
 }: EditStudentDrawerProps) => {
+    const theme = useTheme();
     const { enums, isLoading: isEnumsLoading } = useEnums({
         fetchPermissionData: false,
     });
@@ -44,53 +63,140 @@ const EditStudentDrawer = ({
         Array<{ id: string; name: string; classLevel?: number }>
     >([]);
     const [studentData, setStudentData] = useState<any>(null);
+    const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [alertMessage, setAlertMessage] = useState<{
         feMessage?: string;
         beMessage?: string;
         httpStatus?: number;
     }>({});
-    const [isLoadingBranches, setIsLoadingBranches] = useState(true);
-    const [isLoadingClasses, setIsLoadingClasses] = useState(true);
+    const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+    const [isLoadingClasses, setIsLoadingClasses] = useState(false);
     const [selectedClass, setSelectedClass] = useState<{
         id: string;
         name: string;
         classLevel?: number;
     } | null>(null);
 
-    // Fetch student data when drawer opens and studentId is provided
+    const [dotCount, setDotCount] = useState(0);
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval>;
+
+        if (open) {
+            interval = setInterval(() => {
+                setDotCount((prev) => (prev + 1) % 4);
+            }, 1000);
+        }
+
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            setDotCount(0);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            setStudentData(null);
+            setStudentPhotoUrl(null);
+            setSelectedClass(null);
+            setAlertMessage({});
+            setFormFields([]);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        const loadBranches = async () => {
+            if (selectedAccount) {
+                setIsLoadingBranches(true);
+                try {
+                    const fetchedBranches = await fetchBranches(selectedAccount, apiClient);
+                    setBranches(fetchedBranches);
+                } catch (err) {
+                    console.error("Failed to load branches:", err);
+                } finally {
+                    setIsLoadingBranches(false);
+                }
+            }
+        };
+        loadBranches();
+    }, [selectedAccount, apiClient]);
+
+    useEffect(() => {
+        const loadClasses = async () => {
+            if (selectedAccount) {
+                setIsLoadingClasses(true);
+                try {
+                    const fetchedClasses = await fetchClasses(selectedAccount);
+                    setClasses(
+                        fetchedClasses.map((c: any) => ({
+                            id: c.id,
+                            name: c.className,
+                            classLevel: c.classLevel,
+                        }))
+                    );
+                } catch (err) {
+                    console.error("Failed to load classes:", err);
+                } finally {
+                    setIsLoadingClasses(false);
+                }
+            }
+        };
+        loadClasses();
+    }, [selectedAccount]);
+
     useEffect(() => {
         const loadStudentData = async () => {
-            if (open && studentId && selectedAccount) {
+            if (open && studentId && selectedAccount && enums && classes.length > 0) {
                 setLoading(true);
-                try {
-                    const student: StudentDetail = await getStudentById(selectedAccount, studentId);
+                setAlertMessage({});
 
-                    // Map gender display name to enum value
+                try {
+                    const student: StudentDetailWithAddress = await getStudentById(selectedAccount, studentId);
+
+                    setStudentPhotoUrl(student.photoUrl || null);
+
                     const genderEnum = enums?.Gender?.find(
                         (g: any) => g.displayName === student.gender || g.name === student.gender
                     );
 
-                    // Map status display name to enum value
                     const statusEnum = enums?.StudentStatus?.find(
                         (s: any) => s.displayName === student.status || s.name === student.status
                     );
 
-                    // Format the student data for the form
+                    const formattedAddress = student.address ? {
+                        addressLine1: student.address.addressLine1 || "",
+                        postalCode: student.address.zipCode || "",
+                        country: student.address.country || "",
+                        state: student.address.state || "",
+                    } : {
+                        addressLine1: "",
+                        postalCode: "",
+                        country: "",
+                        state: "",
+                    };
+
                     const formattedData = {
                         id: student.id,
                         firstName: student.firstName,
                         lastName: student.lastName,
                         dateOfBirth: student.dateOfBirth?.split('T')[0] || '',
-                        gender: genderEnum?.value?.toString() || '', // Store enum value, not display name
+                        gender: genderEnum?.value?.toString() || '',
                         schoolId: student.schoolId || '',
                         classId: student.classRoomId || '',
-                        status: statusEnum?.value?.toString() || '', // Store enum value, not display name
+                        status: statusEnum?.value?.toString() || '',
+                        address: formattedAddress,
+                        // notes: student.notes || '',
                     };
 
                     setStudentData(formattedData);
 
-                    // Set selected class based on student's class
                     if (student.classRoomId) {
                         const studentClass = classes.find(c => c.id === student.classRoomId);
                         setSelectedClass(studentClass || null);
@@ -107,73 +213,18 @@ const EditStudentDrawer = ({
             }
         };
 
-        // Only load if we have enums data
-        if (enums) {
-            loadStudentData();
-        }
-    }, [open, studentId, selectedAccount, classes, enums]);
+        loadStudentData();
+    }, [open, studentId, selectedAccount, enums, classes]);
 
-    // Load branches
-    useEffect(() => {
-        const loadBranches = async () => {
-            if (selectedAccount) {
-                setIsLoadingBranches(true);
-                try {
-                    const fetchedBranches = await fetchBranches(selectedAccount, apiClient);
-                    setBranches(fetchedBranches);
-                } catch (err) {
-                    console.error("Failed to load branches:", err);
-                    setAlertMessage({
-                        feMessage: "Failed to load branches.",
-                        httpStatus: 500,
-                    });
-                } finally {
-                    setIsLoadingBranches(false);
-                }
-            }
-        };
-        loadBranches();
-    }, [selectedAccount]);
-
-    // Load classes
-    useEffect(() => {
-        const loadClasses = async () => {
-            if (selectedAccount) {
-                setIsLoadingClasses(true);
-                try {
-                    const fetchedClasses = await fetchClasses(selectedAccount);
-                    setClasses(
-                        fetchedClasses.map((c: any) => ({
-                            id: c.id,
-                            name: c.className,
-                            classLevel: c.classLevel,
-                        }))
-                    );
-                } catch (err) {
-                    console.error("Failed to load classes:", err);
-                    setAlertMessage({
-                        feMessage: "Failed to load classes.",
-                        httpStatus: 500,
-                    });
-                } finally {
-                    setIsLoadingClasses(false);
-                }
-            }
-        };
-        loadClasses();
-    }, [selectedAccount]);
-
-    // Build form fields
     useEffect(() => {
         if (
             !isEnumsLoading &&
-            !isLoadingBranches &&
             !isLoadingClasses &&
             enums &&
-            studentData
+            studentData &&
+            classes.length > 0
         ) {
             const fields: FormField[] = [
-                // Read-only fields
                 {
                     name: "id",
                     label: "Student ID",
@@ -200,7 +251,7 @@ const EditStudentDrawer = ({
                     name: "dateOfBirth",
                     label: "Date of Birth",
                     type: "date",
-                    required: false, // Not required in backend update command
+                    required: false,
                     colSpan: 1,
                 },
                 {
@@ -208,6 +259,8 @@ const EditStudentDrawer = ({
                     label: "Gender",
                     type: "select",
                     required: true,
+                    colSpan: 1,
+                    readOnly: true,
                     options:
                         enums.Gender?.map((g: any) => ({
                             value: g.value.toString(),
@@ -228,8 +281,9 @@ const EditStudentDrawer = ({
                 },
             ];
 
-            // Insert Stream field right after Class if class level is 4
-            if (selectedClass && selectedClass.classLevel === 4) {
+            const currentClass = classes.find(c => c.id === studentData.classId);
+
+            if (currentClass && currentClass.classLevel === 4) {
                 fields.push({
                     name: "streamType",
                     label: "Stream",
@@ -245,7 +299,6 @@ const EditStudentDrawer = ({
                 });
             }
 
-            // Status field (editable)
             fields.push({
                 name: "status",
                 label: "Status",
@@ -259,49 +312,30 @@ const EditStudentDrawer = ({
                     })) || [],
             });
 
-            // Optional fields from backend UpdateStudent.Command
-            fields.push(
-                {
-                    name: "address",
-                    label: "Address",
-                    type: "address",
-                    required: false,
-                    colSpan: 2,
-                },
-                {
-                    name: "emergencyContactName",
-                    label: "Emergency Contact Name",
-                    type: "text",
-                    required: false,
-                    colSpan: 1,
-                },
-                {
-                    name: "emergencyContactPhone",
-                    label: "Emergency Contact Phone",
-                    type: "text",
-                    required: false,
-                    colSpan: 1,
-                },
-                // {
-                //     name: "notes",
-                //     label: "Notes",
-                //     type: "textarea",
-                //     required: false,
-                //     colSpan: 3,
-                //     rows: 3,
-                // }
-            );
+            fields.push({
+                name: "address",
+                label: "Address",
+                type: "address",
+                required: false,
+                colSpan: 2,
+            });
+
+            fields.push({
+                name: "notes",
+                label: "Notes",
+                type: "multiline",
+                required: false,
+                colSpan: 2,
+                rows: 4,
+            });
 
             setFormFields(fields);
         }
     }, [
         enums,
         isEnumsLoading,
-        isLoadingBranches,
         isLoadingClasses,
-        branches,
         classes,
-        selectedClass,
         studentData,
     ]);
 
@@ -309,11 +343,16 @@ const EditStudentDrawer = ({
         try {
             setAlertMessage({ feMessage: "Updating student data..." });
 
-            // Parse numeric fields
             const genderValue = data.gender ? parseInt(data.gender) : 0;
             const statusValue = data.status ? parseInt(data.status) : 0;
+            const streamTypeValue = data.streamType ? parseInt(data.streamType) : null;
 
-            // Create payload matching backend UpdateStudent.Command
+            const formattedAddress = data.address ? {
+                AddressLine1: data.address.addressLine1 || "",
+                State: data.address.state || "",
+                Country: data.address.country || "",
+            } : undefined;
+
             const payload: UpdateStudentPayload = {
                 Id: studentId!,
                 SchoolId: data.schoolId,
@@ -322,12 +361,9 @@ const EditStudentDrawer = ({
                 Gender: genderValue,
                 Status: statusValue,
                 ClassRoomId: data.classId,
+                StreamType: streamTypeValue,
                 DateOfBirth: data.dateOfBirth,
-                Email: data.email,
-                PhoneNumber: data.phoneNumber,
-                Address: data.address,
-                EmergencyContactName: data.emergencyContactName,
-                EmergencyContactPhone: data.emergencyContactPhone,
+                Address: formattedAddress,
                 Notes: data.notes,
             };
 
@@ -339,7 +375,6 @@ const EditStudentDrawer = ({
                     httpStatus: 200,
                 });
 
-                // Close drawer after successful update
                 setTimeout(() => {
                     onSuccess();
                     handleClose();
@@ -360,16 +395,31 @@ const EditStudentDrawer = ({
     const handleClose = () => {
         setAlertMessage({});
         setStudentData(null);
+        setStudentPhotoUrl(null);
         setSelectedClass(null);
+        setFormFields([]);
         onClose();
     };
 
-    const isLoading =
-        isEnumsLoading ||
-        isLoadingBranches ||
-        isLoadingClasses ||
-        loading ||
-        !studentData;
+    const getInitials = () => {
+        if (studentData?.firstName && studentData?.lastName) {
+            return `${studentData.firstName.charAt(0)}${studentData.lastName.charAt(0)}`.toUpperCase();
+        }
+        return "?";
+    };
+
+    const isReady = !isEnumsLoading &&
+        !isLoadingClasses &&
+        !loading &&
+        studentData &&
+        classes.length > 0 &&
+        formFields.length > 0;
+
+    const getAnimatedTitle = () => {
+        const baseText = "Edit Student in progress";
+        const dots = ".".repeat(dotCount);
+        return `${baseText}${dots}`;
+    };
 
     return (
         <Drawer
@@ -397,8 +447,14 @@ const EditStudentDrawer = ({
                     mb: 3,
                 }}
             >
-                <Typography variant="h5" fontWeight="bold">
-                    Edit student in Progress...
+                <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    sx={{
+                        transition: 'all 0.2s ease',
+                    }}
+                >
+                    {getAnimatedTitle()}
                 </Typography>
                 <IconButton onClick={handleClose}>
                     <IconifyIcon icon="ic:round-close" width={24} height={24} />
@@ -411,14 +467,53 @@ const EditStudentDrawer = ({
                 httpStatus={alertMessage.httpStatus}
             />
 
-            {isLoading ? (
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    mb: 4,
+                    mt: 2,
+                }}
+            >
+                <Paper
+                    elevation={3}
+                    sx={{
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        border: '3px solid',
+                        borderColor: 'primary.main',
+                    }}
+                >
+                    <Avatar
+                        src={studentPhotoUrl || undefined}
+                        alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                        sx={{
+                            width: 120,
+                            height: 120,
+                            fontSize: '3rem',
+                            bgcolor: studentPhotoUrl ? 'transparent' : theme.palette.text.primary,
+                            color: 'white',
+                        }}
+                    >
+                        {!studentPhotoUrl && getInitials()}
+                    </Avatar>
+                </Paper>
+            </Box>
+
+            {!isReady ? (
                 <Box
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
                     minHeight="400px"
+                    flexDirection="column"
+                    gap={2}
                 >
                     <CircularProgress />
+                    <Typography variant="body2" color="text.secondary">
+                        Loading student data...
+                    </Typography>
                 </Box>
             ) : (
                 <DynamicForm

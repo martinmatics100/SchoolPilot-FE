@@ -111,3 +111,25 @@ export const fetchClassSubjects = async (
   return response.subjects || []; // now returns SubjectDto[]
 };
 
+// Update the updateClassSubjects function
+export const updateClassSubjects = async (
+    selectedAccount: string | null,
+    classId: string,
+    payload: { subjects: number[] }
+) => {
+    if (!selectedAccount) {
+        throw new Error("No account selected");
+    }
+
+    const api = createApiClient({ selectedAccount });
+
+    try {
+        // Use the appropriate endpoint based on your backend API
+        const response = await api.put(`/v1/subjects/class/${classId}/subjects`, payload);
+        return response;
+    } catch (error) {
+        console.error("Error updating class subjects:", error);
+        throw error;
+    }
+};
+

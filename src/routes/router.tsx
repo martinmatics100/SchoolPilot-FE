@@ -29,6 +29,10 @@ const AuthLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
 const LoginPage = lazy<() => ReactElement>(
   () => import("../pages/authentication/login/index"),
 );
+
+const CreatSchoolAccountPage = lazy<() => ReactElement>(
+  () => import("../pages/authentication/create-school/index"),
+);
 const AccountSelection = lazy<() => ReactElement>(
   () => import("../pages/account-selection/index"),
 );
@@ -92,6 +96,9 @@ const SubjectsAllocation = lazy(
 );
 const Assessment = lazy(
   () => import("../pages/admin/academics/assessment/index"),
+);
+const SettingsPage = lazy(
+  () => import("../pages/common/settings/index"),
 );
 
 const routes: RouteObject[] = [
@@ -336,6 +343,14 @@ const routes: RouteObject[] = [
               </ErrorBoundary>
             ),
           },
+          {
+            path: "settings",
+            element: (
+              <ErrorBoundary>
+                <SettingsPage />
+              </ErrorBoundary>
+            ),
+          },
         ],
       },
       {
@@ -374,16 +389,16 @@ const routes: RouteObject[] = [
           },
         ],
       },
-      // {
-      //     path: paths.signup,
-      //     element: (
-      //         <Suspense fallback={<PageLoader />}>
-      //             <ErrorBoundary>
-      //                 <CreatSchoolAccountPage />
-      //             </ErrorBoundary>
-      //         </Suspense>
-      //     ),
-      // },
+      {
+        path: paths.signup,
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ErrorBoundary>
+              <CreatSchoolAccountPage />
+            </ErrorBoundary>
+          </Suspense>
+        ),
+      },
       {
         path: rootPaths.authRoot,
         element: <Navigate to={paths.login} replace />,

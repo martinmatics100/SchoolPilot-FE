@@ -9,10 +9,15 @@ import { createStudent } from "../../../../api/studentService";
 import { type StudentPayload } from "../../../../types/interfaces/i-student";
 import { type Branch } from "../../../../types/interfaces/i-user";
 import { fetchClasses } from "../../../../api/classServices";
+import { useAssetUpload } from "../../../../hooks/useAsset";
+import { Button, Box, CircularProgress } from "@mui/material";
 
-const CreateStudent = () => {
+const CreateStudent: React.FC = () => {
   const { enums, isLoading } = useEnums({ fetchPermissionData: false });
   const { apiClient, selectedAccount } = useAuth();
+
+  // Use the asset upload hook
+  const { upload, isUploading: isPhotoUploading, uploadProgress, error: uploadError, clearError: clearUploadError } = useAssetUpload(selectedAccount);
 
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -26,14 +31,18 @@ const CreateStudent = () => {
   }>({});
   const [isLoadingBranches, setIsLoadingBranches] = useState(true);
   const [isLoadingClasses, setIsLoadingClasses] = useState(true);
-
-  // Track selected class object
   const [selectedClass, setSelectedClass] = useState<{
     id: string;
     name: string;
     classLevel?: number;
   } | null>(null);
 
+  // State to track uploaded photo asset ID
+  const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load classes and branches
   useEffect(() => {
     const loadClasses = async () => {
       if (selectedAccount) {
@@ -83,26 +92,66 @@ const CreateStudent = () => {
     loadBranches();
   }, [apiClient, selectedAccount]);
 
+  // Handle photo file selection
+  const handlePhotoSelect = async (file: File) => {
+    setSelectedPhotoFile(file);
+    setUploadedPhotoAssetId(null);
+    clearUploadError();
+
+    // Auto-upload when file is selected
+    if (file) {
+      setAlertMessage({ feMessage: "Uploading profile picture..." });
+      const result = await upload(file);
+
+      if (result) {
+        setUploadedPhotoAssetId(result.fileId);
+        setAlertMessage({ feMessage: "Profile picture uploaded successfully!" });
+        // Clear the success message after 3 seconds
+        setTimeout(() => {
+          setAlertMessage({});
+        }, 3000);
+      } else {
+        setAlertMessage({ feMessage: "Failed to upload profile picture", httpStatus: 500 });
+      }
+    }
+  };
+
+  // Handle form submission with photo upload
   const handleSubmit = async (data: any) => {
     try {
-      setAlertMessage({ feMessage: "Submitting student data..." });
+      setIsSubmitting(true);
+      setAlertMessage({ feMessage: "Creating student..." });
 
-      data.gender = parseInt(data.gender);
-      data.nationality = parseInt(data.nationality);
+      // Parse numeric fields
+      const genderValue = parseInt(data.gender);
+      const nationalityValue = parseInt(data.nationality);
+      const religiousSubjectValue = parseInt(data.religiousSubject);
+      const languageSubjectValue = parseInt(data.languageSubject);
 
-      const payload: StudentPayload = {
+      // Check if photo was selected but not uploaded
+      if (selectedPhotoFile && !uploadedPhotoAssetId) {
+        setAlertMessage({ feMessage: "Please wait for photo upload to complete..." });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare payload with photoAssetId if uploaded
+      const payload = {
         Student: {
           FirstName: data.firstName,
           LastName: data.lastName,
           DateOfBirth: data.dateOfBirth,
-          Gender: data.gender,
-          Nationality: data.nationality,
+          Gender: genderValue,
+          Nationality: nationalityValue,
           Address: data.address,
           Phone: data.phone,
           StudentLocation: data.locationId,
           ClassRoomId: data.classId,
           StreamType: data.streamType ? Number(data.streamType) : null,
+          ReligiousSubject: religiousSubjectValue,
+          LanguageSubject: languageSubjectValue,
         },
+        PhotoAssetId: uploadedPhotoAssetId,
       };
 
       const response = await createStudent(apiClient, payload);
@@ -112,6 +161,15 @@ const CreateStudent = () => {
           feMessage: `Student ${data.lastName}, ${data.firstName} created successfully!`,
           httpStatus: 200,
         });
+
+        // Reset form after successful submission
+        setTimeout(() => {
+          // Reset photo state
+          setSelectedPhotoFile(null);
+          setUploadedPhotoAssetId(null);
+          // You might want to redirect or clear the form
+          // window.location.href = "/students"; // Uncomment to redirect
+        }, 2000);
       } else {
         throw new Error("Unexpected response from server");
       }
@@ -121,9 +179,12 @@ const CreateStudent = () => {
         beMessage: error.message,
         httpStatus: error.status || 500,
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  // Build form fields
   useEffect(() => {
     if (!isLoading && !isLoadingBranches && !isLoadingClasses && enums) {
       const fields: FormField[] = [
@@ -154,7 +215,7 @@ const CreateStudent = () => {
           type: "select",
           required: true,
           options:
-            enums.Gender?.map((g) => ({
+            enums.Gender?.map((g: any) => ({
               value: g.value.toString(),
               label: g.displayName || g.name,
             })) || [],
@@ -165,7 +226,7 @@ const CreateStudent = () => {
           type: "select",
           required: true,
           options:
-            enums.Nationality?.map((n) => ({
+            enums.Nationality?.map((n: any) => ({
               value: n.value.toString(),
               label: n.displayName || n.name,
             })) || [],
@@ -189,9 +250,31 @@ const CreateStudent = () => {
             setSelectedClass(selected || null);
           },
         },
+        {
+          name: "religiousSubject",
+          label: "Religious Subject (Select one)",
+          type: "radio",
+          required: true,
+          colSpan: 2,
+          options: enums.ReligiousSubjects?.map((r: any) => ({
+            value: r.value.toString(),
+            label: r.displayName || r.name,
+          })) || [],
+        },
+        {
+          name: "languageSubject",
+          label: "Language Subject",
+          type: "radio",
+          required: true,
+          colSpan: 2,
+          options: enums.LanguageSubjects?.map((l: any) => ({
+            value: l.value.toString(),
+            label: l.displayName || l.name,
+          })) || [],
+        },
       ];
 
-      // ✅ Insert Stream field right after Class
+      // Insert Stream field right after Class
       if (selectedClass && selectedClass.classLevel === 4) {
         fields.push({
           name: "streamType",
@@ -201,14 +284,14 @@ const CreateStudent = () => {
           colSpan: 1,
           placeholder: "Select Stream",
           options:
-            enums.StreamType?.map((s) => ({
+            enums.StreamType?.map((s: any) => ({
               value: s.value.toString(),
               label: s.displayName || s.name,
             })) || [],
         });
       }
 
-      // Continue with the rest of the fields
+      // Add address and profile picture fields
       fields.push(
         { name: "address", label: "Home Address", type: "address", colSpan: 3 },
         {
@@ -217,6 +300,21 @@ const CreateStudent = () => {
           type: "image",
           multiple: false,
           colSpan: 2,
+          // Custom onChange handler for the image field
+          onChange: (fileData: any) => {
+            if (fileData && fileData.file) {
+              handlePhotoSelect(fileData.file);
+            } else {
+              // If file is removed
+              setSelectedPhotoFile(null);
+              setUploadedPhotoAssetId(null);
+            }
+          },
+          infoText: isPhotoUploading
+            ? `Uploading... ${uploadProgress}%`
+            : uploadedPhotoAssetId
+              ? "✓ Photo uploaded successfully"
+              : "Upload a profile picture (max 5MB, JPG/PNG)",
         }
       );
 
@@ -230,15 +328,18 @@ const CreateStudent = () => {
     branches,
     classes,
     selectedClass,
+    isPhotoUploading,
+    uploadProgress,
+    uploadedPhotoAssetId,
   ]);
-  if (
-    isLoading ||
-    isLoadingBranches ||
-    isLoadingClasses ||
-    formFields.length === 0
-  ) {
+
+  // Show loading state
+  if (isLoading || isLoadingBranches || isLoadingClasses || formFields.length === 0) {
     return <div>Loading form...</div>;
   }
+
+  // Check if submit should be disabled
+  const isSubmitDisabled = isPhotoUploading || isSubmitting || (selectedPhotoFile !== null && !uploadedPhotoAssetId);
 
   return (
     <div>
@@ -247,15 +348,39 @@ const CreateStudent = () => {
         beMessage={alertMessage.beMessage}
         httpStatus={alertMessage.httpStatus}
       />
-      <NavigationButton to="" sx={{ alignContent: "flex-end" }}>
+      {uploadError && (
+        <MessageDisplay
+          feMessage="Upload Error"
+          beMessage={uploadError}
+          httpStatus={500}
+        />
+      )}
+      <NavigationButton to="/students" sx={{ alignContent: "flex-end" }}>
         Go to Student List
       </NavigationButton>
+
+      {/* Show upload progress indicator if uploading */}
+      {isPhotoUploading && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+          <CircularProgress size={24} />
+          <span>Uploading profile picture... {uploadProgress}%</span>
+        </Box>
+      )}
+
+      {/* Show success indicator if photo uploaded */}
+      {uploadedPhotoAssetId && !isPhotoUploading && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: 'success.light', color: 'success.contrastText', borderRadius: 1 }}>
+          ✓ Profile picture uploaded successfully!
+        </Box>
+      )}
+
       <DynamicForm
         title="Student Form"
         fields={formFields}
         onSubmit={handleSubmit}
-        submitButtonText="Submit"
+        submitButtonText={isPhotoUploading ? "Uploading Photo..." : isSubmitting ? "Creating Student..." : "Submit"}
         columns={3}
+        submitDisabled={isSubmitDisabled}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -20,9 +20,9 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  alpha,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { RadioGroup, Radio } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -33,7 +33,6 @@ import AddressInput from "../addressInput";
 import AddAPhotoIcon from "@mui/icons-material/AddAPhoto";
 import DeleteIcon from "@mui/icons-material/Delete";
 import dayjs, { Dayjs } from "dayjs";
-// import { getPhoneTypeConfig } from '../../../utils/phoneTypeConfig';
 import Autocomplete from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -53,7 +52,8 @@ export type FormField = {
     | "address"
     | "image"
     | "typeahead"
-    | "checkbox";
+  | "checkbox"
+  | "radio";
   required?: boolean;
   errorMessage?: string;
   options?: { value: string; label: string }[];
@@ -70,6 +70,7 @@ export type FormField = {
   placeholder?: string;
   fetchOptions?: (query: string) => Promise<{ value: string; label: string }[]>;
   debounceMs?: number;
+  readOnly?: boolean;
 };
 
 type FormProps = {
@@ -80,6 +81,7 @@ type FormProps = {
   initialValues?: Record<string, any>;
   spacing?: number;
   columns?: number;
+  submitDisabled?: boolean; // Added new prop
 };
 
 const DynamicForm: React.FC<FormProps> = ({
@@ -90,17 +92,17 @@ const DynamicForm: React.FC<FormProps> = ({
   initialValues = {},
   spacing = 2,
   columns = 2,
+  submitDisabled = false, // Default to false
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [typeaheadOptions, setTypeaheadOptions] = useState<
-    Record<string, any[]>
-  >({});
-  const [typeaheadLoading, setTypeaheadLoading] = useState<
-    Record<string, boolean>
-  >({});
+  const [typeaheadOptions, setTypeaheadOptions] = useState<Record<string, any[]>>({});
+  const [typeaheadLoading, setTypeaheadLoading] = useState<Record<string, boolean>>({});
+
+  // Store previous initialValues as a JSON string for deep comparison
+  const prevInitialValuesJsonRef = useRef(JSON.stringify(initialValues));
 
   // Calculate responsive columns
   const getResponsiveColumns = () => {
@@ -114,8 +116,13 @@ const DynamicForm: React.FC<FormProps> = ({
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
         <span>
           {field.label}
-          {field.required && (
+          {field.required && !field.readOnly && (
             <span style={{ color: theme.palette.error.main }}> *</span>
+          )}
+          {field.readOnly && (
+            <span style={{ color: theme.palette.text.disabled, fontStyle: 'italic', marginLeft: 4 }}>
+              (Read Only)
+            </span>
           )}
         </span>
         {field.infoText && (
@@ -164,41 +171,77 @@ const DynamicForm: React.FC<FormProps> = ({
     );
   };
 
+  // Initialize form data
   const [formData, setFormData] = useState<Record<string, any>>(() => {
-    const initialData: Record<string, any> = {};
+    const newFormData: Record<string, any> = {};
     fields.forEach((field) => {
-      initialData[field.name] =
-        initialValues[field.name] ??
-        field.defaultValue ??
-        (field.type === "checkbox"
-          ? false
-          : field.type === "multiselect"
-          ? []
-          : field.type === "image"
-          ? field.multiple
-            ? []
-            : null
-          : field.type === "date"
-          ? null
-          : "");
+      if (initialValues.hasOwnProperty(field.name) && initialValues[field.name] !== undefined) {
+        newFormData[field.name] = initialValues[field.name];
+      } else {
+        newFormData[field.name] = field.defaultValue ?? (
+          field.type === "checkbox" ? false :
+            field.type === "multiselect" ? [] :
+              field.type === "image" ? (field.multiple ? [] : null) :
+                field.type === "date" ? null :
+                  field.type === "phone" ? { phoneType: "", country: "", number: "", extension: "" } :
+                    field.type === "address" ? { addressLine1: "", postalCode: "", country: "", state: "" } :
+                      ""
+        );
+      }
     });
-    return initialData;
+    return newFormData;
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleChange = (name: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // Update form data when initialValues change (deep comparison)
+  useEffect(() => {
+    const currentInitialValuesJson = JSON.stringify(initialValues);
 
-    // Find the field and call its onChange if it exists
+    if (currentInitialValuesJson !== prevInitialValuesJsonRef.current) {
+      const newFormData: Record<string, any> = { ...formData };
+      let hasChanges = false;
+
+      fields.forEach((field) => {
+        if (initialValues.hasOwnProperty(field.name) && initialValues[field.name] !== undefined) {
+          if (JSON.stringify(newFormData[field.name]) !== JSON.stringify(initialValues[field.name])) {
+            newFormData[field.name] = initialValues[field.name];
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        setFormData(newFormData);
+        setErrors({});
+      }
+
+      prevInitialValuesJsonRef.current = currentInitialValuesJson;
+    }
+  }, [initialValues, fields]);
+
+  const handleChange = (name: string, value: any) => {
     const field = fields.find((f) => f.name === name);
+
+    // Don't allow changes if field is readOnly
+    if (field?.readOnly) {
+      return;
+    }
+
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: value,
+      };
+      return newData;
+    });
+
+    // Call field's onChange if it exists
     if (field?.onChange) {
       field.onChange(value);
     }
 
+    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -220,37 +263,45 @@ const DynamicForm: React.FC<FormProps> = ({
     handleChange(name, date ? date.format("YYYY-MM-DD") : null);
   };
 
-  const handleImageUpload =
-    (fieldName: string, isMultiple: boolean) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
+  const handleImageUpload = (fieldName: string, isMultiple: boolean) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const field = fields.find((f) => f.name === fieldName);
 
-      if (isMultiple) {
-        const newFiles = Array.from(files).map((file) => ({
-          file,
-          preview: URL.createObjectURL(file),
-        }));
-        handleChange(fieldName, [...(formData[fieldName] || []), ...newFiles]);
-      } else {
-        const file = files[0];
-        handleChange(fieldName, {
-          file,
-          preview: URL.createObjectURL(file),
-        });
-      }
-      e.target.value = ""; // Reset file input
-    };
+    if (field?.readOnly) {
+      return;
+    }
+
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (isMultiple) {
+      const newFiles = Array.from(files).map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      handleChange(fieldName, [...(formData[fieldName] || []), ...newFiles]);
+    } else {
+      const file = files[0];
+      handleChange(fieldName, {
+        file,
+        preview: URL.createObjectURL(file),
+      });
+    }
+    e.target.value = "";
+  };
 
   const removeImage = (fieldName: string, index?: number) => {
+    const field = fields.find((f) => f.name === fieldName);
+
+    if (field?.readOnly) {
+      return;
+    }
+
     if (index !== undefined) {
-      // Remove specific image from multiple
       const updatedImages = [...formData[fieldName]];
       URL.revokeObjectURL(updatedImages[index].preview);
       updatedImages.splice(index, 1);
       handleChange(fieldName, updatedImages);
     } else {
-      // Remove single image
       if (formData[fieldName]?.preview) {
         URL.revokeObjectURL(formData[fieldName].preview);
       }
@@ -262,62 +313,51 @@ const DynamicForm: React.FC<FormProps> = ({
     const newErrors: Record<string, string> = {};
 
     fields.forEach((field) => {
+      if (field.readOnly || field.hidden) {
+        return;
+      }
+
       if (field.required) {
-        if (
-          formData[field.name] === "" ||
-          formData[field.name] === null ||
-          formData[field.name] === undefined ||
-          (Array.isArray(formData[field.name]) &&
-            formData[field.name].length === 0)
-        ) {
-          newErrors[field.name] =
-            field.errorMessage || `${field.label} is required`;
-        }
+        const value = formData[field.name];
 
         if (
-          field.type === "phone" &&
-          typeof formData[field.name] === "object"
+          value === "" ||
+          value === null ||
+          value === undefined ||
+          (Array.isArray(value) && value.length === 0)
         ) {
-          const phone = formData[field.name];
-          if (!phone.number) {
-            newErrors[`${field.name}.number`] =
-              field.errorMessage || "Phone number is required";
+          newErrors[field.name] = field.errorMessage || `${field.label} is required`;
+        }
+
+        if (field.type === "phone" && typeof value === "object") {
+          if (!value?.number) {
+            newErrors[`${field.name}.number`] = field.errorMessage || "Phone number is required";
           }
-          if (!phone.phoneType) {
+          if (!value?.phoneType) {
             newErrors[`${field.name}.phoneType`] = "Phone type is required";
           }
-          if (!phone.country) {
-            newErrors[`${field.name}.countryCode`] = "Country is required";
-          }
-          const phoneTypeId = parseInt(phone.phoneType);
-        }
-
-        if (
-          field.type === "address" &&
-          typeof formData[field.name] === "object"
-        ) {
-          const address = formData[field.name];
-          if (!address.addressLine1) {
-            newErrors[`${field.name}.addressLine1`] =
-              "Address line is required";
-          }
-          if (!address.postalCode) {
-            newErrors[`${field.name}.postalCode`] = "Postal code is required";
-          }
-          if (!address.country) {
+          if (!value?.country) {
             newErrors[`${field.name}.country`] = "Country is required";
           }
-          if (!address.state) {
+        }
+
+        if (field.type === "address" && typeof value === "object") {
+          if (!value?.addressLine1) {
+            newErrors[`${field.name}.addressLine1`] = "Address line is required";
+          }
+          if (!value?.postalCode) {
+            newErrors[`${field.name}.postalCode`] = "Postal code is required";
+          }
+          if (!value?.country) {
+            newErrors[`${field.name}.country`] = "Country is required";
+          }
+          if (!value?.state) {
             newErrors[`${field.name}.state`] = "State is required";
           }
         }
-        if (
-          field.type === "checkbox" &&
-          field.required &&
-          !formData[field.name]
-        ) {
-          newErrors[field.name] =
-            field.errorMessage || `${field.label} is required`;
+
+        if (field.type === "checkbox" && field.required && !value) {
+          newErrors[field.name] = field.errorMessage || `${field.label} is required`;
         }
       }
     });
@@ -330,18 +370,14 @@ const DynamicForm: React.FC<FormProps> = ({
     e.preventDefault();
 
     if (validateForm()) {
-      // Prepare form data for submission
       const submissionData = { ...formData };
 
-      // Convert image objects to File objects for submission
       fields.forEach((field) => {
-        if (field.type === "image") {
+        if (field.type === "image" && !field.readOnly) {
           if (field.multiple) {
-            submissionData[field.name] =
-              submissionData[field.name]?.map((img: any) => img.file) || [];
+            submissionData[field.name] = submissionData[field.name]?.map((img: any) => img.file) || [];
           } else {
-            submissionData[field.name] =
-              submissionData[field.name]?.file || null;
+            submissionData[field.name] = submissionData[field.name]?.file || null;
           }
         }
       });
@@ -355,37 +391,60 @@ const DynamicForm: React.FC<FormProps> = ({
     const value = formData[field.name];
     const isMultiple = field.multiple || false;
     const accept = field.accept || "image/*";
+    const isReadOnly = field.readOnly || false;
 
     return (
       <FormControl
         fullWidth
         error={!!fieldError}
+        key={field.name}
         sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
       >
         <FormLabel component="legend" sx={{ mb: 1, display: "block" }}>
           {renderLabel(field)}
         </FormLabel>
 
-        <input
-          type="file"
-          accept={accept}
-          multiple={isMultiple}
-          onChange={handleImageUpload(field.name, isMultiple)}
-          style={{ display: "none" }}
-          ref={fileInputRef}
-          id={`file-upload-${field.name}`}
-        />
+        {!isReadOnly && (
+          <input
+            type="file"
+            accept={accept}
+            multiple={isMultiple}
+            onChange={handleImageUpload(field.name, isMultiple)}
+            style={{ display: "none" }}
+            ref={fileInputRef}
+            id={`file-upload-${field.name}`}
+          />
+        )}
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {isMultiple ? (
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-              {value?.map((img: any, index: number) => (
-                <Box key={index} sx={{ position: "relative" }}>
-                  <Avatar
-                    src={img.preview}
-                    variant="rounded"
-                    sx={{ width: 100, height: 100 }}
-                  />
+              {Array.isArray(value) && value.map((img: any, index: number) => (
+                <Box key={`${field.name}-${index}`} sx={{ position: "relative" }}>
+                  <Avatar src={img.preview} variant="rounded" sx={{ width: 100, height: 100 }} />
+                  {!isReadOnly && (
+                    <IconButton
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        backgroundColor: theme.palette.error.main,
+                        color: "white",
+                        "&:hover": { backgroundColor: theme.palette.error.dark },
+                      }}
+                      onClick={() => removeImage(field.name, index)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          ) : value && typeof value === 'object' && value !== null ? (
+            <Box sx={{ position: "relative", width: "fit-content" }}>
+                <Avatar src={value.preview} variant="rounded" sx={{ width: 100, height: 100 }} />
+                {!isReadOnly && (
                   <IconButton
                     size="small"
                     sx={{
@@ -394,52 +453,27 @@ const DynamicForm: React.FC<FormProps> = ({
                       right: 0,
                       backgroundColor: theme.palette.error.main,
                       color: "white",
-                      "&:hover": {
-                        backgroundColor: theme.palette.error.dark,
-                      },
+                      "&:hover": { backgroundColor: theme.palette.error.dark },
                     }}
-                    onClick={() => removeImage(field.name, index)}
+                    onClick={() => removeImage(field.name)}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
-                </Box>
-              ))}
-            </Box>
-          ) : value ? (
-            <Box sx={{ position: "relative", width: "fit-content" }}>
-              <Avatar
-                src={value.preview}
-                variant="rounded"
-                sx={{ width: 100, height: 100 }}
-              />
-              <IconButton
-                size="small"
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  right: 0,
-                  backgroundColor: theme.palette.error.main,
-                  color: "white",
-                  "&:hover": {
-                    backgroundColor: theme.palette.error.dark,
-                  },
-                }}
-                onClick={() => removeImage(field.name)}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+                )}
             </Box>
           ) : null}
 
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<AddAPhotoIcon />}
-            sx={{ alignSelf: "flex-start" }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {isMultiple ? "Add Images" : "Upload Image"}
-          </Button>
+          {!isReadOnly && (
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<AddAPhotoIcon />}
+              sx={{ alignSelf: "flex-start" }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {isMultiple ? "Add Images" : "Upload Image"}
+            </Button>
+          )}
         </Box>
 
         {fieldError && <FormHelperText error>{fieldError}</FormHelperText>}
@@ -448,23 +482,19 @@ const DynamicForm: React.FC<FormProps> = ({
   };
 
   const renderField = (field: FormField) => {
-    // Skip rendering if field is hidden
     if (field.hidden) {
       return null;
     }
 
     const fieldError = errors[field.name];
     const value = formData[field.name];
-    const hasValue =
-      value !== "" &&
-      value !== null &&
-      value !== undefined &&
-      (!Array.isArray(value) || value.length > 0);
+    const isReadOnly = field.readOnly || false;
 
     switch (field.type) {
       case "select":
         return (
           <FormControl
+            key={field.name}
             fullWidth
             error={!!fieldError}
             size="small"
@@ -474,43 +504,32 @@ const DynamicForm: React.FC<FormProps> = ({
           >
             <InputLabel shrink={true}>{renderLabel(field)}</InputLabel>
             <Select
-              value={value}
+              value={value ?? ''}
               label={renderLabel(field)}
               onChange={(e) => handleChange(field.name, e.target.value)}
+              readOnly={isReadOnly}
+              disabled={isReadOnly}
               MenuProps={{
                 PaperProps: {
                   style: {
                     maxHeight: 200,
                     backgroundColor: theme.palette.background.default,
-                    color: theme.palette.text.secondary,
                   },
                 },
               }}
               displayEmpty
               renderValue={(selected) => {
-                if (
-                  selected === "" ||
-                  selected === undefined ||
-                  selected === null
-                ) {
+                if (selected === "" || selected === undefined || selected === null) {
                   return (
-                    <span
-                      style={{
-                        color: theme.palette.text.disabled,
-                        fontStyle: "italic",
-                      }}
-                    >
+                    <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>
                       {field.placeholder || "Select an option"}
                     </span>
                   );
                 }
-                const selectedOption = field.options?.find(
-                  (opt) => opt.value === selected
-                );
+                const selectedOption = field.options?.find((opt) => opt.value === selected);
                 return selectedOption?.label || selected;
               }}
             >
-              {/* Placeholder option */}
               <MenuItem value="" disabled>
                 <em>{field.placeholder || "Select an option"}</em>
               </MenuItem>
@@ -527,6 +546,7 @@ const DynamicForm: React.FC<FormProps> = ({
       case "multiselect":
         return (
           <FormControl
+            key={field.name}
             fullWidth
             error={!!fieldError}
             size="small"
@@ -537,18 +557,15 @@ const DynamicForm: React.FC<FormProps> = ({
             <InputLabel shrink={true}>{renderLabel(field)}</InputLabel>
             <Select
               multiple
-              value={value || []}
+              value={Array.isArray(value) ? value : []}
               onChange={(e) => handleChange(field.name, e.target.value)}
               input={<OutlinedInput label={renderLabel(field)} />}
+              readOnly={isReadOnly}
+              disabled={isReadOnly}
               renderValue={(selected) => {
                 if (selected.length === 0) {
                   return (
-                    <span
-                      style={{
-                        color: theme.palette.text.disabled,
-                        fontStyle: "italic",
-                      }}
-                    >
+                    <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>
                       {field.placeholder || "Select options"}
                     </span>
                   );
@@ -556,17 +573,15 @@ const DynamicForm: React.FC<FormProps> = ({
                 return (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {selected.map((value: string) => {
-                      const option = field.options?.find(
-                        (opt) => opt.value === value
-                      );
+                      const option = field.options?.find((opt) => opt.value === value);
                       return (
                         <Chip
                           key={value}
                           label={option?.label || value}
                           size="small"
                           sx={{
-                            backgroundColor: theme.palette.text.primary,
-                            color: theme.palette.text.secondary,
+                            backgroundColor: theme.palette.primary.main,
+                            color: theme.palette.primary.contrastText,
                           }}
                         />
                       );
@@ -574,26 +589,13 @@ const DynamicForm: React.FC<FormProps> = ({
                   </Box>
                 );
               }}
-              displayEmpty
               MenuProps={{
-                PaperProps: {
-                  style: {
-                    maxHeight: 200,
-                  },
-                },
+                PaperProps: { style: { maxHeight: 200 } },
               }}
             >
               {field.options?.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
-                  <Checkbox
-                    checked={value?.includes(option.value) || false}
-                    sx={{
-                      color: theme.palette.primary.main,
-                      "&.Mui-checked": {
-                        color: theme.palette.action.hover,
-                      },
-                    }}
-                  />
+                  <Checkbox checked={Array.isArray(value) && value.includes(option.value)} />
                   <ListItemText primary={option.label} />
                 </MenuItem>
               ))}
@@ -605,8 +607,9 @@ const DynamicForm: React.FC<FormProps> = ({
       case "multiline":
         return (
           <TextField
+            key={field.name}
             label={renderLabel(field)}
-            value={value}
+            value={value ?? ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             error={!!fieldError}
             helperText={fieldError}
@@ -616,15 +619,15 @@ const DynamicForm: React.FC<FormProps> = ({
             size="small"
             placeholder={field.placeholder}
             InputLabelProps={{ shrink: true }}
-            sx={{
-              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
-            }}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
           />
         );
 
       case "phone":
         return (
           <Box
+            key={field.name}
             sx={{
               width: "100%",
               gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
@@ -634,21 +637,17 @@ const DynamicForm: React.FC<FormProps> = ({
               {renderLabel(field)}
             </FormLabel>
             <PhoneNumberInput
-              {...(value || {
-                phoneType: "",
-                countryCode: "",
-                number: "",
-                extension: "",
-              })}
+              {...(value || { phoneType: "", country: "", number: "", extension: "" })}
               onChange={handlePhoneChange(field.name)}
               errors={{
                 phoneType: errors[`${field.name}.phoneType`],
-                countryCode: errors[`${field.name}.countryCode`],
+                country: errors[`${field.name}.country`],
                 number: errors[`${field.name}.number`] || errors[field.name],
                 extension: errors[`${field.name}.extension`],
               }}
               enums={field.extraProps?.enums || { PhoneType: [], Country: [] }}
               placeholder={field.placeholder}
+              readOnly={isReadOnly}
             />
           </Box>
         );
@@ -656,6 +655,7 @@ const DynamicForm: React.FC<FormProps> = ({
       case "address":
         return (
           <Box
+            key={field.name}
             sx={{
               width: "100%",
               gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
@@ -665,12 +665,7 @@ const DynamicForm: React.FC<FormProps> = ({
               {renderLabel(field)}
             </FormLabel>
             <AddressInput
-              {...(value || {
-                addressLine1: "",
-                postalCode: "",
-                country: "",
-                state: "",
-              })}
+              {...(value || { addressLine1: "", postalCode: "", country: "", state: "" })}
               onChange={handleAddressChange(field.name)}
               errors={{
                 addressLine1: errors[`${field.name}.addressLine1`],
@@ -679,6 +674,7 @@ const DynamicForm: React.FC<FormProps> = ({
                 state: errors[`${field.name}.state`],
               }}
               placeholder={field.placeholder}
+              readOnly={isReadOnly}
             />
           </Box>
         );
@@ -692,7 +688,17 @@ const DynamicForm: React.FC<FormProps> = ({
             <DatePicker
               label={renderLabel(field)}
               value={value ? dayjs(value) : null}
-              onChange={handleDateChange(field.name)}
+              onChange={(newValue) => {
+                if (newValue === null) {
+                  handleDateChange(field.name)(null);
+                } else if (dayjs.isDayjs(newValue)) {
+                  handleDateChange(field.name)(newValue);
+                } else {
+                  handleDateChange(field.name)(dayjs(newValue as string | Date));
+                }
+              }}
+              readOnly={isReadOnly}
+              disabled={isReadOnly}
               slotProps={{
                 textField: {
                   size: "small",
@@ -700,14 +706,11 @@ const DynamicForm: React.FC<FormProps> = ({
                   error: !!fieldError,
                   helperText: fieldError,
                   placeholder: field.placeholder,
-                  InputLabelProps: {
-                    shrink: true,
-                  },
+                  InputLabelProps: { shrink: true },
+                  InputProps: { readOnly: isReadOnly },
                 },
               }}
-              sx={{
-                gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
-              }}
+              sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
             />
           </LocalizationProvider>
         );
@@ -718,30 +721,29 @@ const DynamicForm: React.FC<FormProps> = ({
 
         return (
           <Autocomplete
-            sx={{
-              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
-            }}
+            key={field.name}
+            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
             options={options}
             getOptionLabel={(option) => option.label}
             value={options.find((o) => o.value === value) || null}
             loading={loading}
             onInputChange={async (_, inputValue) => {
-              if (!field.fetchOptions || inputValue.length < 2) return;
-
+              if (isReadOnly || !field.fetchOptions || inputValue.length < 2) return;
               setTypeaheadLoading((prev) => ({ ...prev, [field.name]: true }));
-
-              const result = await field.fetchOptions(inputValue);
-
-              setTypeaheadOptions((prev) => ({
-                ...prev,
-                [field.name]: result,
-              }));
-
-              setTypeaheadLoading((prev) => ({ ...prev, [field.name]: false }));
+              try {
+                const result = await field.fetchOptions(inputValue);
+                setTypeaheadOptions((prev) => ({ ...prev, [field.name]: result }));
+              } finally {
+                setTypeaheadLoading((prev) => ({ ...prev, [field.name]: false }));
+              }
             }}
             onChange={(_, selected) => {
-              handleChange(field.name, selected?.value || "");
+              if (!isReadOnly) {
+                handleChange(field.name, selected?.value || "");
+              }
             }}
+            readOnly={isReadOnly}
+            disabled={isReadOnly}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -752,6 +754,7 @@ const DynamicForm: React.FC<FormProps> = ({
                 placeholder={field.placeholder}
                 InputProps={{
                   ...params.InputProps,
+                  readOnly: isReadOnly,
                   endAdornment: (
                     <>
                       {loading && <CircularProgress size={20} />}
@@ -768,60 +771,63 @@ const DynamicForm: React.FC<FormProps> = ({
       case "checkbox":
         return (
           <FormControl
+            key={field.name}
             error={!!fieldError}
             sx={{
               gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
-              display: "inline-flex", // ✅ prevents stretching
-              alignItems: "center",
-              width: "fit-content",
+              display: "inline-flex",
             }}
           >
             <FormControlLabel
-              sx={{
-                m: 0,
-                width: "fit-content", // ✅ do not expand
-              }}
               control={
                 <Checkbox
                   checked={Boolean(value)}
                   onChange={(e) => handleChange(field.name, e.target.checked)}
-                  sx={{
-                    transform: "scale(1.5)", // ✅ big checkbox
-                    padding: 0.5,
-                    color: theme.palette.error.main, // unchecked color
-                    "&.Mui-checked": {
-                      color: theme.palette.text.link, // ✅ red check mark
-                    },
-                  }}
+                  disabled={isReadOnly}
                 />
               }
-              label={
-                <Typography
-                  sx={{
-                    fontWeight: 500,
-                    whiteSpace: "nowrap", // ✅ no wrapping
-                    ml: 0.5,
-                  }}
-                >
-                  {renderLabel(field)}
-                </Typography>
-              }
+              label={renderLabel(field)}
             />
+            {fieldError && <FormHelperText error>{fieldError}</FormHelperText>}
+          </FormControl>
+        );
 
-            {fieldError && (
-              <FormHelperText error sx={{ ml: 0 }}>
-                {fieldError}
-              </FormHelperText>
-            )}
+      case "radio":
+        return (
+          <FormControl
+            key={field.name}
+            error={!!fieldError}
+            sx={{
+              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
+            }}
+          >
+            <FormLabel>{renderLabel(field)}</FormLabel>
+            <RadioGroup
+              row
+              value={value ?? ''}
+              onChange={(e) => !isReadOnly && handleChange(field.name, e.target.value)}
+            >
+              {field.options?.map((option) => (
+                <FormControlLabel
+                  key={option.value}
+                  value={option.value}
+                  control={<Radio />}
+                  label={option.label}
+                  disabled={isReadOnly}
+                />
+              ))}
+            </RadioGroup>
+            {fieldError && <FormHelperText>{fieldError}</FormHelperText>}
           </FormControl>
         );
 
       default:
         return (
           <TextField
+            key={field.name}
             label={renderLabel(field)}
             type={field.type || "text"}
-            value={value}
+            value={value ?? ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             error={!!fieldError}
             helperText={fieldError}
@@ -829,9 +835,8 @@ const DynamicForm: React.FC<FormProps> = ({
             size="small"
             placeholder={field.placeholder}
             InputLabelProps={{ shrink: true }}
-            sx={{
-              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
-            }}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
           />
         );
     }
@@ -868,16 +873,10 @@ const DynamicForm: React.FC<FormProps> = ({
               display: "grid",
               gap: spacing,
               gridTemplateColumns: `repeat(${getResponsiveColumns()}, 1fr)`,
-              "& > *": {
-                minWidth: 0,
-              },
+              "& > *": { minWidth: 0 },
             }}
           >
-            {fields.map((field) => (
-              <React.Fragment key={field.name}>
-                {renderField(field)}
-              </React.Fragment>
-            ))}
+            {fields.map((field) => renderField(field))}
 
             <Box
               sx={{
@@ -892,6 +891,7 @@ const DynamicForm: React.FC<FormProps> = ({
                 variant="contained"
                 size={isMobile ? "medium" : "large"}
                 fullWidth={isMobile}
+                disabled={submitDisabled || fields.every((f) => f.readOnly)}
               >
                 {submitButtonText}
               </Button>

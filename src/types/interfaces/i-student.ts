@@ -12,6 +12,8 @@ export interface StudentPayload {
         StudentLocation: string;
         ClassRoomId: string;
         StreamType: number | null;
+        ReligiousSubject: number;
+        LanguageSubject: number;
     };
 }
 
@@ -51,13 +53,18 @@ export interface UpdateStudentPayload {
     SchoolId: string;
     FirstName: string;
     LastName: string;
-    Gender: number;        // Backend expects enum value
-    Status: number;        // Backend expects enum value
+    Gender: number;
+    Status: number;
     ClassRoomId: string;
+    StreamType: number | null;
     Email?: string;
     PhoneNumber?: string;
     DateOfBirth?: string;
-    Address?: string;
+    Address?: {
+        AddressLine1: string;
+        State: string;
+        Country: string;
+    };
     EmergencyContactName?: string;
     EmergencyContactPhone?: string;
     Notes?: string;

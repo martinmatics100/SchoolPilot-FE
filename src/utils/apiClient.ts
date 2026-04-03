@@ -216,6 +216,68 @@ export const createApiClient = ({
     return handleResponse<T>(response, isBlob);
   };
 
+  // Add file upload with progress tracking using XMLHttpRequest
+  const uploadFile = <T = any>(
+    url: string,
+    formData: FormData,
+    onProgress?: (progress: number) => void
+  ): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const accessToken = getLocalStorageItem(STORAGE_KEYS.ACCESS_TOKEN);
+      const timeZone = getLocalStorageItem(STORAGE_KEYS.TIME_ZONE) ?? DEFAULT_TIME_ZONE;
+
+      // Setup progress tracking
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percentCompleted = Math.round((event.loaded * 100) / event.total);
+            onProgress(percentCompleted);
+          }
+        });
+      }
+
+      // Handle completion
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } catch (error) {
+            reject(new Error("Failed to parse response"));
+          }
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener("error", () => {
+        reject(new Error("Network error occurred during upload"));
+      });
+
+      xhr.addEventListener("abort", () => {
+        reject(new Error("Upload was aborted"));
+      });
+
+      // Open connection - use the same API_BASE_URL
+      const fullUrl = `${API_BASE_URL}${url}`;
+      xhr.open("POST", fullUrl);
+
+      // Set headers (don't set Content-Type for FormData)
+      if (effectiveAccountId) {
+        xhr.setRequestHeader("X-Account-Id", effectiveAccountId);
+      }
+      if (accessToken) {
+        xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+      }
+      xhr.setRequestHeader("X-Time-Zone", timeZone);
+
+      // Send form data
+      xhr.send(formData);
+    });
+  };
+
   return {
     get: <T = any>(url: string) => requestWithTokenRefresh<T>(url, { method: 'GET' }),
     // 3. Update post signature to allow a boolean flag for blobs
@@ -226,6 +288,10 @@ export const createApiClient = ({
       }, isBlob),
     put: <T = any>(url: string, body: any) => requestWithTokenRefresh<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
     delete: <T = any>(url: string) => requestWithTokenRefresh<T>(url, { method: 'DELETE' }),
+
+    // New upload method for file uploads with progress
+    upload: <T = any>(url: string, formData: FormData, onProgress?: (progress: number) => void) =>
+      uploadFile<T>(url, formData, onProgress),
 
     getAccounts: async ({ userId, role, page = DEFAULT_PAGE, pageLength = DEFAULT_PAGE_LENGTH }: GetAccountsParams) => {
       const queryParams = new URLSearchParams({
