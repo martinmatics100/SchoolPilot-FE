@@ -49,8 +49,8 @@ const AdminCreateUserPage = lazy<() => ReactElement>(
 const AdminStudentListManagementPage = lazy<() => ReactElement>(
   () => import("../pages/admin/students/student-list/index"),
 );
-const AdminCreateStudentPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/students/create-student/index"),
+const AdminCreateStudentPage = lazy(() =>
+  import("../pages/admin/students/create-student")
 );
 const AdminBulkCreateStudentPage = lazy<() => ReactElement>(
   () => import("../pages/admin/students/bulk-create-student/index"),
