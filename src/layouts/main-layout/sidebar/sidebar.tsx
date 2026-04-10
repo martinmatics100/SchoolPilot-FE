@@ -13,7 +13,7 @@ import navItems from "../../../data/sidebar-items";
 import SimpleBar from "simplebar-react";
 import NavItem from "./navitem";
 import Image from "../../../components/base/image";
-import logoWithText from "../../../assets/palmfitLogoWithText.png";
+import logoWithText from "../../../assets/images/app-logo/SchoolPilot-.png";
 import logo from "../../../assets/palmfitLogoWithoutText.png";
 import { rootPaths } from "../../../routes/paths";
 import { drawerCloseWidth, drawerOpenWidth } from "..";
@@ -21,6 +21,7 @@ import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../components/base/iconifyIcon";
 import { UserRoles } from "../../../enums/user-roles";
 import { useAuth } from "../../../context";
+import { Logo, SimpleLogo } from "../../../components/Logo";
 
 interface GroupIcons {
     [key: string]: string;
@@ -147,12 +148,28 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                     width: open ? drawerOpenWidth - 1 : drawerCloseWidth - 1,
                 }}
             >
-                <Link href={rootPaths.homeRoot} sx={{ mt: 3 }}>
+                {/* <Link href={rootPaths.homeRoot} sx={{ mt: 3 }}>
                     <Image
                         src={open ? logoWithText : logo}
                         alt={open ? 'logo with text' : 'logo'}
                         height={40}
+                        sx={{
+                            bgcolor: "black",
+                            width: "100"
+                        }}
                     />
+                </Link> */}
+                <Link href={rootPaths.homeRoot} sx={{ mt: 3, textDecoration: 'none', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                    {open ? (
+                        <Logo
+                            variant="full"
+                            size="small"
+                            animated={true}
+                            sx={{ cursor: 'pointer' }}
+                        />
+                    ) : (
+                        <SimpleLogo size={40} />
+                    )}
                 </Link>
             </Toolbar>
 

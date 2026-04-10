@@ -742,7 +742,7 @@ export default function CreateSchoolPage() {
                         {/* Contact Phone Number */}
                         <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                                School Phone Number *
+                                School Contact Person Phone Number *
                             </Typography>
                             <PhoneNumberInput
                                 phoneType={formData.phone?.phoneType || 'Mobile'}

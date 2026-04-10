@@ -9,7 +9,7 @@ const Settings = () => {
 
     const tabs = [
         {
-            label: "Academic Sessions",
+            label: "System Settings",
             component: <GeneralSettings />,
         },
         {

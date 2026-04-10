@@ -1,5 +1,5 @@
 import { createApiClient, getInitialAuthData } from "../utils/apiClient";
-import { type SchoolDetails, type SchoolSlimResponse, type SchoolTerm, type SchoolTermsResponse } from "../types/interfaces/i-school";
+import { type SchoolDetails, type SchoolSlimResponse, type SchoolTerm, type SchoolTermsResponse, type SchoolInfoResponse } from "../types/interfaces/i-school";
 import { type AssessmentTypeConfig } from "../types/interfaces/i-assessment";
 
 export class SchoolService {
@@ -116,6 +116,30 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
     throw error;
   }
 }
+
+    /**
+      * Fetch complete school information for the general settings page
+      */
+    static async getSchoolInfo(schoolId?: string): Promise<SchoolInfoResponse | null> {
+        const { selectedAccount } = getInitialAuthData();
+
+        if (!selectedAccount) {
+            console.error('No account selected');
+            return null;
+        }
+
+        try {
+            const api = createApiClient({ selectedAccount });
+            const response = await api.get<{ school: SchoolInfoResponse; message: string; status: number }>(
+                `/v1/accounts/school-info`
+            );
+            console.log('School Info API Response:', response);
+            return response.school || null;
+        } catch (error) {
+            console.error('Error fetching school info:', error);
+            throw error;
+        }
+    }
 
 
 

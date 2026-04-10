@@ -1,4 +1,6 @@
-export const API_BASE_URL = 'https://localhost:7029/api';
+// export const API_BASE_URL = 'https://localhost:7029/api';
+
+export const API_BASE_URL = 'https://schoolpilot-6zr4.onrender.com/api';
 
 // Local Storage Keys
 export const STORAGE_KEYS = {

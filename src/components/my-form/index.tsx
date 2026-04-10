@@ -81,7 +81,7 @@ type FormProps = {
   initialValues?: Record<string, any>;
   spacing?: number;
   columns?: number;
-  submitDisabled?: boolean; // Added new prop
+  submitDisabled?: boolean;
 };
 
 const DynamicForm: React.FC<FormProps> = ({
@@ -92,7 +92,7 @@ const DynamicForm: React.FC<FormProps> = ({
   initialValues = {},
   spacing = 2,
   columns = 2,
-  submitDisabled = false, // Default to false
+  submitDisabled = false,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -101,10 +101,8 @@ const DynamicForm: React.FC<FormProps> = ({
   const [typeaheadOptions, setTypeaheadOptions] = useState<Record<string, any[]>>({});
   const [typeaheadLoading, setTypeaheadLoading] = useState<Record<string, boolean>>({});
 
-  // Store previous initialValues as a JSON string for deep comparison
   const prevInitialValuesJsonRef = useRef(JSON.stringify(initialValues));
 
-  // Calculate responsive columns
   const getResponsiveColumns = () => {
     if (isMobile) return 1;
     if (isTablet) return Math.min(2, columns);
@@ -120,7 +118,14 @@ const DynamicForm: React.FC<FormProps> = ({
             <span style={{ color: theme.palette.error.main }}> *</span>
           )}
           {field.readOnly && (
-            <span style={{ color: theme.palette.text.disabled, fontStyle: 'italic', marginLeft: 4 }}>
+            <span
+              style={{
+                fontStyle: "italic",
+                marginLeft: 4,
+                fontSize: "0.75rem",
+                color: theme.palette.text.secondary,
+              }}
+            >
               (Read Only)
             </span>
           )}
@@ -171,22 +176,13 @@ const DynamicForm: React.FC<FormProps> = ({
     );
   };
 
-  // Initialize form data
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const newFormData: Record<string, any> = {};
     fields.forEach((field) => {
       if (initialValues.hasOwnProperty(field.name) && initialValues[field.name] !== undefined) {
         newFormData[field.name] = initialValues[field.name];
       } else {
-        newFormData[field.name] = field.defaultValue ?? (
-          field.type === "checkbox" ? false :
-            field.type === "multiselect" ? [] :
-              field.type === "image" ? (field.multiple ? [] : null) :
-                field.type === "date" ? null :
-                  field.type === "phone" ? { phoneType: "", country: "", number: "", extension: "" } :
-                    field.type === "address" ? { addressLine1: "", postalCode: "", country: "", state: "" } :
-                      ""
-        );
+        newFormData[field.name] = field.defaultValue ?? (field.type === "checkbox" ? false : field.type === "multiselect" ? [] : field.type === "image" ? (field.multiple ? [] : null) : field.type === "date" ? null : field.type === "phone" ? { phoneType: "", country: "", number: "", extension: "" } : field.type === "address" ? { addressLine1: "", postalCode: "", country: "", state: "" } : "");
       }
     });
     return newFormData;
@@ -194,7 +190,6 @@ const DynamicForm: React.FC<FormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Update form data when initialValues change (deep comparison)
   useEffect(() => {
     const currentInitialValuesJson = JSON.stringify(initialValues);
 
@@ -223,25 +218,19 @@ const DynamicForm: React.FC<FormProps> = ({
   const handleChange = (name: string, value: any) => {
     const field = fields.find((f) => f.name === name);
 
-    // Don't allow changes if field is readOnly
     if (field?.readOnly) {
       return;
     }
 
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [name]: value,
-      };
-      return newData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
-    // Call field's onChange if it exists
     if (field?.onChange) {
       field.onChange(value);
     }
 
-    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -263,31 +252,33 @@ const DynamicForm: React.FC<FormProps> = ({
     handleChange(name, date ? date.format("YYYY-MM-DD") : null);
   };
 
-  const handleImageUpload = (fieldName: string, isMultiple: boolean) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const field = fields.find((f) => f.name === fieldName);
+  const handleImageUpload =
+    (fieldName: string, isMultiple: boolean) =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const field = fields.find((f) => f.name === fieldName);
 
-    if (field?.readOnly) {
-      return;
-    }
+        if (field?.readOnly) {
+          return;
+        }
 
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-    if (isMultiple) {
-      const newFiles = Array.from(files).map((file) => ({
-        file,
-        preview: URL.createObjectURL(file),
-      }));
-      handleChange(fieldName, [...(formData[fieldName] || []), ...newFiles]);
-    } else {
-      const file = files[0];
-      handleChange(fieldName, {
-        file,
-        preview: URL.createObjectURL(file),
-      });
-    }
-    e.target.value = "";
-  };
+        if (isMultiple) {
+          const newFiles = Array.from(files).map((file) => ({
+            file,
+            preview: URL.createObjectURL(file),
+          }));
+          handleChange(fieldName, [...(formData[fieldName] || []), ...newFiles]);
+        } else {
+          const file = files[0];
+          handleChange(fieldName, {
+            file,
+            preview: URL.createObjectURL(file),
+          });
+        }
+        e.target.value = "";
+      };
 
   const removeImage = (fieldName: string, index?: number) => {
     const field = fields.find((f) => f.name === fieldName);
@@ -320,12 +311,7 @@ const DynamicForm: React.FC<FormProps> = ({
       if (field.required) {
         const value = formData[field.name];
 
-        if (
-          value === "" ||
-          value === null ||
-          value === undefined ||
-          (Array.isArray(value) && value.length === 0)
-        ) {
+        if (value === "" || value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
           newErrors[field.name] = field.errorMessage || `${field.label} is required`;
         }
 
@@ -419,29 +405,30 @@ const DynamicForm: React.FC<FormProps> = ({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {isMultiple ? (
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-              {Array.isArray(value) && value.map((img: any, index: number) => (
-                <Box key={`${field.name}-${index}`} sx={{ position: "relative" }}>
-                  <Avatar src={img.preview} variant="rounded" sx={{ width: 100, height: 100 }} />
-                  {!isReadOnly && (
-                    <IconButton
-                      size="small"
-                      sx={{
-                        position: "absolute",
-                        top: 0,
-                        right: 0,
-                        backgroundColor: theme.palette.error.main,
-                        color: "white",
-                        "&:hover": { backgroundColor: theme.palette.error.dark },
-                      }}
-                      onClick={() => removeImage(field.name, index)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-              ))}
+              {Array.isArray(value) &&
+                value.map((img: any, index: number) => (
+                  <Box key={`${field.name}-${index}`} sx={{ position: "relative" }}>
+                    <Avatar src={img.preview} variant="rounded" sx={{ width: 100, height: 100 }} />
+                    {!isReadOnly && (
+                      <IconButton
+                        size="small"
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          backgroundColor: theme.palette.error.main,
+                          color: "white",
+                          "&:hover": { backgroundColor: theme.palette.error.dark },
+                        }}
+                        onClick={() => removeImage(field.name, index)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
             </Box>
-          ) : value && typeof value === 'object' && value !== null ? (
+          ) : value && typeof value === "object" && value !== null ? (
             <Box sx={{ position: "relative", width: "fit-content" }}>
                 <Avatar src={value.preview} variant="rounded" sx={{ width: 100, height: 100 }} />
                 {!isReadOnly && (
@@ -500,11 +487,22 @@ const DynamicForm: React.FC<FormProps> = ({
             size="small"
             sx={{
               gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
+              "& .MuiInputLabel-root": {
+                color: "inherit",
+              },
+              "& .MuiOutlinedInput-root": {
+                "& input": {
+                  color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                },
+                "& fieldset": {
+                  borderColor: "inherit",
+                },
+              },
             }}
           >
             <InputLabel shrink={true}>{renderLabel(field)}</InputLabel>
             <Select
-              value={value ?? ''}
+              value={value ?? ""}
               label={renderLabel(field)}
               onChange={(e) => handleChange(field.name, e.target.value)}
               readOnly={isReadOnly}
@@ -514,6 +512,7 @@ const DynamicForm: React.FC<FormProps> = ({
                   style: {
                     maxHeight: 200,
                     backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.secondary,
                   },
                 },
               }}
@@ -521,13 +520,27 @@ const DynamicForm: React.FC<FormProps> = ({
               renderValue={(selected) => {
                 if (selected === "" || selected === undefined || selected === null) {
                   return (
-                    <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>
+                    <span
+                      style={{
+                        color: isReadOnly ? theme.palette.text.secondary : theme.palette.text.secondary,
+                        fontStyle: "italic",
+                      }}
+                    >
                       {field.placeholder || "Select an option"}
                     </span>
                   );
                 }
                 const selectedOption = field.options?.find((opt) => opt.value === selected);
-                return selectedOption?.label || selected;
+                return (
+                  <span style={{ color: isReadOnly ? theme.palette.text.secondary : theme.palette.text.secondary }}>
+                    {selectedOption?.label || selected}
+                  </span>
+                );
+              }}
+              sx={{
+                "& .MuiSelect-select": {
+                  color: isReadOnly ? theme.palette.text.secondary : theme.palette.text.secondary,
+                },
               }}
             >
               <MenuItem value="" disabled>
@@ -565,7 +578,12 @@ const DynamicForm: React.FC<FormProps> = ({
               renderValue={(selected) => {
                 if (selected.length === 0) {
                   return (
-                    <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>
+                    <span
+                      style={{
+                        color: isReadOnly ? theme.palette.text.secondary : theme.palette.text.secondary,
+                        fontStyle: "italic",
+                      }}
+                    >
                       {field.placeholder || "Select options"}
                     </span>
                   );
@@ -580,7 +598,7 @@ const DynamicForm: React.FC<FormProps> = ({
                           label={option?.label || value}
                           size="small"
                           sx={{
-                            backgroundColor: theme.palette.primary.main,
+                            backgroundColor: isReadOnly ? theme.palette.grey[400] : theme.palette.primary.main,
                             color: theme.palette.primary.contrastText,
                           }}
                         />
@@ -591,6 +609,11 @@ const DynamicForm: React.FC<FormProps> = ({
               }}
               MenuProps={{
                 PaperProps: { style: { maxHeight: 200 } },
+              }}
+              sx={{
+                "& .MuiSelect-select": {
+                  color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                },
               }}
             >
               {field.options?.map((option) => (
@@ -609,7 +632,7 @@ const DynamicForm: React.FC<FormProps> = ({
           <TextField
             key={field.name}
             label={renderLabel(field)}
-            value={value ?? ''}
+            value={value ?? ""}
             onChange={(e) => handleChange(field.name, e.target.value)}
             error={!!fieldError}
             helperText={fieldError}
@@ -619,8 +642,18 @@ const DynamicForm: React.FC<FormProps> = ({
             size="small"
             placeholder={field.placeholder}
             InputLabelProps={{ shrink: true }}
-            InputProps={{ readOnly: isReadOnly }}
-            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
+            InputProps={{
+              readOnly: isReadOnly,
+              sx: {
+                color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "inherit",
+                },
+              },
+            }}
+            sx={{
+              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
+            }}
           />
         );
 
@@ -648,6 +681,7 @@ const DynamicForm: React.FC<FormProps> = ({
               enums={field.extraProps?.enums || { PhoneType: [], Country: [] }}
               placeholder={field.placeholder}
               readOnly={isReadOnly}
+              readOnlyColor={theme.palette.text.secondary}
             />
           </Box>
         );
@@ -675,6 +709,7 @@ const DynamicForm: React.FC<FormProps> = ({
               }}
               placeholder={field.placeholder}
               readOnly={isReadOnly}
+              readOnlyColor={theme.palette.text.secondary}
             />
           </Box>
         );
@@ -707,7 +742,15 @@ const DynamicForm: React.FC<FormProps> = ({
                   helperText: fieldError,
                   placeholder: field.placeholder,
                   InputLabelProps: { shrink: true },
-                  InputProps: { readOnly: isReadOnly },
+                  InputProps: {
+                    readOnly: isReadOnly,
+                    sx: {
+                      color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "inherit",
+                      },
+                    },
+                  },
                 },
               }}
               sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
@@ -722,7 +765,9 @@ const DynamicForm: React.FC<FormProps> = ({
         return (
           <Autocomplete
             key={field.name}
-            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
+            sx={{
+              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
+            }}
             options={options}
             getOptionLabel={(option) => option.label}
             value={options.find((o) => o.value === value) || null}
@@ -755,6 +800,9 @@ const DynamicForm: React.FC<FormProps> = ({
                 InputProps={{
                   ...params.InputProps,
                   readOnly: isReadOnly,
+                  sx: {
+                    color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                  },
                   endAdornment: (
                     <>
                       {loading && <CircularProgress size={20} />}
@@ -784,6 +832,12 @@ const DynamicForm: React.FC<FormProps> = ({
                   checked={Boolean(value)}
                   onChange={(e) => handleChange(field.name, e.target.checked)}
                   disabled={isReadOnly}
+                  sx={{
+                    color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                    "&.Mui-checked": {
+                      color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                    },
+                  }}
                 />
               }
               label={renderLabel(field)}
@@ -802,22 +856,27 @@ const DynamicForm: React.FC<FormProps> = ({
             }}
           >
             <FormLabel>{renderLabel(field)}</FormLabel>
-            <RadioGroup
-              row
-              value={value ?? ''}
-              onChange={(e) => !isReadOnly && handleChange(field.name, e.target.value)}
-            >
+            <RadioGroup row value={value ?? ""} onChange={(e) => !isReadOnly && handleChange(field.name, e.target.value)}>
               {field.options?.map((option) => (
                 <FormControlLabel
                   key={option.value}
                   value={option.value}
-                  control={<Radio />}
+                  control={
+                    <Radio
+                      sx={{
+                        color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                        "&.Mui-checked": {
+                          color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                        },
+                      }}
+                    />
+                  }
                   label={option.label}
                   disabled={isReadOnly}
                 />
               ))}
             </RadioGroup>
-            {fieldError && <FormHelperText>{fieldError}</FormHelperText>}
+            {fieldError && <FormHelperText error>{fieldError}</FormHelperText>}
           </FormControl>
         );
 
@@ -827,7 +886,7 @@ const DynamicForm: React.FC<FormProps> = ({
             key={field.name}
             label={renderLabel(field)}
             type={field.type || "text"}
-            value={value ?? ''}
+            value={value ?? ""}
             onChange={(e) => handleChange(field.name, e.target.value)}
             error={!!fieldError}
             helperText={fieldError}
@@ -835,8 +894,18 @@ const DynamicForm: React.FC<FormProps> = ({
             size="small"
             placeholder={field.placeholder}
             InputLabelProps={{ shrink: true }}
-            InputProps={{ readOnly: isReadOnly }}
-            sx={{ gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` } }}
+            InputProps={{
+              readOnly: isReadOnly,
+              sx: {
+                color: isReadOnly ? theme.palette.text.secondary : "inherit",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "inherit",
+                },
+              },
+            }}
+            sx={{
+              gridColumn: { xs: "span 1", sm: `span ${field.colSpan || 1}` },
+            }}
           />
         );
     }
