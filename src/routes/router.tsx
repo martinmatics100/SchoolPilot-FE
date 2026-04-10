@@ -407,10 +407,14 @@ const routes: RouteObject[] = [
   },
 ];
 
-const options: { basename: string } = {
-  basename: "/schoolpilot",
-};
+// const options: { basename: string } = {
+//   basename: "/schoolpilot",
+// };
 
-const router = createBrowserRouter(routes, options);
+// const router = createBrowserRouter(routes, options);
+
+const router = createBrowserRouter(routes, {
+  basename: import.meta.env.PROD ? '/' : '/schoolpilot'
+});
 
 export default router;
