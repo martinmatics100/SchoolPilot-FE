@@ -94,9 +94,9 @@ const ExamBroadSheet = lazy(
 const SubjectsAllocation = lazy(
   () => import("../pages/admin/academics/subject-allocation/index"),
 );
-const Assessment = lazy(
-  () => import("../pages/admin/academics/assessment/index"),
-);
+// const Assessment = lazy(
+//   () => import("../pages/admin/academics/assessment/index"),
+// );
 const SettingsPage = lazy(
   () => import("../pages/common/settings/index"),
 );
@@ -251,14 +251,14 @@ const routes: RouteObject[] = [
               </ErrorBoundary>
             ),
           },
-          {
-            path: "academics/assessment",
-            element: (
-              <ErrorBoundary>
-                <Assessment />
-              </ErrorBoundary>
-            ),
-          },
+          // {
+          //   path: "academics/assessment",
+          //   element: (
+          //     <ErrorBoundary>
+          //       <Assessment />
+          //     </ErrorBoundary>
+          //   ),
+          // },
           {
             path: "academics/subjects",
             element: <Outlet />,
