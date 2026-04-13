@@ -24,9 +24,11 @@ import { useAuth } from '../../../context';
 import paths from '../../../routes/paths';
 import MessageDisplay from '../../../components/message-display';
 import { type MessageDisplayProps } from '../../../components/message-display';
+import { useTheme } from "@mui/material";
 
 
 const Login = () => {
+    const theme = useTheme();
     const { login, selectedAccount, role } = useAuth();
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -77,6 +79,33 @@ const Login = () => {
         setShowPassword((prevShowPassword) => !prevShowPassword);
     };
 
+    // Custom input styles
+    const customInputStyles = {
+        '& .MuiFilledInput-root': {
+            bgcolor: theme.palette.background.default, // Light red background
+            '&:hover': {
+                bgcolor: theme.palette.background.default, // Darker red on hover
+            },
+            '&.Mui-focused': {
+                bgcolor: theme.palette.action.focus, // Darker red when focused
+            },
+        },
+        '& .MuiInputLabel-root': {
+            color: theme.palette.text.secondary, // Red label color
+            '&.Mui-focused': {
+                color: theme.palette.text.secondary, // Darker red when focused
+            },
+        },
+        '& .MuiFilledInput-input': {
+            color: '#1a1a1a', // Dark text for contrast
+        },
+        '& .MuiFormHelperText-root': {
+            color: '#c62828',
+        },
+        borderRadius: 2,
+    };
+
+
     return (
         <>
             <Box
@@ -116,20 +145,9 @@ const Login = () => {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        sx={{
-                            '.MuiFilledInput-root': {
-                                bgcolor: 'grey.A100',
-                                ':hover': {
-                                    bgcolor: 'background.default',
-                                },
-                                ':focus': {
-                                    bgcolor: 'background.default',
-                                },
-                                ':focus-within': {
-                                    bgcolor: 'background.default',
-                                },
-                            },
-                            borderRadius: 2,
+                        sx={customInputStyles}
+                        InputProps={{
+                            disableUnderline: false, // Keep underline for better UX
                         }}
                     />
                     <TextField
@@ -138,22 +156,9 @@ const Login = () => {
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        sx={{
-                            '.MuiFilledInput-root': {
-                                bgcolor: 'grey.A100',
-                                ':hover': {
-                                    bgcolor: 'background.default',
-                                },
-                                ':focus': {
-                                    bgcolor: 'background.default',
-                                },
-                                ':focus-within': {
-                                    bgcolor: 'background.default',
-                                },
-                            },
-                            borderRadius: 2,
-                        }}
+                        sx={customInputStyles}
                         InputProps={{
+                            disableUnderline: false,
                             endAdornment: (
                                 <InputAdornment position="end">
                                     <IconButton
