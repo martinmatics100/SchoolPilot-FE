@@ -12,6 +12,8 @@ import {
   ListItemText,
   Typography,
   Box,
+  Collapse,
+  Divider,
 } from "@mui/material";
 
 import IconifyIcon from "../../../components/base/iconifyIcon";
@@ -36,13 +38,13 @@ const Topbar = ({
   handleDrawerToggle: () => void;
 }): ReactElement => {
   const { down } = useBreakpoints();
-
   const isMobileScreen = down("sm");
   const theme = useTheme();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const {
     selectedAccount,
     accounts,
@@ -79,228 +81,250 @@ const Topbar = ({
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(getNigeriaNow());
-    }, 1000); // update every second
+    }, 1000);
 
-    return () => clearInterval(timer); // prevent memory leak
+    return () => clearInterval(timer);
   }, []);
 
-  return (
-    <AppBar
-      position="fixed"
-      sx={{
-        left: 0,
-        ml: isMobileScreen ? 0 : open ? 60 : 27.5,
-        width: isMobileScreen
-          ? 1
-          : open
-          ? `calc(100% - ${drawerOpenWidth}px)`
-          : `calc(100% - ${drawerCloseWidth}px)`,
-        paddingRight: "0 !important",
-      }}
-    >
-      <Toolbar
-        component={Stack}
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.more-menu-button') && !target.closest('.more-menu-panel')) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Primary items (always visible on mobile)
+  const primaryItems = () => (
+    <Stack direction="row" gap={1.5} alignItems="center">
+      <ThemeToggle />
+      <UserDropdown />
+    </Stack>
+  );
+
+  // Secondary items (shown in collapsed menu on mobile)
+  const SecondaryMenu = () => (
+    <Collapse in={showMoreMenu} timeout="auto">
+      <Box
+        className="more-menu-panel"
         sx={{
+          position: 'absolute',
+          top: '100%',
+          right: 0,
+          mt: 1,
+          width: '280px',
           bgcolor: theme.palette.background.default,
-          borderBottom: "1px solid",
-          borderColor: theme.palette.primary.light,
-          height: 116,
+          borderColor: theme.palette.background.paper,
+          borderRadius: 2,
+          boxShadow: theme.shadows[3],
+          zIndex: 1300,
+          overflow: 'hidden',
         }}
       >
-        <Stack
-          direction="row"
-          gap={2}
-          alignItems="center"
-          ml={2.5}
-          flex="1 1 52.5%"
+        {/* User Info Section */}
+        {currentUser && (
+          <Box sx={{ p: 2, bgcolor: theme.palette.background.default }}>
+            <Typography fontWeight="bold" color={theme.palette.text.primary}>
+              {getGreeting(now)}, {currentUser.firstName}
+            </Typography>
+            <Typography variant="caption" color={theme.palette.text.secondary}>
+              {formatNigeriaDateTime(now)}
+            </Typography>
+          </Box>
+        )}
+
+        <Divider />
+
+        {/* Notifications */}
+        <ListItem
+          component="div"
+          sx={{ cursor: 'pointer' }}
+          onClick={() => {
+            setShowMoreMenu(false);
+            setNotificationsOpen(true);
+          }}
         >
-          <IconButton
-            aria-label="open drawer"
-            onClick={handleDrawerToggle}
-            edge="start"
-          >
-            <IconifyIcon
-              icon={open ? "ri:menu-unfold-4-line" : "ri:menu-unfold-3-line"}
-              color={theme.palette.common.white}
-            />
-          </IconButton>
-          {/* <IconButton
-                        color="inherit"
-                        sx={{
-                            display: { xs: 'flex', sm: 'none' },
-                        }}
-                    >
-                        <IconifyIcon icon="mdi:search" />
-                    </IconButton>
-                    <TextField
-                        variant="filled"
-                        fullWidth
-                        placeholder="Search here..."
-                        sx={{
-                            display: { xs: 'none', sm: 'flex' },
-                        }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="end">
-                                    <IconifyIcon icon="akar-icons:search" width={13} height={13} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    /> */}
+          <ListItemText primary="Notifications" />
+          <Badge color="error" variant="dot" />
+        </ListItem>
 
-          {/* Display selected account info and user email in topbar */}
-          {/* <Stack direction="row" alignItems="center" spacing={3}>
-            {selectedAccountData && (
-              <Box
-                sx={{
-                  position: "relative",
-                  "&:hover .branch-tooltip": {
-                    visibility: "visible",
-                    opacity: 1,
-                  },
-                }}
-              >
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontSize: "15px" }}
-                  fontWeight="bold"
-                  color={theme.palette.text.secondary}
-                >
-                  {selectedAccountData.name}
-                </Typography>
-
-                <Box
-                  className="branch-tooltip"
-                  sx={{
-                    visibility: "hidden",
-                    opacity: 0,
-                    position: "absolute",
-                    bottom: "-30px",
-                    left: 0,
-                    backgroundColor: theme.palette.background.paper,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 1,
-                    padding: 1,
-                    transition: "all 0.3s ease",
-                    zIndex: 1,
-                    minWidth: "500px",
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    color={theme.palette.text.primary}
-                  >
-                    Branches:{" "}
-                    {selectedBranches.map((branch) => branch.name).join(", ")}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-          </Stack> */}
-        </Stack>
-        <Stack
-          direction="row"
-          gap={3.75}
-          alignItems="center"
-          justifyContent="flex-end"
-          mr={3.75}
-          flex="1 1 20%"
+        {/* Messages */}
+        <ListItem
+          component="div"
+          sx={{ cursor: 'pointer' }}
+          onClick={() => {
+            setShowMoreMenu(false);
+            setMessageOpen(true);
+          }}
         >
-          {currentUser && (
-            <Stack
-              spacing={0}
-              alignItems={isMobileScreen ? "flex-start" : "flex-end"}
-              sx={{
-                maxWidth: isMobileScreen ? "100%" : "auto",
-              }}
-            >
-              <Typography
-                fontWeight="bold"
-                sx={{
-                  fontSize: isMobileScreen ? "0.85rem" : "0.95rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                color={theme.palette.text.secondary}
-              >
-                <span style={{ color: theme.palette.error.main }}>
-                  {getGreeting(now)}
-                </span>
-                , {currentUser.firstName}
-              </Typography>
+          <ListItemText primary="Messages" />
+        </ListItem>
 
-              <Typography
-                sx={{
-                  fontSize: isMobileScreen ? "0.7rem" : "0.75rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                color={theme.palette.text.secondary}
-              >
-                {isMobileScreen
-                  ? formatNigeriaDateTime(now).replace(/, \d{4}/, "") // hide year on mobile
-                  : formatNigeriaDateTime(now)}
-              </Typography>
-            </Stack>
-          )}
+        {/* Settings */}
+        <ListItem
+          component="div"
+          sx={{ cursor: 'pointer' }}
+          onClick={() => {
+            setShowMoreMenu(false);
+            setSettingsOpen(true);
+          }}
+        >
+          <ListItemText primary="Settings" />
+        </ListItem>
 
-          <Badge
-            color="error"
-            badgeContent=" "
-            variant="dot"
-            sx={{
-              "& .MuiBadge-badge": {
-                top: 11,
-                right: 11,
-              },
-            }}
+        {/* Account Info (if needed) */}
+        {selectedAccountData && (
+          <>
+            <Divider />
+            <Box sx={{ p: 2 }}>
+              <Typography variant="caption" color={theme.palette.text.secondary}>
+                {selectedAccountData.name}
+              </Typography>
+            </Box>
+          </>
+        )}
+      </Box>
+    </Collapse>
+  );
+
+  return (
+    <>
+      <AppBar
+        position="fixed"
+        sx={{
+          left: 0,
+          ml: isMobileScreen ? 0 : open ? 60 : 27.5,
+          width: isMobileScreen
+            ? 1
+            : open
+              ? `calc(100% - ${drawerOpenWidth}px)`
+              : `calc(100% - ${drawerCloseWidth}px)`,
+          paddingRight: "0 !important",
+        }}
+      >
+        <Toolbar
+          component={Stack}
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{
+            bgcolor: theme.palette.background.default,
+            borderBottom: "1px solid",
+            borderColor: theme.palette.primary.light,
+            height: { xs: 70, sm: 116 },
+            position: 'relative',
+          }}
+        >
+          {/* Left side - Menu button */}
+          <Stack
+            direction="row"
+            gap={2}
+            alignItems="center"
+            ml={2.5}
+            flex="1 1 auto"
           >
             <IconButton
-              sx={{
-                padding: 1,
-              }}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <IconifyIcon icon="ic:round-settings" width={29} height={32} />
-            </IconButton>
-            <IconButton
-              sx={{
-                padding: 1,
-              }}
-              onClick={() => setNotificationsOpen(true)}
+              aria-label="open drawer"
+              onClick={handleDrawerToggle}
+              edge="start"
             >
               <IconifyIcon
-                icon="ph:bell-bold"
-                width={29}
-                height={32}
-                style={{ fontSize: 24 }}
+                icon={open ? "ri:menu-unfold-4-line" : "ri:menu-unfold-3-line"}
+                color={theme.palette.common.white}
               />
             </IconButton>
+          </Stack>
 
-            <IconButton
-              sx={{
-                padding: 1,
-              }}
-              onClick={() => setMessageOpen(true)}
-            >
-              <IconifyIcon icon="mdi:message" width={29} height={32} />
-            </IconButton>
-          </Badge>
-          <UserDropdown />
-        </Stack>
-        <ThemeToggle />
-      </Toolbar>
+          {/* Right side - Responsive items */}
+          <Stack
+            direction="row"
+            gap={{ xs: 1, sm: 3.75 }}
+            alignItems="center"
+            justifyContent="flex-end"
+            mr={{ xs: 1.5, sm: 3.75 }}
+            flex="1 1 auto"
+          >
+            {!isMobileScreen ? (
+              // Desktop view - show everything
+              <>
+                {currentUser && (
+                  <Stack
+                    spacing={0}
+                    alignItems="flex-end"
+                  >
+                    <Typography
+                      fontWeight="bold"
+                      sx={{ fontSize: "0.95rem", whiteSpace: "nowrap" }}
+                      color={theme.palette.text.secondary}
+                    >
+                      <span style={{ color: theme.palette.error.main }}>
+                        {getGreeting(now)}
+                      </span>
+                      , {currentUser.firstName}
+                    </Typography>
+                    <Typography
+                      sx={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}
+                      color={theme.palette.text.secondary}
+                    >
+                      {formatNigeriaDateTime(now)}
+                    </Typography>
+                  </Stack>
+                )}
+
+                <Badge
+                  color="error"
+                  badgeContent=" "
+                  variant="dot"
+                  sx={{ "& .MuiBadge-badge": { top: 11, right: 11 } }}
+                >
+                  <IconButton onClick={() => setSettingsOpen(true)}>
+                    <IconifyIcon icon="ic:round-settings" width={29} height={32} />
+                  </IconButton>
+                  <IconButton onClick={() => setNotificationsOpen(true)}>
+                    <IconifyIcon icon="ph:bell-bold" width={29} height={32} />
+                  </IconButton>
+                  <IconButton onClick={() => setMessageOpen(true)}>
+                    <IconifyIcon icon="mdi:message" width={29} height={32} />
+                  </IconButton>
+                </Badge>
+                <ThemeToggle />
+                <UserDropdown />
+              </>
+            ) : (
+              // Mobile view - show only theme toggle, user dropdown, and more button
+              <>
+                {primaryItems()}
+
+                {/* More Menu Button */}
+                  <IconButton 
+                    className="more-menu-button"
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    sx={{ ml: 1 }}
+                  >
+                    <IconifyIcon 
+                      icon={showMoreMenu ? "mdi:close" : "mdi:dots-vertical"}
+                      width={24}
+                      height={24}
+                    />
+                  </IconButton>
+              </>
+            )}
+          </Stack>
+        </Toolbar>
+
+        {/* Secondary Mini Topbar - Mobile only */}
+        {isMobileScreen && showMoreMenu && <SecondaryMenu />}
+      </AppBar>
 
       {/* Drawer for Notifications */}
       <Drawer
         anchor="right"
         open={notificationsOpen}
-        onClose={() => setNotificationsOpen(true)}
+        onClose={() => setNotificationsOpen(false)}
         PaperProps={{
           sx: {
             width: "300px",
@@ -329,13 +353,12 @@ const Topbar = ({
       <Drawer
         anchor="right"
         open={settingsOpen}
-        onClose={() => setSettingsOpen(true)}
-        style={{ background: "transparent" }}
+        onClose={() => setSettingsOpen(false)}
         PaperProps={{
           sx: {
             width: "300px",
             "@media (min-width: 1024px)": {
-              width: "90%",
+              width: "30%",
             },
           },
         }}
@@ -369,8 +392,7 @@ const Topbar = ({
       <Drawer
         anchor="right"
         open={messageOpen}
-        onClose={() => setMessageOpen(true)}
-        style={{ background: "transparent" }}
+        onClose={() => setMessageOpen(false)}
         PaperProps={{
           sx: {
             width: "300px",
@@ -404,7 +426,7 @@ const Topbar = ({
           ))}
         </List>
       </Drawer>
-    </AppBar>
+    </>
   );
 };
 
