@@ -142,6 +142,99 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
     }
 
 
+    /**
+ * Update school information
+ * Endpoint: PUT /v1/school/{schoolId}/update
+ */
+    static async updateSchoolInfo(updateData: {
+        schoolId: string;
+        schoolName?: string;
+        schoolEmail?: string;
+        principalName?: string | null;
+        yearofEstablishment?: number | null;
+        currentTerm?: number | null;
+        currentSessions?: number | null;
+        schoolCategory?: number | null;
+        schoolType?: number | null;
+        schoolMotto?: string | null;
+        contactPersonEmail?: string | null;
+        contactPersonPhoneId?: string | null;
+        logoAssetId?: string | null;
+        schoolAddress?: {
+            addressId?: string | null;
+            addressLine1: string;
+            addressLine2?: string | null;
+            city?: string | null;
+            state: string;
+            zipCode?: string | null;
+            country: string;
+        } | null;
+    }): Promise<{ message: string; schoolId: string }> {
+        const { selectedAccount } = getInitialAuthData();
+
+        if (!selectedAccount) {
+            throw new Error('No account selected');
+        }
+
+        try {
+            const api = createApiClient({ selectedAccount });
+
+            // Build the request payload (without schoolId since it's in the URL)
+            const payload: any = {};
+
+            // Only include fields that are provided (not undefined)
+            if (updateData.schoolName !== undefined) payload.schoolName = updateData.schoolName;
+            if (updateData.schoolEmail !== undefined) payload.schoolEmail = updateData.schoolEmail;
+            if (updateData.principalName !== undefined) payload.principalName = updateData.principalName;
+            if (updateData.yearofEstablishment !== undefined) payload.yearofEstablishment = updateData.yearofEstablishment;
+            if (updateData.currentTerm !== undefined) payload.currentTerm = updateData.currentTerm;
+            if (updateData.currentSessions !== undefined) payload.currentSessions = updateData.currentSessions;
+            if (updateData.schoolCategory !== undefined) payload.schoolCategory = updateData.schoolCategory;
+            if (updateData.schoolType !== undefined) payload.schoolType = updateData.schoolType;
+            if (updateData.schoolMotto !== undefined) payload.schoolMotto = updateData.schoolMotto;
+            if (updateData.contactPersonEmail !== undefined) payload.contactPersonEmail = updateData.contactPersonEmail;
+            if (updateData.contactPersonPhoneId !== undefined) payload.contactPersonPhoneId = updateData.contactPersonPhoneId;
+            if (updateData.logoAssetId !== undefined) payload.logoAssetId = updateData.logoAssetId;
+
+            // Handle address separately
+            if (updateData.schoolAddress !== undefined && updateData.schoolAddress !== null) {
+                payload.schoolAddress = {
+                    addressId: updateData.schoolAddress.addressId || null,
+                    addressLine1: updateData.schoolAddress.addressLine1,
+                    addressLine2: updateData.schoolAddress.addressLine2 || null,
+                    city: updateData.schoolAddress.city || null,
+                    state: updateData.schoolAddress.state,
+                    zipCode: updateData.schoolAddress.zipCode || null,
+                    country: updateData.schoolAddress.country,
+                };
+            } else if (updateData.schoolAddress === null) {
+                payload.schoolAddress = null;
+            }
+
+            // schoolId is passed as a URL path parameter, not in the body
+            const url = `/v1/accounts/${updateData.schoolId}/update`;
+
+            console.log('Update School - URL:', url);
+            console.log('Update School - Payload:', payload);
+
+            const response = await api.put<{ message: string; schoolId: string; status: number }>(
+                url,
+                payload
+            );
+
+            console.log('Update School - Response:', response);
+            return {
+                message: response.message || 'School information updated successfully',
+                schoolId: response.schoolId || updateData.schoolId
+            };
+        } catch (error: any) {
+            console.error('Error updating school info:', error);
+            console.error('Error response:', error.response?.data);
+            throw error;
+        }
+    }
+
+
 
     // /**
     //  * Delete a school term

@@ -4,7 +4,7 @@ import DynamicForm, { type FormField } from "../../../components/my-form";
 import MessageDisplay from "../../../components/message-display";
 import { useEnums } from "../../../hooks/useEnums";
 import { SchoolService } from "../../../api/schoolService";
-import { type SchoolInfoResponse } from "../../../types/interfaces/i-school";
+import { findCountryByTwoLetterCode, ISO3166Countries } from "../../../utils/iso3166Countries";
 
 const GeneralSettings = () => {
     const { enums, isLoading: isEnumLoading } = useEnums({ fetchPermissionData: false });
@@ -12,6 +12,7 @@ const GeneralSettings = () => {
     const [initialValues, setInitialValues] = useState<any>({});
     const [loading, setLoading] = useState(true);
     const [schoolDataLoaded, setSchoolDataLoaded] = useState(false);
+    const [updating, setUpdating] = useState(false);
     const [alertMessage, setAlertMessage] = useState<{
         feMessage?: string;
         beMessage?: string;
@@ -26,6 +27,21 @@ const GeneralSettings = () => {
         })) || [];
     }, []);
 
+    // Helper function to map country code
+    const mapCountryCode = useCallback((countryCode: string): string => {
+        if (!countryCode) return "566";
+
+        if (countryCode === "566") return "566";
+
+        const countryByTwoLetter = findCountryByTwoLetterCode(countryCode);
+        if (countryByTwoLetter) return countryByTwoLetter.NumericCode;
+
+        const countryByThreeLetter = ISO3166Countries.find(c => c.ThreeLetterCode === countryCode);
+        if (countryByThreeLetter) return countryByThreeLetter.NumericCode;
+
+        return "566";
+    }, []);
+
     // Fetch school data
     useEffect(() => {
         const fetchSchoolData = async () => {
@@ -36,9 +52,29 @@ const GeneralSettings = () => {
                 console.log("School data received:", schoolData);
 
                 if (schoolData) {
+                    // Map phone number
+                    const phoneData = schoolData.contactPersonPhone ? {
+                        id: schoolData.contactPersonPhone.id,
+                        phoneType: schoolData.contactPersonPhone.phoneType?.toString() || "",
+                        country: mapCountryCode(schoolData.contactPersonPhone.country || "NG"),
+                        number: schoolData.contactPersonPhone.number || "",
+                        extension: schoolData.contactPersonPhone.extension || "",
+                    } : null;
+
+                    // Map address
+                    const addressData = schoolData.schoolAddress ? {
+                        id: schoolData.schoolAddress.id,
+                        addressLine1: schoolData.schoolAddress.addressLine1 || "",
+                        addressLine2: schoolData.schoolAddress.addressLine2 || "",
+                        city: schoolData.schoolAddress.city || "",
+                        state: schoolData.schoolAddress.state || "",
+                        postalCode: schoolData.schoolAddress.zipCode || "",
+                        country: mapCountryCode(schoolData.schoolAddress.country || "NG"),
+                    } : null;
+
                     // Map the API response to form initial values
                     const mappedValues = {
-                        id: schoolData.id,
+                        id: schoolData.id,  // This is critical
                         schoolName: schoolData.schoolName || "",
                         schoolEmail: schoolData.schoolEmail || "",
                         principalName: schoolData.principalName || "",
@@ -49,23 +85,11 @@ const GeneralSettings = () => {
                         schoolType: schoolData.schoolType?.toString() || "",
                         schoolStatus: schoolData.schoolStatus?.toString() || "",
                         motto: schoolData.schoolMotto || "",
-                        address: schoolData.schoolAddress ? {
-                            id: schoolData.schoolAddress.id,
-                            addressLine1: schoolData.schoolAddress.addressLine1,
-                            addressLine2: schoolData.schoolAddress.addressLine2 || "",
-                            city: schoolData.schoolAddress.city || "",
-                            state: schoolData.schoolAddress.state,
-                            zipCode: schoolData.schoolAddress.zipCode || "",
-                            country: schoolData.schoolAddress.country,
-                        } : null,
-                        phoneNumber: schoolData.contactPersonPhone ? {
-                            id: schoolData.contactPersonPhone.id,
-                            phoneNumber: schoolData.contactPersonPhone.phoneNumber,
-                            extension: schoolData.contactPersonPhone.extension || "",
-                        } : null,
-                        schoolLogo: null,
+                        address: addressData,
+                        phoneNumber: phoneData,
                     };
 
+                    console.log("Mapped values - ID:", mappedValues.id); // Verify ID is present
                     console.log("Mapped values:", mappedValues);
                     setInitialValues(mappedValues);
                     setSchoolDataLoaded(true);
@@ -89,21 +113,19 @@ const GeneralSettings = () => {
         };
 
         fetchSchoolData();
-    }, []);
+    }, [mapCountryCode]);
 
-    // Build form fields when enums are loaded AND school data is loaded
+    // Build form fields
     useEffect(() => {
-        console.log("Checking conditions:", {
-            isEnumLoading,
-            schoolDataLoaded,
-            enumsExists: !!enums,
-            initialValuesKeys: Object.keys(initialValues).length
-        });
-
         if (!isEnumLoading && schoolDataLoaded && enums && Object.keys(initialValues).length > 0) {
-            console.log("Building form fields...");
-
             const fields: FormField[] = [
+                {
+                    name: "id",  // Add hidden field for ID
+                    label: "School ID",
+                    type: "text",
+                    hidden: true,  // This hides the field
+                    colSpan: 1,
+                },
                 {
                     name: "schoolName",
                     label: "School Name",
@@ -131,7 +153,6 @@ const GeneralSettings = () => {
                     type: "text",
                     colSpan: 1,
                     readOnly: true,
-                    placeholder: "e.g., 1995",
                 },
                 {
                     name: "schoolSession",
@@ -193,72 +214,120 @@ const GeneralSettings = () => {
                     label: "School Contact Number",
                     type: "phone",
                     colSpan: 3,
+                    extraProps: { enums }
                 },
-                // {
-                //     name: "schoolLogo",
-                //     label: "School Logo",
-                //     type: "image",
-                //     multiple: false,
-                //     colSpan: 2,
-                // },
             ];
 
             setFormFields(fields);
-            console.log("Form fields set:", fields.length);
         }
     }, [enums, isEnumLoading, schoolDataLoaded, initialValues, getEnumOptions]);
 
     const handleSubmit = async (data: any) => {
-        try {
+        console.log("=== handleSubmit Debug ===");
+        console.log("Full form data:", data);
+        console.log("School ID from data:", data.id);
+        console.log("Data keys:", Object.keys(data));
+
+        // Check if id exists
+        if (!data.id) {
+            console.error("School ID is missing from form data!");
             setAlertMessage({
-                feMessage: "Saving settings...",
+                feMessage: "Error: School ID is missing. Please refresh the page and try again.",
+                httpStatus: 400,
             });
+            return;
+        }
+
+        try {
+            setUpdating(true);
+            setAlertMessage({ feMessage: "Saving settings..." });
 
             // Prepare payload for update
             const updatePayload = {
-                schoolId: data.id,
+                schoolId: data.id,  // Now this should have a value
                 schoolName: data.schoolName,
                 schoolEmail: data.schoolEmail,
-                principalName: data.principalName,
+                principalName: data.principalName || null,
                 yearofEstablishment: data.establishedYear ? parseInt(data.establishedYear) : null,
-                currentSession: data.schoolSession ? parseInt(data.schoolSession) : null,
                 currentTerm: data.schoolTerm ? parseInt(data.schoolTerm) : null,
-                schoolMotto: data.motto,
+                currentSessions: data.schoolSession ? parseInt(data.schoolSession) : null,
+                schoolCategory: data.schoolCategory ? parseInt(data.schoolCategory) : null,
+                schoolType: data.schoolType ? parseInt(data.schoolType) : null,
+                schoolMotto: data.motto || null,
                 contactPersonEmail: data.schoolEmail,
                 contactPersonPhoneId: data.phoneNumber?.id || null,
+                logoAssetId: null,
                 schoolAddress: data.address ? {
-                    addressId: data.address.id,
+                    addressId: data.address.id || null,
                     addressLine1: data.address.addressLine1,
-                    addressLine2: data.address.addressLine2,
-                    city: data.address.city,
+                    addressLine2: data.address.addressLine2 || null,
+                    city: data.address.city || null,
                     state: data.address.state,
-                    zipCode: data.address.zipCode,
+                    zipCode: data.address.postalCode || null,
                     country: data.address.country,
                 } : null,
-                logoAssetId: data.schoolLogo?.id || null,
             };
 
-            console.log("Settings submitted:", updatePayload);
+            console.log("Submitting update payload with schoolId:", updatePayload.schoolId);
+            console.log("Full update payload:", updatePayload);
 
-            // TODO: Call update API when ready
-            // await SchoolService.updateSchoolInfo(updatePayload);
+            // Call the update API
+            const result = await SchoolService.updateSchoolInfo(updatePayload);
 
-            setTimeout(() => {
-                setAlertMessage({
-                    feMessage: "Settings updated successfully!",
-                    httpStatus: 200,
-                });
-            }, 700);
-        } catch (error: any) {
             setAlertMessage({
-                feMessage: "Failed to update settings.",
-                beMessage: error.message,
-                httpStatus: 500,
+                feMessage: result.message || "Settings updated successfully!",
+                httpStatus: 200,
             });
+
+            // Refresh the school data after update
+            setTimeout(async () => {
+                const refreshedData = await SchoolService.getSchoolInfo();
+                if (refreshedData) {
+                    const updatedMappedValues = {
+                        id: refreshedData.id,
+                        schoolName: refreshedData.schoolName || "",
+                        schoolEmail: refreshedData.schoolEmail || "",
+                        principalName: refreshedData.principalName || "",
+                        establishedYear: refreshedData.yearofEstablishment?.toString() || "",
+                        schoolSession: refreshedData.currentSession?.toString() || "",
+                        schoolTerm: refreshedData.currentTerm?.toString() || "",
+                        schoolCategory: refreshedData.schoolCategory?.toString() || "",
+                        schoolType: refreshedData.schoolType?.toString() || "",
+                        schoolStatus: refreshedData.schoolStatus?.toString() || "",
+                        motto: refreshedData.schoolMotto || "",
+                        address: refreshedData.schoolAddress ? {
+                            id: refreshedData.schoolAddress.id,
+                            addressLine1: refreshedData.schoolAddress.addressLine1 || "",
+                            addressLine2: refreshedData.schoolAddress.addressLine2 || "",
+                            city: refreshedData.schoolAddress.city || "",
+                            state: refreshedData.schoolAddress.state || "",
+                            postalCode: refreshedData.schoolAddress.zipCode || "",
+                            country: mapCountryCode(refreshedData.schoolAddress.country || "NG"),
+                        } : null,
+                        phoneNumber: refreshedData.contactPersonPhone ? {
+                            id: refreshedData.contactPersonPhone.id,
+                            phoneType: refreshedData.contactPersonPhone.phoneType?.toString() || "",
+                            country: mapCountryCode(refreshedData.contactPersonPhone.country || "NG"),
+                            number: refreshedData.contactPersonPhone.number || "",
+                            extension: refreshedData.contactPersonPhone.extension || "",
+                        } : null,
+                    };
+                    setInitialValues(updatedMappedValues);
+                }
+            }, 1000);
+
+        } catch (error: any) {
+            console.error("Update error:", error);
+            setAlertMessage({
+                feMessage: error.response?.data?.message || "Failed to update settings.",
+                beMessage: error.message,
+                httpStatus: error.response?.status || 500,
+            });
+        } finally {
+            setUpdating(false);
         }
     };
 
-    // Show loading state while either loading school data or enums
     if (loading || isEnumLoading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -267,7 +336,6 @@ const GeneralSettings = () => {
         );
     }
 
-    // Show error if school data failed to load
     if (!schoolDataLoaded && !loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -278,7 +346,6 @@ const GeneralSettings = () => {
         );
     }
 
-    // Wait for form fields to be ready
     if (formFields.length === 0) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -303,9 +370,10 @@ const GeneralSettings = () => {
                 title="School Information"
                 fields={formFields}
                 onSubmit={handleSubmit}
-                submitButtonText="Save Changes"
+                submitButtonText={updating ? "Saving..." : "Save Changes"}
                 columns={3}
                 initialValues={initialValues}
+                submitDisabled={updating}
             />
         </Box>
     );

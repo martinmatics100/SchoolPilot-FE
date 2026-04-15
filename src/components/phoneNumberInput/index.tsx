@@ -15,7 +15,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { getPhoneTypeConfig } from '../../utils/phoneTypeConfig';
 import { countries, type ICountry } from 'countries-list';
 import ReactCountryFlag from 'react-country-flag';
-import { ISO3166Countries, findCountryByNumericCode } from '../../utils/iso3166Countries';
+import { ISO3166Countries } from '../../utils/iso3166Countries';
 
 interface ExtendedCountry extends ICountry {
     emoji: string;
@@ -37,7 +37,7 @@ interface PhoneNumberInputProps {
     extension: string;
     onChange: (data: {
         phoneType: string;
-        country: string; // ISO 3166-1 numeric code as string
+        country: string;
         number: string;
         extension: string;
     }) => void;
@@ -51,6 +51,8 @@ interface PhoneNumberInputProps {
         PhoneType?: { value: number; name: string; displayName?: string }[];
         Country?: { value: number; name: string; displayName?: string }[];
     };
+    readOnly?: boolean;
+    readOnlyColor?: string;
 }
 
 const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
@@ -60,16 +62,16 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
     extension,
     onChange,
     errors = {},
-    enums
+    enums,
+    readOnly = false,
+    readOnlyColor
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-    // Get current phone type configuration
     const currentTypeId = parseInt(phoneType);
     const currentConfig = getPhoneTypeConfig(currentTypeId);
 
-    // Prepare phone type options
     const phoneTypeOptions = React.useMemo(() => {
         return (enums?.PhoneType || []).map(pt => {
             const config = getPhoneTypeConfig(pt.value);
@@ -81,7 +83,6 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
         });
     }, [enums?.PhoneType]);
 
-    // Prepare country options using countries-list and ISO3166 for lookup
     const countriesData: Country[] = React.useMemo(() => {
         return ISO3166Countries.map(isoCountry => {
             const countryData = countries[isoCountry.TwoLetterCode as keyof typeof countries] as ExtendedCountry;
@@ -96,8 +97,20 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
         });
     }, []);
 
-    // Find the selected country for rendering the flag in the input
     const selectedCountry = countriesData.find(c => c.isoNumericCode === country) || null;
+
+    // Styles for readonly mode
+    const readonlyInputStyles = readOnly ? {
+        '& .MuiInputBase-input': {
+            color: readOnlyColor || theme.palette.text.secondary,
+        },
+        '& .MuiInputLabel-root': {
+            color: readOnlyColor || theme.palette.text.secondary,
+        },
+        '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: readOnlyColor || theme.palette.text.secondary,
+        },
+    } : {};
 
     return (
         <Box
@@ -114,32 +127,36 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                 }
             }}
         >
-            {/* Phone Type Selector */}
             <FormControl
                 size="small"
                 error={!!errors.phoneType}
                 sx={{
                     minWidth: 120,
-                    flex: isMobile ? '1 1 100%' : '1 1 0'
+                    flex: isMobile ? '1 1 100%' : '1 1 0',
+                    ...readonlyInputStyles
                 }}
                 fullWidth={isMobile}
+                disabled={readOnly}
             >
                 <InputLabel>Type</InputLabel>
                 <Select
                     value={phoneType}
                     label="Type"
                     onChange={(e) => {
-                        const newType = e.target.value;
-                        const newTypeId = parseInt(newType);
-                        const newConfig = getPhoneTypeConfig(newTypeId);
+                        if (!readOnly) {
+                            const newType = e.target.value;
+                            const newTypeId = parseInt(newType);
+                            const newConfig = getPhoneTypeConfig(newTypeId);
 
-                        onChange({
-                            phoneType: newType,
-                            country,
-                            number,
-                            extension: newConfig.requiresExtension ? extension : ''
-                        });
+                            onChange({
+                                phoneType: newType,
+                                country,
+                                number,
+                                extension: newConfig.requiresExtension ? extension : ''
+                            });
+                        }
                     }}
+                    disabled={readOnly}
                 >
                     {phoneTypeOptions.map((type) => (
                         <MenuItem key={type.value} value={type.value}>
@@ -150,15 +167,16 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                 {errors.phoneType && <FormHelperText>{errors.phoneType}</FormHelperText>}
             </FormControl>
 
-            {/* Country Autocomplete */}
             <FormControl
                 size="small"
                 error={!!errors.country}
                 sx={{
                     minWidth: 180,
-                    flex: isMobile ? '1 1 100%' : '2 1 0'
+                    flex: isMobile ? '1 1 100%' : '2 1 0',
+                    ...readonlyInputStyles
                 }}
                 fullWidth={isMobile}
+                disabled={readOnly}
             >
                 <Autocomplete
                     options={countriesData}
@@ -185,13 +203,16 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                     )}
                     value={selectedCountry}
                     onChange={(event, newValue) => {
-                        onChange({
-                            phoneType,
-                            country: newValue ? newValue.isoNumericCode : '', // Send ISO 3166-1 numeric code
-                            number,
-                            extension
-                        });
+                        if (!readOnly) {
+                            onChange({
+                                phoneType,
+                                country: newValue ? newValue.isoNumericCode : '',
+                                number,
+                                extension
+                            });
+                        }
                     }}
+                    disabled={readOnly}
                     renderInput={(params) => (
                         <TextField
                             {...params}
@@ -202,6 +223,8 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                             helperText={errors.country}
                             InputProps={{
                                 ...params.InputProps,
+                                readOnly: readOnly,
+                                sx: readonlyInputStyles,
                                 startAdornment: selectedCountry?.code ? (
                                     <InputAdornment position="start">
                                         <ReactCountryFlag
@@ -222,7 +245,6 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                 />
             </FormControl>
 
-            {/* Phone Number */}
             <TextField
                 label="Phone"
                 value={number}
@@ -230,42 +252,49 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                 size="small"
                 sx={{
                     minWidth: 180,
-                    flex: isMobile ? '1 1 100%' : '2 1 0'
+                    flex: isMobile ? '1 1 100%' : '2 1 0',
+                    ...readonlyInputStyles
                 }}
                 onChange={(e) => {
-                    const numericValue = e.target.value.replace(/[^0-9]/g, ''); // Only allow numbers
-                    onChange({
-                        phoneType,
-                        country,
-                        number: numericValue,
-                        extension
-                    });
+                    if (!readOnly) {
+                        const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                        onChange({
+                            phoneType,
+                            country,
+                            number: numericValue,
+                            extension
+                        });
+                    }
                 }}
                 inputProps={{
-                    pattern: '[0-9]*' // Enforce numeric input for browsers
+                    pattern: '[0-9]*'
                 }}
                 error={!!errors.number}
                 helperText={errors.number}
                 fullWidth={isMobile}
+                disabled={readOnly}
+                InputProps={{
+                    readOnly: readOnly,
+                }}
             />
 
-            {/* Extension Field */}
             <FormControl
                 size="small"
                 error={!!errors.extension}
                 sx={{
                     minWidth: 80,
                     flex: isMobile ? '1 1 100%' : '1 1 0',
-                    position: 'relative'
+                    position: 'relative',
+                    ...readonlyInputStyles
                 }}
             >
                 <TextField
                     label="Ext."
                     size="small"
-                    disabled={!currentConfig.requiresExtension}
+                    disabled={!currentConfig.requiresExtension || readOnly}
                     value={extension}
                     onChange={(e) => {
-                        if (currentConfig.requiresExtension) {
+                        if (!readOnly && currentConfig.requiresExtension) {
                             onChange({
                                 phoneType,
                                 country,
@@ -275,12 +304,16 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                         }
                     }}
                     sx={{
+                        ...readonlyInputStyles,
                         '& .MuiInputBase-root.Mui-disabled': {
                             backgroundColor: theme.palette.action.disabledBackground
                         }
                     }}
                     fullWidth={isMobile}
                     helperText={errors.extension}
+                    InputProps={{
+                        readOnly: readOnly,
+                    }}
                 />
             </FormControl>
         </Box>

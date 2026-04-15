@@ -58,6 +58,9 @@ export interface SchoolInfoResponse {
         id: string;
         phoneNumber: string;
         extension: string | null;
+        phoneType: string;
+        country: string;
+        number: string;
     } | null;
     schoolAddress: {
         id: string;

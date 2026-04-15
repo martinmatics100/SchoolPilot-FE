@@ -17,6 +17,7 @@ import paths from "./paths";
 import NavigationHandler from "../helpers/navigation-helper";
 import { ProtectedRoute } from "./protected-route";
 import ErrorBoundary from "../components/error-boundary";
+import UserProfile from "../pages/common/currentUserProfile/index";
 
 const App = lazy<() => ReactElement>(() => import("./../App"));
 const MainLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
@@ -100,6 +101,9 @@ const SubjectsAllocation = lazy(
 const SettingsPage = lazy(
   () => import("../pages/common/settings/index"),
 );
+
+const MyProfile = lazy(() => import("../pages/common/currentUserProfile/index"));
+// const UpgradeToPro = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/upgrade-to-pro'));
 
 const routes: RouteObject[] = [
   {
@@ -353,6 +357,27 @@ const routes: RouteObject[] = [
           },
         ],
       },
+      {
+        path: '/profile/my-profile',
+        element: (
+          <ProtectedRoute requireAccountSelection={true}>
+            <Suspense fallback={<PageLoader />}>
+              <UserProfile />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+      },
+      // Payment routes
+      // {
+      //   path: '/plan/upgrade',
+      //   element: (
+      //     <ProtectedRoute requireAccountSelection={true}>
+      //       <Suspense fallback={<PageLoader />}>
+      //         <UpgradeToPro />
+      //       </Suspense>
+      //     </ProtectedRoute>
+      //   ),
+      // },
       {
         path: rootPaths.authRoot,
         element: (

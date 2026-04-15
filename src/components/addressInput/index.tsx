@@ -16,7 +16,7 @@ import { ISO3166Countries, NigerianStates } from '../../utils/iso3166Countries';
 interface CountryOption {
     code: string;
     name: string;
-    numericCode: string; // ISO 3166-1 numeric code
+    numericCode: string;
 }
 
 interface StateOption {
@@ -27,8 +27,8 @@ interface StateOption {
 interface AddressInputProps {
     addressLine1: string;
     postalCode: string;
-    country: string; // ISO 3166-1 numeric code as string
-    state: string; // State code as string
+    country: string;
+    state: string;
     onChange: (data: {
         addressLine1: string;
         postalCode: string;
@@ -41,6 +41,8 @@ interface AddressInputProps {
         country?: string;
         state?: string;
     };
+    readOnly?: boolean;
+    readOnlyColor?: string;
 }
 
 const AddressInput: React.FC<AddressInputProps> = ({
@@ -49,13 +51,14 @@ const AddressInput: React.FC<AddressInputProps> = ({
     country,
     state,
     onChange,
-    errors = {}
+    errors = {},
+    readOnly = false,
+    readOnlyColor
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
 
-    // Prepare country options from ISO3166Countries
     const availableCountries: CountryOption[] = React.useMemo(() => {
         return ISO3166Countries.map(country => ({
             code: country.TwoLetterCode,
@@ -64,7 +67,6 @@ const AddressInput: React.FC<AddressInputProps> = ({
         }));
     }, []);
 
-    // Prepare Nigerian states
     const availableStates: StateOption[] = React.useMemo(() => {
         return NigerianStates.map(state => ({
             value: state.code,
@@ -72,18 +74,28 @@ const AddressInput: React.FC<AddressInputProps> = ({
         }));
     }, []);
 
-    // Find the selected country for rendering the flag
     const selectedCountry = React.useMemo(() => {
         return availableCountries.find(c => c.numericCode === country);
     }, [availableCountries, country]);
 
-    // Find the selected state
     const selectedState = React.useMemo(() => {
         return availableStates.find(s => s.value === state);
     }, [availableStates, state]);
 
-    // Check if selected country is Nigeria (numeric code: "566")
     const isNigeria = country === "566";
+
+    // Styles for readonly mode
+    const readonlyInputStyles = readOnly ? {
+        '& .MuiInputBase-input': {
+            color: readOnlyColor || theme.palette.text.secondary,
+        },
+        '& .MuiInputLabel-root': {
+            color: readOnlyColor || theme.palette.text.secondary,
+        },
+        '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: readOnlyColor || theme.palette.text.secondary,
+        },
+    } : {};
 
     if (isLoading) {
         return <Box>Loading address data...</Box>;
@@ -104,72 +116,80 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 }
             }}
         >
-            {/* Address Line */}
             <TextField
                 label="Address"
                 value={addressLine1}
                 size="small"
                 sx={{
                     minWidth: 200,
-                    flex: isMobile ? '1 1 100%' : '2 1 0'
+                    flex: isMobile ? '1 1 100%' : '2 1 0',
+                    ...readonlyInputStyles
                 }}
-                onChange={(e) =>
-                    onChange({
-                        addressLine1: e.target.value,
-                        postalCode,
-                        country,
-                        state
-                    })
-                }
+                onChange={(e) => !readOnly && onChange({
+                    addressLine1: e.target.value,
+                    postalCode,
+                    country,
+                    state
+                })}
                 error={!!errors.addressLine1}
                 helperText={errors.addressLine1}
                 fullWidth={isMobile}
+                disabled={readOnly}
+                InputProps={{
+                    readOnly: readOnly,
+                }}
             />
 
-            {/* Postal Code */}
             <TextField
                 label="Postal Code"
                 value={postalCode}
                 size="small"
                 sx={{
                     minWidth: 120,
-                    flex: isMobile ? '1 1 100%' : '1 1 0'
+                    flex: isMobile ? '1 1 100%' : '1 1 0',
+                    ...readonlyInputStyles
                 }}
-                onChange={(e) =>
-                    onChange({
-                        addressLine1,
-                        postalCode: e.target.value,
-                        country,
-                        state
-                    })
-                }
+                onChange={(e) => !readOnly && onChange({
+                    addressLine1,
+                    postalCode: e.target.value,
+                    country,
+                    state
+                })}
                 error={!!errors.postalCode}
                 helperText={errors.postalCode}
                 fullWidth={isMobile}
+                disabled={readOnly}
+                InputProps={{
+                    readOnly: readOnly,
+                }}
             />
 
-            {/* Country */}
             <FormControl
                 size="small"
                 error={!!errors.country}
                 sx={{
                     minWidth: 150,
-                    flex: isMobile ? '1 1 100%' : '1 1 0'
+                    flex: isMobile ? '1 1 100%' : '1 1 0',
+                    ...readonlyInputStyles
                 }}
                 fullWidth={isMobile}
+                disabled={readOnly}
             >
                 <Autocomplete
                     options={availableCountries}
                     getOptionLabel={(option: CountryOption) => option.name}
-                    value={selectedCountry || undefined} // FIXED: Use selectedCountry instead of finding by code
-                    onChange={(event, newValue: CountryOption | null) =>
-                        onChange({
-                            addressLine1,
-                            postalCode,
-                            country: newValue ? newValue.numericCode : '',
-                            state: '' // Reset state when country changes
-                        })
-                    }
+                    value={selectedCountry || undefined}
+                    onChange={(event, newValue: CountryOption | null) => {
+                        if (!readOnly) {
+                            onChange({
+                                addressLine1,
+                                postalCode,
+                                country: newValue ? newValue.numericCode : '',
+                                state: ''
+                            });
+                        }
+                    }}
+                    disabled={readOnly}
                     renderOption={(props, option) => (
                         <li {...props}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -197,6 +217,8 @@ const AddressInput: React.FC<AddressInputProps> = ({
                             helperText={errors.country}
                             InputProps={{
                                 ...params.InputProps,
+                                readOnly: readOnly,
+                                sx: readonlyInputStyles,
                                 startAdornment: selectedCountry?.code ? (
                                     <InputAdornment position="start">
                                         <ReactCountryFlag
@@ -218,30 +240,33 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 />
             </FormControl>
 
-            {/* State - Only show for Nigeria (numeric code: "566") */}
             <FormControl
                 size="small"
-                disabled={!isNigeria} // FIXED: Only enable for Nigeria
+                disabled={!isNigeria || readOnly}
                 error={!!errors.state}
                 sx={{
                     minWidth: 150,
                     flex: isMobile ? '1 1 100%' : '1 1 0',
-                    display: isNigeria ? 'block' : 'none' // FIXED: Hide when not Nigeria
+                    display: isNigeria ? 'block' : 'none',
+                    ...readonlyInputStyles
                 }}
                 fullWidth={isMobile}
             >
                 <Autocomplete
                     options={availableStates}
                     getOptionLabel={(option: StateOption) => option.label}
-                    value={selectedState || undefined} // FIXED: Use selectedState
-                    onChange={(event, newValue: StateOption | null) =>
-                        onChange({
-                            addressLine1,
-                            postalCode,
-                            country,
-                            state: newValue ? newValue.value : ''
-                        })
-                    }
+                    value={selectedState || undefined}
+                    onChange={(event, newValue: StateOption | null) => {
+                        if (!readOnly) {
+                            onChange({
+                                addressLine1,
+                                postalCode,
+                                country,
+                                state: newValue ? newValue.value : ''
+                            });
+                        }
+                    }}
+                    disabled={readOnly}
                     renderInput={(params) => (
                         <TextField
                             {...params}
@@ -249,6 +274,11 @@ const AddressInput: React.FC<AddressInputProps> = ({
                             size="small"
                             error={!!errors.state}
                             helperText={errors.state}
+                            InputProps={{
+                                ...params.InputProps,
+                                readOnly: readOnly,
+                                sx: readonlyInputStyles,
+                            }}
                         />
                     )}
                     disableClearable
