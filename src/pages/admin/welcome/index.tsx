@@ -1,18 +1,23 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Typography, Card, CardContent, Grid, CircularProgress } from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, CircularProgress, alpha, Divider, Stack, Chip, useMediaQuery } from '@mui/material';
 import Image from '../../../components/base/image';
 import { useTheme } from "@mui/material";
 import { useEnums } from '../../../hooks/useEnums';
 import image from "../../../assets/palmfitLogoWithText.png";
 import { SchoolService } from '../../../api/schoolService';
 import { type SchoolDetails } from '../../../types/interfaces/i-school';
+import IconifyIcon from '../../../components/base/iconifyIcon';
 
 const Index = () => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
     const { enums, isLoading: isEnumsLoading } = useEnums({ fetchPermissionData: false });
     const [schoolData, setSchoolData] = useState<SchoolDetails | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const currentTime = new Date().getHours();
+    const greeting = currentTime < 12 ? 'Good Morning' : currentTime < 18 ? 'Good Afternoon' : 'Good Evening';
 
     // Map enums for SchoolSessions and SchoolTerms
     const sessionMap = useMemo(() => {
@@ -55,23 +60,50 @@ const Index = () => {
         }
     };
 
-    // Customizable styles
-    const primaryColor = theme.palette.text.secondary;
-    const secondaryColor = theme.palette.background.default;
-    const fontFamily = 'Roboto, sans-serif';
-
     if (loading || isEnumsLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <CircularProgress />
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                minHeight="400px"
+                sx={{
+                    bgcolor: 'background.default',
+                }}
+            >
+                <CircularProgress
+                    size={48}
+                    sx={{
+                        color: 'primary.main',
+                    }}
+                />
             </Box>
         );
     }
 
     if (error) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <Typography color="error">{error}</Typography>
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                minHeight="400px"
+                sx={{
+                    bgcolor: 'background.default',
+                }}
+            >
+                <Card
+                    sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        maxWidth: 400,
+                        bgcolor: 'background.paper',
+                        borderRadius: 3,
+                    }}
+                >
+                    <IconifyIcon icon="mdi:alert-circle-outline" width={48} color={theme.palette.error.main} />
+                    <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>
+                </Card>
             </Box>
         );
     }
@@ -79,140 +111,309 @@ const Index = () => {
     return (
         <Box
             sx={{
-                minHeight: '50%',
-                backgroundColor: secondaryColor,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                p: { xs: 2, sm: 4 },
+                minHeight: '100%',
+                bgcolor: 'background.default',
+                py: { xs: 3, sm: 4, md: 5 },
+                px: { xs: 2, sm: 3, md: 4 },
             }}
         >
-            <Grid container spacing={3} sx={{ maxWidth: '1200px', width: '100%' }}>
-                {/* School Name and Logo Card (70% width) */}
-                <Grid item xs={12} md={8.4}>
-                    <Card
+            <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+                {/* Welcome Header */}
+                <Box sx={{ mb: { xs: 4, sm: 5, md: 6 } }}>
+                    <Typography
+                        variant="h4"
                         sx={{
-                            p: { xs: 2, sm: 3 },
-                            textAlign: 'center',
-                            borderColor: theme.palette.divider,
-                            backgroundColor: theme.palette.background.default,
-                            transition: 'transform 0.3s',
-                            '&:hover': { transform: 'scale(1.02)' },
-                            overflow: 'visible',
-                            minHeight: { xs: 'auto', sm: '250px' },
+                            fontWeight: 700,
+                            color: 'text.primary',
+                            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                            mb: 0.5,
+                            letterSpacing: '-0.02em',
                         }}
                     >
-                        <CardContent
-                            sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minHeight: '100%',
-                                p: 0,
-                            }}
-                        >
-                            <Image
-                                src={image}
-                                alt={`${schoolData?.schoolName || 'School'} Logo`}
-                                sx={{
-                                    width: { xs: '80px', sm: '120px', md: '150px' },
-                                    height: 'auto',
-                                    maxWidth: '100%',
-                                    mb: 2,
-                                    borderRadius: '8px',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                    objectFit: 'contain',
-                                }}
-                            />
-                            <Typography
-                                variant="h4"
-                                sx={{
-                                    fontFamily: fontFamily,
-                                    color: primaryColor,
-                                    fontWeight: 700,
-                                    mb: 1,
-                                    fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-                                    wordBreak: 'break-word',
-                                    maxWidth: '100%',
-                                }}
-                            >
-                                {schoolData?.schoolName || 'Not available'}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    fontFamily: fontFamily,
-                                    color: primaryColor,
-                                    fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
-                                    wordBreak: 'break-word',
-                                    maxWidth: '100%',
-                                }}
-                            >
-                                Welcome aboard! 🚀
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                        {greeting},
+                    </Typography>
+                    <Typography
+                        variant="h5"
+                        sx={{
+                            fontWeight: 500,
+                            color: 'text.secondary',
+                            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                        }}
+                    >
+                        Welcome to your Dashboard
+                    </Typography>
+                </Box>
 
-                {/* Session and Term Card (30% width) */}
-                <Grid item xs={12} md={3.6}>
-                    <Card
-                        sx={{
-                            p: { xs: 2, sm: 3 },
-                            textAlign: 'center',
-                            borderRadius: 2,
-                            borderColor: theme.palette.divider,
-                            backgroundColor: theme.palette.background.default,
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            overflow: 'visible',
-                        }}
-                    >
-                        <CardContent
+                <Grid container spacing={4}>
+                    {/* Main School Info Card */}
+                    <Grid item xs={12} md={7}>
+                        <Card
                             sx={{
-                                p: 0,
+                                p: { xs: 3, sm: 4, md: 5 },
+                                borderRadius: 4,
+                                bgcolor: 'background.default',
+                                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                    boxShadow: `0 20px 40px ${alpha(theme.palette.common.black, 0.08)}`,
+                                    transform: 'translateY(-4px)',
+                                },
+                                height: '100%',
                             }}
                         >
-                            <Typography
-                                variant="h6"
+                            <Box
                                 sx={{
-                                    fontFamily: fontFamily,
-                                    color: primaryColor,
-                                    fontWeight: 600,
-                                    mb: 2,
-                                    fontSize: { xs: '1.2rem', sm: '1.5rem' },
+                                    display: 'flex',
+                                    flexDirection: { xs: 'column', md: 'row' },
+                                    alignItems: { xs: 'center', md: 'flex-start' },
+                                    gap: { xs: 3, md: 4 },
                                 }}
                             >
-                                Academic Information
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    fontFamily: fontFamily,
-                                    color: primaryColor,
-                                    mb: 1,
-                                    fontSize: { xs: '0.9rem', sm: '1rem' },
-                                }}
-                            >
-                                <strong style={{ color: theme.palette.text.primary }}>Active Academic Session:</strong> {schoolData?.currentSession ? sessionMap[schoolData.currentSession.toString()] || 'Not available' : 'Not Set Yet'}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    fontFamily: fontFamily,
-                                    color: primaryColor,
-                                    fontSize: { xs: '0.9rem', sm: '1rem' },
-                                }}
-                            >
-                                <strong style={{ color: theme.palette.text.primary }}>Active Term:</strong> {schoolData?.currentTerm ? termMap[schoolData.currentTerm.toString()] || 'Not available' : 'Not Set Yet'}
-                            </Typography>
-                        </CardContent>
-                    </Card>
+                                {/* Logo */}
+                                <Box
+                                    sx={{
+                                        flexShrink: 0,
+                                        p: 2.5,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                        borderRadius: 4,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <Image
+                                        src={image}
+                                        alt={`${schoolData?.schoolName || 'School'} Logo`}
+                                        sx={{
+                                            width: { xs: '100px', sm: '120px', md: '140px' },
+                                            height: 'auto',
+                                            objectFit: 'contain',
+                                        }}
+                                    />
+                                </Box>
+
+                                {/* School Details */}
+                                <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
+                                    <Typography
+                                        variant="h3"
+                                        sx={{
+                                            fontWeight: 700,
+                                            color: 'text.primary',
+                                            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
+                                            mb: 1.5,
+                                            letterSpacing: '-0.02em',
+                                        }}
+                                    >
+                                        {schoolData?.schoolName || 'School Name'}
+                                    </Typography>
+
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            flexWrap: 'wrap',
+                                            gap: 1,
+                                            justifyContent: { xs: 'center', md: 'flex-start' },
+                                            mb: 2.5,
+                                        }}
+                                    >
+                                        <Chip
+                                            label="Active Institution"
+                                            size="small"
+                                            sx={{
+                                                bgcolor: alpha(theme.palette.success.main, 0.1),
+                                                color: theme.palette.success.main,
+                                                fontWeight: 500,
+                                                fontSize: '0.75rem',
+                                                borderRadius: 2,
+                                            }}
+                                        />
+                                        <Chip
+                                            label="Verified"
+                                            size="small"
+                                            sx={{
+                                                bgcolor: alpha(theme.palette.info.main, 0.1),
+                                                color: theme.palette.info.main,
+                                                fontWeight: 500,
+                                                fontSize: '0.75rem',
+                                                borderRadius: 2,
+                                            }}
+                                        />
+                                    </Box>
+
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            color: 'text.secondary',
+                                            fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                                            lineHeight: 1.7,
+                                        }}
+                                    >
+                                        Welcome aboard! We're excited to have you here. Manage your academic activities, track progress, and achieve excellence.
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Card>
+                    </Grid>
+
+                    {/* Academic Info Card */}
+                    <Grid item xs={12} md={5}>
+                        <Card
+                            sx={{
+                                p: { xs: 3, sm: 4, md: 5 },
+                                borderRadius: 4,
+                                bgcolor: 'background.default',
+                                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                    boxShadow: `0 20px 40px ${alpha(theme.palette.common.black, 0.08)}`,
+                                    transform: 'translateY(-4px)',
+                                },
+                                height: '100%',
+                            }}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                                <Box
+                                    sx={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 2.5,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        mr: 1.5,
+                                    }}
+                                >
+                                    <IconifyIcon
+                                        icon="mdi:academic-cap-outline"
+                                        width={26}
+                                        color={theme.palette.primary.main}
+                                    />
+                                </Box>
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        fontWeight: 600,
+                                        color: 'text.primary',
+                                        fontSize: { xs: '1.1rem', sm: '1.2rem' },
+                                    }}
+                                >
+                                    Academic Information
+                                </Typography>
+                            </Box>
+
+                            <Divider sx={{ mb: 3 }} />
+
+                            {/* Session Info */}
+                            <Box sx={{ mb: 3 }}>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        fontWeight: 600,
+                                        fontSize: '0.7rem',
+                                        display: 'block',
+                                        mb: 1.5,
+                                    }}
+                                >
+                                    Current Session
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        p: 1.75,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                        borderRadius: 2.5,
+                                    }}
+                                >
+                                    <IconifyIcon
+                                        icon="mdi:calendar-outline"
+                                        width={22}
+                                        color={theme.palette.primary.main}
+                                        style={{ marginRight: '12px' }}
+                                    />
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            fontWeight: 500,
+                                            color: 'text.primary',
+                                            fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                                        }}
+                                    >
+                                        {schoolData?.currentSession ? sessionMap[schoolData.currentSession.toString()] : 'Not Set Yet'}
+                                    </Typography>
+                                </Box>
+                            </Box>
+
+                            {/* Term Info */}
+                            <Box>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        fontWeight: 600,
+                                        fontSize: '0.7rem',
+                                        display: 'block',
+                                        mb: 1.5,
+                                    }}
+                                >
+                                    Active Term
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        p: 1.75,
+                                        bgcolor: alpha(theme.palette.secondary.main, 0.04),
+                                        borderRadius: 2.5,
+                                    }}
+                                >
+                                    <IconifyIcon
+                                        icon="mdi:flag-outline"
+                                        width={22}
+                                        color={theme.palette.secondary.main}
+                                        style={{ marginRight: '12px' }}
+                                    />
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            fontWeight: 500,
+                                            color: 'text.primary',
+                                            fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                                        }}
+                                    >
+                                        {schoolData?.currentTerm ? termMap[schoolData.currentTerm.toString()] : 'Not Set Yet'}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Card>
+                    </Grid>
                 </Grid>
-            </Grid>
+                {/* Motto/Quote Footer */}
+                <Box
+                    sx={{
+                        mt: 4,
+                        p: 3,
+                        borderRadius: 3,
+                        bgcolor: alpha(theme.palette.primary.main, 0.02),
+                        textAlign: 'center',
+                        borderTop: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                    }}
+                >
+                    <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap">
+                        <IconifyIcon icon="mdi:quote-open" width={18} color={theme.palette.primary.main} />
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                            Excellence in education is not a destination, but a continuous journey
+                        </Typography>
+                        <IconifyIcon icon="mdi:quote-close" width={18} color={theme.palette.primary.main} />
+                    </Stack>
+                </Box>
+            </Box>
         </Box>
     );
 };
