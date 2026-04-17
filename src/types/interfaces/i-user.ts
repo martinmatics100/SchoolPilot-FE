@@ -21,6 +21,7 @@ export interface StatusConfig {
         icon: OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string };
         color: string;
         textColor: string;
+        bgColor: string;
     };
 }
 

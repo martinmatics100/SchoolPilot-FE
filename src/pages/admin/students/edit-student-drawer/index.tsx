@@ -7,6 +7,10 @@ import {
     CircularProgress,
     Avatar,
     Paper,
+    Divider,
+    alpha,
+    Fade,
+    Grow,
 } from "@mui/material";
 import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../../components/base/iconifyIcon";
@@ -192,7 +196,6 @@ const EditStudentDrawer = ({
                         classId: student.classRoomId || '',
                         status: statusEnum?.value?.toString() || '',
                         address: formattedAddress,
-                        // notes: student.notes || '',
                     };
 
                     setStudentData(formattedData);
@@ -281,9 +284,7 @@ const EditStudentDrawer = ({
                 },
             ];
 
-            const currentClass = classes.find(c => c.id === studentData.classId);
-
-            if (currentClass && currentClass.classLevel === 4) {
+            if (selectedClass && selectedClass.classLevel === 4) {
                 fields.push({
                     name: "streamType",
                     label: "Stream",
@@ -337,6 +338,7 @@ const EditStudentDrawer = ({
         isLoadingClasses,
         classes,
         studentData,
+        selectedClass,
     ]);
 
     const handleSubmit = async (data: any) => {
@@ -416,7 +418,7 @@ const EditStudentDrawer = ({
         formFields.length > 0;
 
     const getAnimatedTitle = () => {
-        const baseText = "Edit Student in progress";
+        const baseText = "Edit Student";
         const dots = ".".repeat(dotCount);
         return `${baseText}${dots}`;
     };
@@ -435,96 +437,157 @@ const EditStudentDrawer = ({
                     "@media (min-width: 1440px)": {
                         width: "40%",
                     },
-                    p: 3,
+                    bgcolor: "background.default",
+                    borderRadius: { xs: 0, sm: "16px 0 0 16px" },
+                    p: { xs: 2, sm: 3, md: 4 },
+                    overflowY: "auto",
                 },
             }}
         >
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 3,
-                }}
-            >
-                <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                    sx={{
-                        transition: 'all 0.2s ease',
-                    }}
-                >
-                    {getAnimatedTitle()}
-                </Typography>
-                <IconButton onClick={handleClose}>
-                    <IconifyIcon icon="ic:round-close" width={24} height={24} />
-                </IconButton>
-            </Box>
-
-            <MessageDisplay
-                feMessage={alertMessage.feMessage}
-                beMessage={alertMessage.beMessage}
-                httpStatus={alertMessage.httpStatus}
-            />
-
-            <Box
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    mb: 4,
-                    mt: 2,
-                }}
-            >
-                <Paper
-                    elevation={3}
-                    sx={{
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        border: '3px solid',
-                        borderColor: 'primary.main',
-                    }}
-                >
-                    <Avatar
-                        src={studentPhotoUrl || undefined}
-                        alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+            <Fade in={open} timeout={300}>
+                <Box>
+                    {/* Header */}
+                    <Box
                         sx={{
-                            width: 120,
-                            height: 120,
-                            fontSize: '3rem',
-                            bgcolor: studentPhotoUrl ? 'transparent' : theme.palette.text.primary,
-                            color: 'white',
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 3,
+                            pb: 2,
+                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                         }}
                     >
-                        {!studentPhotoUrl && getInitials()}
-                    </Avatar>
-                </Paper>
-            </Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Box
+                                sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 2,
+                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}
+                            >
+                                <IconifyIcon
+                                    icon="mdi:account-edit"
+                                    width={24}
+                                    color={theme.palette.primary.main}
+                                />
+                            </Box>
+                            <Box>
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: "text.primary",
+                                        fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                                    }}
+                                >
+                                    {getAnimatedTitle()}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    Update student information
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <IconButton
+                            onClick={handleClose}
+                            sx={{
+                                color: "text.secondary",
+                                "&:hover": {
+                                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                                    color: theme.palette.error.main,
+                                },
+                            }}
+                        >
+                            <IconifyIcon icon="ic:round-close" width={24} height={24} />
+                        </IconButton>
+                    </Box>
 
-            {!isReady ? (
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    minHeight="400px"
-                    flexDirection="column"
-                    gap={2}
-                >
-                    <CircularProgress />
-                    <Typography variant="body2" color="text.secondary">
-                        Loading student data...
-                    </Typography>
+                    {/* Message Display */}
+                    {alertMessage.feMessage && (
+                        <Box sx={{ mb: 3 }}>
+                            <MessageDisplay
+                                feMessage={alertMessage.feMessage}
+                                beMessage={alertMessage.beMessage}
+                                httpStatus={alertMessage.httpStatus}
+                            />
+                        </Box>
+                    )}
+
+                    {/* Student Avatar */}
+                    <Grow in={!!studentData} timeout={500}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                mb: 4,
+                                mt: 2,
+                            }}
+                        >
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    borderRadius: "50%",
+                                    overflow: "hidden",
+                                    border: `3px solid ${theme.palette.primary.main}`,
+                                    boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                }}
+                            >
+                                <Avatar
+                                    src={studentPhotoUrl || undefined}
+                                    alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                                    sx={{
+                                        width: { xs: 100, sm: 120 },
+                                        height: { xs: 100, sm: 120 },
+                                        fontSize: { xs: "2.5rem", sm: "3rem" },
+                                        bgcolor: studentPhotoUrl ? "transparent" : theme.palette.primary.main,
+                                        color: "white",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {!studentPhotoUrl && getInitials()}
+                                </Avatar>
+                            </Paper>
+                        </Box>
+                    </Grow>
+
+                    {/* Divider */}
+                    <Divider sx={{ mb: 3 }} />
+
+                    {/* Form or Loading */}
+                    {!isReady ? (
+                        <Box
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            minHeight="400px"
+                            flexDirection="column"
+                            gap={3}
+                        >
+                            <CircularProgress size={48} sx={{ color: "primary.main" }} />
+                            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                                Loading student data...
+                            </Typography>
+                        </Box>
+                    ) : (
+                            <Fade in={isReady} timeout={400}>
+                                <Box>
+                                    <DynamicForm
+                                        title=""
+                                        fields={formFields}
+                                        onSubmit={handleSubmit}
+                                        submitButtonText="Update Student"
+                                        columns={2}
+                                        initialValues={studentData}
+                                    />
+                                </Box>
+                            </Fade>
+                    )}
                 </Box>
-            ) : (
-                <DynamicForm
-                    title=""
-                    fields={formFields}
-                    onSubmit={handleSubmit}
-                    submitButtonText="Update Student"
-                    columns={2}
-                    initialValues={studentData}
-                />
-            )}
+            </Fade>
         </Drawer>
     );
 };
