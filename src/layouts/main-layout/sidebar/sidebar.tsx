@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useState, useMemo } from "react"; // Added useMemo
+import { type ReactElement, useEffect, useState, useMemo } from "react";
 import {
     Link,
     List,
@@ -8,18 +8,18 @@ import {
     Box,
     Typography,
     Tooltip,
+    Divider,
+    Button,
+    Badge,
+    Stack,
 } from "@mui/material";
 import navItems from "../../../data/sidebar-items";
 import SimpleBar from "simplebar-react";
 import NavItem from "./navitem";
-import Image from "../../../components/base/image";
-import logoWithText from "../../../assets/images/app-logo/SchoolPilot-.png";
-import logo from "../../../assets/palmfitLogoWithoutText.png";
 import { rootPaths } from "../../../routes/paths";
 import { drawerCloseWidth, drawerOpenWidth } from "..";
 import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../components/base/iconifyIcon";
-import { UserRoles } from "../../../enums/user-roles";
 import { useAuth } from "../../../context";
 import { Logo, SimpleLogo } from "../../../components/Logo";
 
@@ -27,106 +27,93 @@ interface GroupIcons {
     [key: string]: string;
 }
 
-
-
 const groupIcons: GroupIcons = {
-    'DASHBOARD': 'mingcute:home-3-fill',
-    'MANAGMENT': 'mdi:account-group-outline',
-    'Service Management': 'mdi:tools',
-    'Booking': 'mdi:calendar-month-outline',
-    'FEEDBACK/REPORTS': 'mdi:comment-text-outline',
-    'SETTINGS': 'mdi:cog-outline',
-    'HOME': 'mingcute:home-3-fill',
-    'USERS': 'mdi:account-group-outline',
-    'HELP': 'mdi:help-circle-outline',
-    'Profile': 'mdi:account-circle-outline',
-    'Handbook': 'mdi:book-open-variant',
-    'Bookings': 'mdi:tools'
+    'DASHBOARD': 'solar:home-2-bold-duotone',
+    'MANAGMENT': 'solar:users-group-two-rounded-bold-duotone',
+    'Service Management': 'solar:wrench-bold-duotone',
+    'Booking': 'solar:calendar-bold-duotone',
+    'FEEDBACK/REPORTS': 'solar:chat-round-like-bold-duotone',
+    'SETTINGS': 'solar:settings-bold-duotone',
+    'HOME': 'solar:home-2-bold-duotone',
+    'USERS': 'solar:users-group-two-rounded-bold-duotone',
+    'HELP': 'solar:question-circle-bold-duotone',
+    'Profile': 'solar:user-circle-bold-duotone',
+    'Handbook': 'solar:book-bold-duotone',
+    'Bookings': 'solar:calendar-bold-duotone'
+};
+
+// Bottom action types
+type BottomAction = {
+    id: string;
+    icon: string;
+    label: string;
+    href?: string;
+    onClick?: () => void;
+    badge?: number;
+    external?: boolean;
 };
 
 const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     const theme = useTheme();
-    const { role, updateRole } = useAuth();
+    const { role } = useAuth();
     const [forceUpdate, setForceUpdate] = useState(0);
 
     // Listen for role changes
     useEffect(() => {
         const handleRoleChange = () => {
-            setForceUpdate(prev => prev + 1); // Force re-render
+            setForceUpdate(prev => prev + 1);
         };
-
         window.addEventListener('localStorageRoleUpdated', handleRoleChange);
         return () => {
             window.removeEventListener('localStorageRoleUpdated', handleRoleChange);
         };
     }, []);
 
-    // No need for a separate state `currentRole` if `userRoleFromContext` is stable enough.
-    // The `useAuth` hook already provides a reactive value.
-    // If you specifically need a local state, ensure its updates don't cause a loop.
-    // However, for deriving filteredNavItems, directly using `userRoleFromContext` is better.
-
-    // Filter navigation items based on the currentRole
-    // Use useMemo to memoize this computation, so it only re-runs if userRoleFromContext changes.
+    // Filter navigation items based on role
     const filteredNavItems = useMemo(() => {
-        return navItems.filter((item) => {
-            if (!role) return false;
-            return item.roles.includes(role);
-        });
-    }, [role, forceUpdate]); // Re-run when localStorage role changes
+        if (!role) return [];
+        return navItems.filter((item) => item.roles.includes(role));
+    }, [role, forceUpdate]);
 
-    // Group items. This also needs to be memoized because it's derived from filteredNavItems.
+    // Group items
     const groupedNavItems = useMemo(() => {
         return filteredNavItems.reduce((groups, item) => {
             if (!groups[item.group]) groups[item.group] = [];
             groups[item.group].push(item);
             return groups;
         }, {} as Record<string, typeof navItems>);
-    }, [filteredNavItems]); // Dependency: filteredNavItems
+    }, [filteredNavItems]);
 
-    // Initialize all groups as expanded by default when the component mounts or filtered items change
+    // Initialize expanded groups
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
         const initialExpanded: Record<string, boolean> = {};
         Object.keys(groupedNavItems).forEach(group => {
-            initialExpanded[group] = true; // Set all groups to expanded by default
+            initialExpanded[group] = true;
         });
         return initialExpanded;
     });
 
-    // This useEffect re-initializes expanded groups whenever groupedNavItems changes.
-    // The previous implementation was fine, but let's re-verify the logic.
+    // Update expanded groups when groupedNavItems changes
     useEffect(() => {
-        // Create a new expanded state based on the current groupedNavItems.
-        // Preserve existing expansion status if the group still exists.
         setExpandedGroups((prevExpanded) => {
             const newExpanded: Record<string, boolean> = {};
-            let changed = false; // Flag to check if the state actually changes
+            let changed = false;
 
             Object.keys(groupedNavItems).forEach(group => {
                 if (prevExpanded[group] !== undefined) {
                     newExpanded[group] = prevExpanded[group];
                 } else {
-                    newExpanded[group] = true; // New group, expand by default
+                    newExpanded[group] = true;
                     changed = true;
                 }
             });
 
-            // Also check for groups that might have been removed
-            Object.keys(prevExpanded).forEach(group => {
-                if (groupedNavItems[group] === undefined) {
-                    // Group was in prevExpanded but is no longer in groupedNavItems
-                    changed = true;
-                }
-            });
-
-            // Only update state if there's an actual change in the keys or values
             if (changed || Object.keys(newExpanded).length !== Object.keys(prevExpanded).length) {
                 return newExpanded;
             }
-            return prevExpanded; // No change, return previous state
+            return prevExpanded;
         });
-    }, [groupedNavItems]); // Re-run when groupedNavItems changes (due to userRoleFromContext change)
-
+    }, [groupedNavItems]);
 
     const handleToggleGroup = (group: string) => {
         setExpandedGroups((prevState) => ({
@@ -135,31 +122,70 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
         }));
     };
 
+    // Bottom actions configuration
+    const bottomActions: BottomAction[] = [
+        {
+            id: 'news-feed',
+            icon: 'solar:newspaper-bold-duotone',
+            label: 'Latest News',
+            href: '/news-feed',
+            badge: 3, // Unread news count
+        },
+        {
+            id: 'download-app',
+            icon: 'solar:download-bold-duotone',
+            label: 'Download App',
+            href: 'https://play.google.com/store/apps/details?id=com.schoolpilot', // Replace with actual link
+            external: true,
+        },
+        {
+            id: 'announcements',
+            icon: 'solar:megaphone-bold-duotone',
+            label: 'Announcements',
+            href: '/announcements',
+            badge: 1,
+        },
+    ];
+
+    const handleBottomActionClick = (action: BottomAction) => {
+        if (action.onClick) {
+            action.onClick();
+        } else if (action.href) {
+            if (action.external) {
+                window.open(action.href, '_blank', 'noopener noreferrer');
+            } else {
+                // Use your router's navigation here
+                window.location.href = action.href;
+            }
+        }
+    };
+
     return (
         <>
             <Toolbar
                 sx={{
                     position: 'fixed',
-                    height: 98,
+                    height: 88,
                     zIndex: 1,
                     bgcolor: theme.palette.background.default,
                     p: 0,
                     justifyContent: 'center',
                     width: open ? drawerOpenWidth - 1 : drawerCloseWidth - 1,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    transition: 'all 0.3s ease',
                 }}
             >
-                {/* <Link href={rootPaths.homeRoot} sx={{ mt: 3 }}>
-                    <Image
-                        src={open ? logoWithText : logo}
-                        alt={open ? 'logo with text' : 'logo'}
-                        height={40}
-                        sx={{
-                            bgcolor: "black",
-                            width: "100"
-                        }}
-                    />
-                </Link> */}
-                <Link href={rootPaths.homeRoot} sx={{ mt: 3, textDecoration: 'none', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <Link href={rootPaths.homeRoot} sx={{
+                    mt: 2,
+                    textDecoration: 'none',
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    transition: 'transform 0.2s ease',
+                    '&:hover': {
+                        transform: 'scale(1.02)',
+                    }
+                }}>
                     {open ? (
                         <Logo
                             variant="full"
@@ -177,14 +203,16 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                 maxHeight: "100vh",
                 minHeight: "100vh",
                 backgroundColor: theme.palette.background.default,
+                display: 'flex',
+                flexDirection: 'column',
             }}>
                 <List
                     component="nav"
                     sx={{
                         bgcolor: theme.palette.background.default,
-                        mt: 24.5,
+                        mt: 20.5,
                         py: 2.5,
-                        height: "100%",
+                        flex: 1,
                         justifyContent: "space-between",
                     }}
                 >
@@ -204,6 +232,10 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                     py: 2.5,
                                     minHeight: 64,
                                     borderBottom: open ? `1px solid ${theme.palette.divider}` : 'none',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        bgcolor: open ? theme.palette.action.hover : 'transparent',
+                                    },
                                 }}
                             >
                                 {open ? (
@@ -211,8 +243,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                         variant="subtitle2"
                                         sx={{
                                             textTransform: "uppercase",
-                                            fontWeight: 600,
-                                            letterSpacing: 0.5,
+                                            fontWeight: 700,
+                                            letterSpacing: 1,
+                                            fontSize: '0.75rem',
+                                            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                                            backgroundClip: 'text',
+                                            WebkitBackgroundClip: 'text',
+                                            color: 'transparent',
                                         }}
                                     >
                                         {group}
@@ -225,10 +262,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                         componentsProps={{
                                             tooltip: {
                                                 sx: {
-                                                    fontSize: '0.875rem',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
                                                     bgcolor: theme.palette.background.paper,
                                                     color: theme.palette.text.primary,
                                                     boxShadow: theme.shadows[4],
+                                                    py: 1,
+                                                    px: 1.5,
                                                 }
                                             }
                                         }}
@@ -240,22 +280,23 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                                 justifyContent: 'center',
                                                 width: "100%",
                                                 height: 44,
+                                                    borderRadius: 2,
                                                 bgcolor: theme.palette.mode === 'dark'
-                                                    ? theme.palette.primary.dark
-                                                    : theme.palette.common.white,
-                                                color: theme.palette.text.secondary,
+                                                        ? theme.palette.background.paper
+                                                        : theme.palette.grey[300],
+                                                    color: theme.palette.background.default,
+                                                    transition: 'all 0.2s ease',
+                                                    '&:hover': {
+                                                        bgcolor: theme.palette.primary.main,
+                                                        color: theme.palette.common.white,
+                                                        transform: 'scale(1.05)',
+                                                    },
                                             }}
                                         >
                                             <IconifyIcon
-                                                icon={groupIcons[group] || 'mdi:folder'}
-                                                width={28}
-                                                height={28}
-                                                sx={{
-                                                    transition: 'transform 0.2s',
-                                                    '&:hover': {
-                                                        transform: 'scale(1.1)'
-                                                    }
-                                                }}
+                                                    icon={groupIcons[group] || 'solar:folder-bold-duotone'}
+                                                    width={24}
+                                                    height={24}
                                             />
                                         </Box>
                                     </Tooltip>
@@ -263,9 +304,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
 
                                 {open && (
                                     <IconifyIcon
-                                        icon={expandedGroups[group] ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-                                        width={20}
-                                        sx={{ ml: 1 }}
+                                        icon={expandedGroups[group] ? 'solar:alt-arrow-up-bold' : 'solar:alt-arrow-down-bold'}
+                                        width={18}
+                                        sx={{
+                                            ml: 1,
+                                            color: theme.palette.text.secondary,
+                                            transition: 'transform 0.2s ease',
+                                        }}
                                     />
                                 )}
                             </ListSubheader>
@@ -280,6 +325,107 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                         </div>
                     ))}
                 </List>
+
+                {/* Fixed Bottom Section */}
+                <Box
+                    sx={{
+                        position: 'sticky',
+                        bottom: 0,
+                        width: '100%',
+                        bgcolor: theme.palette.background.default,
+                        borderTop: `1px solid ${theme.palette.divider}`,
+                        pt: 2,
+                        pb: 3,
+                        mt: 'auto',
+                        zIndex: 2,
+                    }}
+                >
+                    <Divider sx={{ mb: 2, opacity: 0.6 }} />
+                    <Stack spacing={1.5} sx={{ px: open ? 2 : 1 }}>
+                        {bottomActions.map((action) => (
+                            <Tooltip
+                                key={action.id}
+                                title={!open ? action.label : ''}
+                                placement="right"
+                                arrow
+                            >
+                                <Button
+                                    onClick={() => handleBottomActionClick(action)}
+                                    component={action.href && !action.external ? Link : 'button'}
+                                    href={action.href && !action.external ? action.href : undefined}
+                                    fullWidth
+                                    sx={{
+                                        justifyContent: open ? 'flex-start' : 'center',
+                                        alignItems: 'center',
+                                        gap: open ? 2 : 0,
+                                        py: 1.5,
+                                        px: open ? 2 : 1,
+                                        borderRadius: 2,
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                        color: theme.palette.text.primary,
+                                        bgcolor: 'transparent',
+                                        transition: 'all 0.2s ease',
+                                        position: 'relative',
+                                        '&:hover': {
+                                            bgcolor: theme.palette.action.hover,
+                                            transform: 'translateX(4px)',
+                                            '& .MuiButton-startIcon': {
+                                                transform: 'scale(1.1)',
+                                            },
+                                        },
+                                    }}
+                                    startIcon={
+                                        <Badge
+                                            badgeContent={action.badge}
+                                            color="error"
+                                            sx={{
+                                                '& .MuiBadge-badge': {
+                                                    fontSize: '0.625rem',
+                                                    height: 18,
+                                                    minWidth: 18,
+                                                    borderRadius: 1,
+                                                    top: -4,
+                                                    right: -4,
+                                                },
+                                            }}
+                                        >
+                                            <IconifyIcon
+                                                icon={action.icon}
+                                                width={open ? 22 : 24}
+                                                height={open ? 22 : 24}
+                                                sx={{
+                                                    transition: 'transform 0.2s ease',
+                                                    color: theme.palette.primary.main,
+                                                }}
+                                            />
+                                        </Badge>
+                                    }
+                                >
+                                    {open && (
+                                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                                            {action.label}
+                                            {action.badge && action.badge > 0 && (
+                                                <Typography
+                                                    component="span"
+                                                    sx={{
+                                                        ml: 1,
+                                                        fontSize: '0.625rem',
+                                                        fontWeight: 700,
+                                                        color: theme.palette.error.main,
+                                                    }}
+                                                >
+                                                    • {action.badge} new
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    )}
+                                </Button>
+                            </Tooltip>
+                        ))}
+                    </Stack>
+                </Box>
             </SimpleBar>
         </>
     );
