@@ -340,11 +340,11 @@ const ActivityLog = () => {
             >
                 <Box sx={{ maxWidth: '1600px', mx: 'auto' }}>
                     {/* Header Section */}
-                    <Box sx={{ mb: 3 }}>
+                    {/* <Box sx={{ mb: 3 }}>
                         <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                             Track and monitor all system activities
                         </Typography>
-                    </Box>
+                    </Box> */}
 
                     {/* Table */}
                     <ReusableTable

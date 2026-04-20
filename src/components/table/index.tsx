@@ -245,7 +245,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
       sx={{
         width: "100%",
         overflow: "hidden",
-        bgcolor: "background.default",
+        bgcolor: "background.default", // Changed from background.default
         borderRadius: 3,
         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
         transition: "box-shadow 0.2s ease",
@@ -266,7 +266,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
             variant="h6"
             sx={{
               fontWeight: 600,
-              color: "text.secondary",
+              color: "text.primary", // Changed from text.secondary
               fontSize: "1.25rem",
               letterSpacing: "-0.01em",
             }}
@@ -276,23 +276,17 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
         </Box>
       )}
 
-      <TableContainer sx={{ maxHeight: 400, overflowX: "auto" }}>
+      <TableContainer sx={{ maxHeight: 450, overflowX: "auto" }}>
         <Table stickyHeader aria-label="reusable table" sx={{ minWidth: 800 }}>
           <TableHead>
-            <TableRow
-              sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.04),
-                "& .MuiTableCell-root": {
-                  borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
-                },
-              }}
-            >
+            <TableRow>
               {showCheckboxes && (
                 <TableCell
                   padding="checkbox"
                   sx={{
-                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                    bgcolor: theme.palette.background.default, // Solid background color
                     borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    zIndex: 2, // Ensure header stays above content
                   }}
                 >
                   <Checkbox
@@ -324,15 +318,16 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                     style={{ minWidth: column.minWidth }}
                     sortDirection={isSorted && showSorting ? order : false}
                     sx={{
-                      color: theme.palette.text.secondary,
-                      fontWeight: 600,
-                      fontSize: "0.875rem",
+                      color: theme.palette.text.primary, // Changed from text.secondary
+                      fontWeight: 700, // Increased from 600
+                      fontSize: "0.75rem", // Slightly smaller
                       textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      bgcolor: alpha(theme.palette.primary.main, 0.04),
-                      borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+                      letterSpacing: "0.8px",
+                      bgcolor: theme.palette.background.default, // Solid background color
+                      borderBottom: `2px solid ${theme.palette.primary.main}`, // Thicker primary color border
+                      zIndex: 2, // Ensure header stays above content
                       "& .MuiTableSortLabel-root": {
-                        fontWeight: 600,
+                        fontWeight: 700,
                       },
                     }}
                   >
@@ -419,7 +414,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                         key={`${column.id}-${index}`}
                         align={column.align}
                         sx={{
-                          color: theme.palette.text.secondary,
+                          color: theme.palette.text.primary, // Changed from text.secondary
                           fontSize: "0.875rem",
                           py: 1.75,
                         }}
