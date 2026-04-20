@@ -22,6 +22,7 @@ import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../components/base/iconifyIcon";
 import { useAuth } from "../../../context";
 import { Logo, SimpleLogo } from "../../../components/Logo";
+import { FeedbackModal } from "../../../components/feedback";
 
 interface GroupIcons {
     [key: string]: string;
@@ -57,6 +58,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     const theme = useTheme();
     const { role } = useAuth();
     const [forceUpdate, setForceUpdate] = useState(0);
+    const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
     // Listen for role changes
     useEffect(() => {
@@ -122,6 +124,10 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
         }));
     };
 
+    const openFeedbackModal = () => {
+        setFeedbackModalOpen(true);
+    };
+
     // Bottom actions configuration
     const bottomActions: BottomAction[] = [
         {
@@ -132,18 +138,25 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             badge: 3,
         },
         {
-            id: 'download-app',
-            icon: 'solar:download-bold-duotone',
-            label: 'Download App',
-            href: 'https://play.google.com/store/apps/details?id=com.schoolpilot',
-            external: true,
-        },
-        {
             id: 'announcements',
             icon: 'solar:megaphone-bold-duotone',
             label: 'Announcements',
             href: '/announcements',
             badge: 1,
+        },
+        // {
+        //     id: 'download-app',
+        //     icon: 'solar:download-bold-duotone',
+        //     label: 'Download App',
+        //     href: 'https://play.google.com/store/apps/details?id=com.schoolpilot',
+        //     external: true,
+        // },
+        {
+            id: 'feedback',
+            icon: 'solar:chat-round-like-bold-duotone',
+            label: 'Feedback & Support',
+            onClick: () => openFeedbackModal(),
+            badge: undefined,
         },
     ];
 
@@ -426,6 +439,10 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                     ))}
                 </Stack>
             </Box>
+            <FeedbackModal
+                open={feedbackModalOpen}
+                onClose={() => setFeedbackModalOpen(false)}
+            />
         </Box>
     );
 };
