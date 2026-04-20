@@ -129,13 +129,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             icon: 'solar:newspaper-bold-duotone',
             label: 'Latest News',
             href: '/news-feed',
-            badge: 3, // Unread news count
+            badge: 3,
         },
         {
             id: 'download-app',
             icon: 'solar:download-bold-duotone',
             label: 'Download App',
-            href: 'https://play.google.com/store/apps/details?id=com.schoolpilot', // Replace with actual link
+            href: 'https://play.google.com/store/apps/details?id=com.schoolpilot',
             external: true,
         },
         {
@@ -154,14 +154,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             if (action.external) {
                 window.open(action.href, '_blank', 'noopener noreferrer');
             } else {
-                // Use your router's navigation here
                 window.location.href = action.href;
             }
         }
     };
 
     return (
-        <>
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <Toolbar
                 sx={{
                     position: 'fixed',
@@ -199,21 +198,19 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                 </Link>
             </Toolbar>
 
+            {/* Scrollable Area for Navigation Items Only */}
             <SimpleBar style={{
-                maxHeight: "70vh",
-                minHeight: "100vh",
+                flex: 1,
                 backgroundColor: theme.palette.background.default,
-                display: 'flex',
-                flexDirection: 'column',
+                marginTop: 88, // Offset for fixed toolbar
+                marginBottom: 'auto',
+                paddingBottom: '140px',
             }}>
                 <List
                     component="nav"
                     sx={{
                         bgcolor: theme.palette.background.default,
-                        mt: 20.5,
                         py: 2.5,
-                        flex: 1,
-                        justifyContent: "space-between",
                     }}
                 >
                     {Object.entries(groupedNavItems).map(([group, items]) => (
@@ -325,109 +322,111 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                         </div>
                     ))}
                 </List>
-
-                {/* Fixed Bottom Section */}
-                <Box
-                    sx={{
-                        position: 'sticky',
-                        bottom: 0,
-                        width: '100%',
-                        bgcolor: theme.palette.background.default,
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                        pt: 2,
-                        pb: 3,
-                        mt: 'auto',
-                        zIndex: 2,
-                    }}
-                >
-                    <Divider sx={{ mb: 2, opacity: 0.6 }} />
-                    <Stack spacing={1.5} sx={{ px: open ? 2 : 1 }}>
-                        {bottomActions.map((action) => (
-                            <Tooltip
-                                key={action.id}
-                                title={!open ? action.label : ''}
-                                placement="right"
-                                arrow
-                            >
-                                <Button
-                                    onClick={() => handleBottomActionClick(action)}
-                                    component={action.href && !action.external ? Link : 'button'}
-                                    href={action.href && !action.external ? action.href : undefined}
-                                    fullWidth
-                                    sx={{
-                                        justifyContent: open ? 'flex-start' : 'center',
-                                        alignItems: 'center',
-                                        gap: open ? 2 : 0,
-                                        py: 1.5,
-                                        px: open ? 2 : 1,
-                                        borderRadius: 2,
-                                        textTransform: 'none',
-                                        fontWeight: 600,
-                                        fontSize: '0.875rem',
-                                        color: theme.palette.text.primary,
-                                        bgcolor: 'transparent',
-                                        transition: 'all 0.2s ease',
-                                        position: 'relative',
-                                        '&:hover': {
-                                            bgcolor: theme.palette.action.hover,
-                                            transform: 'translateX(4px)',
-                                            '& .MuiButton-startIcon': {
-                                                transform: 'scale(1.1)',
-                                            },
-                                        },
-                                    }}
-                                    startIcon={
-                                        <Badge
-                                            badgeContent={action.badge}
-                                            color="error"
-                                            sx={{
-                                                '& .MuiBadge-badge': {
-                                                    fontSize: '0.625rem',
-                                                    height: 18,
-                                                    minWidth: 18,
-                                                    borderRadius: 1,
-                                                    top: -4,
-                                                    right: -4,
-                                                },
-                                            }}
-                                        >
-                                            <IconifyIcon
-                                                icon={action.icon}
-                                                width={open ? 22 : 24}
-                                                height={open ? 22 : 24}
-                                                sx={{
-                                                    transition: 'transform 0.2s ease',
-                                                    color: theme.palette.primary.main,
-                                                }}
-                                            />
-                                        </Badge>
-                                    }
-                                >
-                                    {open && (
-                                        <Box sx={{ flex: 1, textAlign: 'left' }}>
-                                            {action.label}
-                                            {action.badge && action.badge > 0 && (
-                                                <Typography
-                                                    component="span"
-                                                    sx={{
-                                                        ml: 1,
-                                                        fontSize: '0.625rem',
-                                                        fontWeight: 700,
-                                                        color: theme.palette.error.main,
-                                                    }}
-                                                >
-                                                    • {action.badge} new
-                                                </Typography>
-                                            )}
-                                        </Box>
-                                    )}
-                                </Button>
-                            </Tooltip>
-                        ))}
-                    </Stack>
-                </Box>
             </SimpleBar>
-        </>
+
+            {/* Fixed Bottom Section - Outside Scrollable Area */}
+            <Box
+                sx={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    width: open ? drawerOpenWidth - 1 : drawerCloseWidth - 1,
+                    bgcolor: theme.palette.background.default,
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    pt: 2,
+                    pb: 3,
+                    zIndex: 1200,
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.05)',
+                }}
+            >
+                <Divider sx={{ mb: 2, opacity: 0.6 }} />
+                <Stack spacing={1.5} sx={{ px: open ? 2 : 1 }}>
+                    {bottomActions.map((action) => (
+                        <Tooltip
+                            key={action.id}
+                            title={!open ? action.label : ''}
+                            placement="right"
+                            arrow
+                        >
+                            <Button
+                                onClick={() => handleBottomActionClick(action)}
+                                component={action.href && !action.external ? Link : 'button'}
+                                href={action.href && !action.external ? action.href : undefined}
+                                fullWidth
+                                sx={{
+                                    justifyContent: open ? 'flex-start' : 'center',
+                                    alignItems: 'center',
+                                    gap: open ? 2 : 0,
+                                    py: 1.5,
+                                    px: open ? 2 : 1,
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.875rem',
+                                    color: theme.palette.text.primary,
+                                    bgcolor: 'transparent',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                    '&:hover': {
+                                        bgcolor: theme.palette.action.hover,
+                                        transform: 'translateX(4px)',
+                                        '& .MuiButton-startIcon': {
+                                            transform: 'scale(1.1)',
+                                        },
+                                    },
+                                }}
+                                startIcon={
+                                    <Badge
+                                        badgeContent={action.badge}
+                                        color="error"
+                                        sx={{
+                                            '& .MuiBadge-badge': {
+                                                fontSize: '0.625rem',
+                                                height: 18,
+                                                minWidth: 18,
+                                                borderRadius: 1,
+                                                top: -4,
+                                                right: -4,
+                                            },
+                                        }}
+                                    >
+                                        <IconifyIcon
+                                            icon={action.icon}
+                                            width={open ? 22 : 28}
+                                            height={open ? 22 : 28}
+                                            sx={{
+                                                transition: 'transform 0.2s ease',
+                                                color: theme.palette.primary.main,
+                                            }}
+                                        />
+                                    </Badge>
+                                }
+                            >
+                                {open && (
+                                    <Box sx={{ flex: 1, textAlign: 'left' }}>
+                                        {action.label}
+                                        {action.badge && action.badge > 0 && (
+                                            <Typography
+                                                component="span"
+                                                sx={{
+                                                    ml: 1,
+                                                    fontSize: '0.625rem',
+                                                    fontWeight: 700,
+                                                    color: theme.palette.error.main,
+                                                }}
+                                            >
+                                                • {action.badge} new
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                )}
+                            </Button>
+                        </Tooltip>
+                    ))}
+                </Stack>
+            </Box>
+        </Box>
     );
 };
 
