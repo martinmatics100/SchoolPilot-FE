@@ -200,7 +200,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             </Toolbar>
 
             <SimpleBar style={{
-                maxHeight: "100vh",
+                maxHeight: "70vh",
                 minHeight: "100vh",
                 backgroundColor: theme.palette.background.default,
                 display: 'flex',
