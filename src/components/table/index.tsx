@@ -276,7 +276,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
         </Box>
       )}
 
-      <TableContainer sx={{ maxHeight: 600, overflowX: "auto" }}>
+      <TableContainer sx={{ maxHeight: 400, overflowX: "auto" }}>
         <Table stickyHeader aria-label="reusable table" sx={{ minWidth: 800 }}>
           <TableHead>
             <TableRow

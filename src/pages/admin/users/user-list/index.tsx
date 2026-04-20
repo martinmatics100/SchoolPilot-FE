@@ -377,23 +377,6 @@ const Index = () => {
                 minHeight: '100%',
             }}
         >
-            {/* Header with Stats */}
-            <Box sx={{ mb: 3 }}>
-                <Typography
-                    variant="h5"
-                    sx={{
-                        fontWeight: 700,
-                        color: 'text.primary',
-                        fontSize: { xs: '1.25rem', sm: '1.5rem' },
-                        mb: 0.5,
-                    }}
-                >
-                    Users Management
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Manage all users across your school
-                </Typography>
-            </Box>
 
             {/* Action Buttons - Far Right */}
             <Box
@@ -463,9 +446,9 @@ const Index = () => {
             </Box>
 
             {/* Filters */}
-            <Box sx={{ mb: 2 }}>
+            {/* <Box sx={{ mb: 2 }}>
                 <FilterComponent filters={filterConfigs} />
-            </Box>
+            </Box> */}
 
             {/* Table */}
             <ReusableTable

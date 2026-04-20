@@ -335,7 +335,7 @@ const ActivityLog = () => {
                 sx={{
                     p: { xs: 2, sm: 3, md: 4 },
                     bgcolor: 'background.default',
-                    minHeight: '100%',
+                    minHeight: '80%',
                 }}
             >
                 <Box sx={{ maxWidth: '1600px', mx: 'auto' }}>

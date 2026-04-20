@@ -12,7 +12,7 @@ const navItems: INavbarItem[] = [
     {
         id: 1,
         path: '/app/welcome',
-        title: 'Welcome Overview',
+        title: 'Overview',
         icon: 'mdi:view-dashboard',
         active: true,
         group: 'DASHBOARD',

@@ -16,6 +16,8 @@ import {
   printClassBroadsheet,
 } from "../../../api/classServices";
 import { CircularProgress } from "@mui/material";
+import { ActionButton } from "../../../components/action-button";
+import IconifyIcon from "../../../components/base/iconifyIcon";
 
 const ExampleBroadsheetPage = () => {
   const { enums, isLoading } = useEnums({ fetchPermissionData: false });
@@ -276,12 +278,26 @@ const ExampleBroadsheetPage = () => {
       {showBroadsheet && (
         <Box>
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <Button variant="outlined" onClick={handlePrint} disabled={isPrinting} startIcon={isPrinting ? <CircularProgress size={20} color="inherit" /> : null}>
-              {isPrinting ? "Printing in progress..." : "Print"}
-            </Button>
-            <Button variant="outlined" onClick={handleDownload}>
-              Download
-            </Button>
+            <ActionButton
+              onClick={handlePrint}
+              disabled={isPrinting}
+              loading={isPrinting}
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<IconifyIcon icon="mdi:printer-outline" width={16} />}
+            >
+              {isPrinting ? "Printing..." : "Print"}
+            </ActionButton>
+            <ActionButton
+              onClick={handleDownload}
+              variant="outlined"
+              color="success"
+              size="small"
+              startIcon={<IconifyIcon icon="mdi:download-outline" width={16} />}
+            >
+              Download CSV
+            </ActionButton>
           </Box>
 
           <BroadsheetTable

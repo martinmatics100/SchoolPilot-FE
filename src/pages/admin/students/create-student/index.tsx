@@ -355,7 +355,7 @@ const CreateStudent: React.FC = () => {
           httpStatus={500}
         />
       )}
-      <NavigationButton to="/students" sx={{ alignContent: "flex-end" }}>
+      <NavigationButton to="/app/students" sx={{ alignContent: "flex-end" }} variant="outlined">
         Go to Student List
       </NavigationButton>
 

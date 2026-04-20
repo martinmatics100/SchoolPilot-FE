@@ -338,8 +338,9 @@ const CreateStaff = () => {
                 httpStatus={alertMessage.httpStatus}
             />
             <NavigationButton
-                to=""
+                to="/app/users"
                 sx={{ alignContent: 'flex-end' }}
+                variant='outlined'
             >
                 Go to User List
             </NavigationButton>
