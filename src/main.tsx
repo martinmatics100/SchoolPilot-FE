@@ -11,6 +11,7 @@ import ThemeModeProvider from './theme/theme-toggle/themeModeContext';
 import { ReactQueryProvider } from './providers/QueryClientProvider';
 import ErrorBoundary from './components/error-boundary/index.tsx';
 import { MessageProvider } from './context/messageContext.tsx';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 createRoot(document.getElementById('root')!).render(
   // <React.StrictMode>
@@ -30,3 +31,5 @@ createRoot(document.getElementById('root')!).render(
   </MessageProvider>
   // </React.StrictMode>
 )
+
+serviceWorkerRegistration.register();

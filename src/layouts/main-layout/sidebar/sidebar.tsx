@@ -138,12 +138,25 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             badge: 3,
         },
         {
-            id: 'announcements',
-            icon: 'solar:megaphone-bold-duotone',
-            label: 'Announcements',
-            href: '/announcements',
-            badge: 1,
+            id: 'install-app',
+            icon: 'solar:download-bold-duotone',
+            label: 'Install App',
+            onClick: () => {
+                // Trigger PWA install
+                const installPromptEvent = (window as any).deferredPrompt;
+                if (installPromptEvent) {
+                    installPromptEvent.prompt();
+                }
+            },
+            badge: undefined,
         },
+        // {
+        //     id: 'announcements',
+        //     icon: 'solar:megaphone-bold-duotone',
+        //     label: 'Announcements',
+        //     href: '/announcements',
+        //     badge: 1,
+        // },
         // {
         //     id: 'download-app',
         //     icon: 'solar:download-bold-duotone',
