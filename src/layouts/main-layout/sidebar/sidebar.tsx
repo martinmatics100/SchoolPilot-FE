@@ -130,20 +130,20 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
 
     // Bottom actions configuration
     const bottomActions: BottomAction[] = [
-        {
-            id: 'news-feed',
-            icon: 'solar:newspaper-bold-duotone',
-            label: 'Latest News',
-            href: '/news-feed',
-            badge: 3,
-        },
-        {
-            id: 'announcements',
-            icon: 'solar:megaphone-bold-duotone',
-            label: 'Announcements',
-            href: '/announcements',
-            badge: 1,
-        },
+        // {
+        //     id: 'news-feed',
+        //     icon: 'solar:newspaper-bold-duotone',
+        //     label: 'Latest News',
+        //     href: '/news-feed',
+        //     badge: 3,
+        // },
+        // {
+        //     id: 'announcements',
+        //     icon: 'solar:megaphone-bold-duotone',
+        //     label: 'Announcements',
+        //     href: '/announcements',
+        //     badge: 1,
+        // },
         {
             id: 'download-app',
             icon: 'solar:download-bold-duotone',
