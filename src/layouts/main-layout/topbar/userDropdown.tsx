@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import useUserMenuItems from '../../../data/user-menu-items';
 import CircularImage from '../../../components/circular-image';
+import paths from '../../../routes/paths';
 
 
 
@@ -32,8 +33,8 @@ const UserDropdown = (): ReactElement => {
 
     const handleLogout = useCallback(() => {
         handleUserClose();
-        logout();
-        navigate('/authentication/login');
+        // logout();
+        navigate(paths.logout);
     }, [logout, navigate]);
 
     return (

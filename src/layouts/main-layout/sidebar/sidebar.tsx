@@ -144,13 +144,13 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             href: '/announcements',
             badge: 1,
         },
-        // {
-        //     id: 'download-app',
-        //     icon: 'solar:download-bold-duotone',
-        //     label: 'Download App',
-        //     href: 'https://play.google.com/store/apps/details?id=com.schoolpilot',
-        //     external: true,
-        // },
+        {
+            id: 'download-app',
+            icon: 'solar:download-bold-duotone',
+            label: 'Download App',
+            href: 'https://play.google.com/store/apps/details?id=com.schoolpilot',
+            external: true,
+        },
         {
             id: 'feedback',
             icon: 'solar:chat-round-like-bold-duotone',

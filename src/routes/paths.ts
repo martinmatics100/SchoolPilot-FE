@@ -7,6 +7,7 @@ export const rootPaths = {
 const paths = {
     home: `/${rootPaths.homeRoot}`,
     login: `${rootPaths.authRoot}/login`,
+    logout: `${rootPaths.authRoot}/logout`,
     signup: `${rootPaths.authRoot}/signup`,
     notFound: `${rootPaths.errorRoot}/404`,
 };

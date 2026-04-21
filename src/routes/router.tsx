@@ -31,6 +31,10 @@ const LoginPage = lazy<() => ReactElement>(
   () => import("../pages/authentication/login/index"),
 );
 
+const LogOutPage = lazy<() => ReactElement>(
+  () => import("../pages/authentication/logout/index"),
+);
+
 const CreatSchoolAccountPage = lazy<() => ReactElement>(
   () => import("../pages/authentication/create-school/index"),
 );
@@ -393,6 +397,14 @@ const routes: RouteObject[] = [
             element: (
               <ProtectedRoute requireAccountSelection={false}>
                 <LoginPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: paths.logout,
+            element: (
+              <ProtectedRoute requireAccountSelection={false}>
+                <LogOutPage />,
               </ProtectedRoute>
             ),
           },
