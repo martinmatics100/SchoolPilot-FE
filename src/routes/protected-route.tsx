@@ -16,7 +16,7 @@ export const ProtectedRoute = ({
     const { isAuthenticated, selectedAccount } = useAuth();
     const location = useLocation();
 
-    // IMPORTANT: Check for logout page FIRST
+    // IMPORTANT: Check for logout page FIRST - allow access without any checks
     const isLogoutPage = location.pathname === paths.logout;
     const isLoginPage = location.pathname === paths.login;
     const isLoginSuccessPage = location.pathname === '/authentication/welcome';
@@ -27,18 +27,19 @@ export const ProtectedRoute = ({
         return <>{children}</>;
     }
 
-    // If trying to access login page while authenticated, redirect to welcome
+    // If on login page and authenticated, redirect to welcome
     if (isLoginPage && isAuthenticated) {
         return <Navigate to="/authentication/welcome" replace />;
     }
 
     // If not authenticated and trying to access protected routes
     if (!isAuthenticated && !isLoginPage && !isLoginSuccessPage) {
+        // Use replace to prevent back button issues
         return <Navigate to={paths.login} state={{ from: location }} replace />;
     }
 
-    // If account selection is required but no account selected
-    if (requireAccountSelection && !selectedAccount && !isAccountSelectionRoute && !isLoginSuccessPage) {
+    // If authenticated but no account selected
+    if (isAuthenticated && requireAccountSelection && !selectedAccount && !isAccountSelectionRoute && !isLoginSuccessPage) {
         return <Navigate to={paths.home} replace />;
     }
 

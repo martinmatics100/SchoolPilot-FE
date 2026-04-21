@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+// src/pages/authentication/logout/index.tsx
+import { useEffect, useRef } from 'react';
 import { Box, Paper, Stack, Typography, CircularProgress, Fade } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context';
@@ -10,17 +11,74 @@ const Logout = () => {
     const theme = useTheme();
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const hasNavigated = useRef(false); // Prevent multiple navigations
+
+
+    // Add abort controller for cleanup
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const performLogout = async () => {
+            if (hasNavigated.current || !isMounted) return;
+
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                if (!isMounted || abortController.signal.aborted) return;
+
+                await logout();
+
+                if (!isMounted || abortController.signal.aborted) return;
+
+                if (!hasNavigated.current) {
+                    hasNavigated.current = true;
+                    navigate(paths.login, { replace: true });
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                if (!hasNavigated.current && isMounted) {
+                    hasNavigated.current = true;
+                    navigate(paths.login, { replace: true });
+                }
+            }
+        };
+
+        performLogout();
+
+        // Cleanup function
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, [logout, navigate]);
 
     useEffect(() => {
         const performLogout = async () => {
-            // Wait a moment to show the logout animation
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Prevent double execution
+            if (hasNavigated.current) return;
 
-            // Perform logout
-            await logout();
+            try {
+                // Wait a moment to show the logout animation
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
-            // Navigate to login page
-            navigate(paths.login, { replace: true });
+                // Perform logout
+                await logout();
+
+                // Only navigate if not already navigated
+                if (!hasNavigated.current) {
+                    hasNavigated.current = true;
+                    // Use replace to prevent going back to logout page
+                    navigate(paths.login, { replace: true });
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                // On error, still try to navigate to login
+                if (!hasNavigated.current) {
+                    hasNavigated.current = true;
+                    navigate(paths.login, { replace: true });
+                }
+            }
         };
 
         performLogout();
@@ -173,7 +231,6 @@ const Logout = () => {
                 </Paper>
             </Fade>
 
-            {/* Add keyframes animations */}
             <style>
                 {`
                     @keyframes pulse {
