@@ -428,6 +428,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(STORAGE_KEYS.SELECTED_ROLE);
       localStorage.removeItem(STORAGE_KEYS.SELECTED_ACCOUNT);
       localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCHES);
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
 
       // navigate("/authentication/login");
     }
