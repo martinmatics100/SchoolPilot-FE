@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/schoolpilot/dev-sw.js?dev-sw', { scope: '/schoolpilot/', type: 'classic' })

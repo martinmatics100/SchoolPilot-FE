@@ -4,7 +4,6 @@ import Topbar from './topbar/topbar';
 import Sidebar from './sidebar/sidebar';
 import { Footer } from './footer/footer'; // ✅ FIXED HERE
 import { useTheme } from '@mui/material';
-import { PWAInstallButton } from '../../components/PWAInstallButton'; 
 
 export const drawerOpenWidth = 240;
 export const drawerCloseWidth = 110;
@@ -70,7 +69,6 @@ const MainLayout = ({ children }: PropsWithChildren): ReactElement => {
             </Box>
 
             <Footer open={open} sx={{ position: 'fixed', bottom: 0, width: '100%', bgcolor: theme.palette.common.black }} />
-            <PWAInstallButton />
         </>
     );
 };

@@ -1,36 +1,5 @@
-[build]
-  command = "npm run build"
-  publish = "dist"
-
-# Headers for security and caching
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-# Service worker must NOT be cached
-[[headers]]
-  for = "/schoolpilot/sw.js"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
-
-# Manifest should have short cache
-[[headers]]
-  for = "/schoolpilot/manifest.json"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
-
-# SPA redirects - All routes go to index.html
+# netlify.toml
 [[redirects]]
-  from = "/schoolpilot/*"
-  to = "/schoolpilot/index.html"
+  from = "/*"
+  to = "/index.html"
   status = 200
-
-# Redirect root to schoolpilot
-[[redirects]]
-  from = "/"
-  to = "/schoolpilot/"
-  status = 301
