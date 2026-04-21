@@ -30,6 +30,20 @@ import MessageDisplay from '../../../components/message-display';
 import { type MessageDisplayProps } from '../../../components/message-display';
 import { useTheme } from "@mui/material";
 
+// Validation helper functions
+const validateEmail = (email: string): string | null => {
+    if (!email.trim()) return 'Email is required';
+    const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Please enter a valid email address';
+    return null;
+};
+
+const validatePassword = (password: string): string | null => {
+    if (!password) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
+    return null;
+};
+
 const Login = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -42,8 +56,92 @@ const Login = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [messageProps, setMessageProps] = useState<Partial<MessageDisplayProps> | null>(null);
 
+    // Validation state
+    const [touched, setTouched] = useState({
+        email: false,
+        password: false
+    });
+
+    // Error state
+    const [errors, setErrors] = useState({
+        email: '',
+        password: ''
+    });
+
+    // Real-time validation
+    const validateField = (field: 'email' | 'password', value: string) => {
+        if (field === 'email') {
+            const error = validateEmail(value);
+            setErrors(prev => ({ ...prev, email: error || '' }));
+            return !error;
+        } else {
+            const error = validatePassword(value);
+            setErrors(prev => ({ ...prev, password: error || '' }));
+            return !error;
+        }
+    };
+
+    // Handle email change
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setEmail(value);
+        if (touched.email) {
+            validateField('email', value);
+        }
+    };
+
+    // Handle password change
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setPassword(value);
+        if (touched.password) {
+            validateField('password', value);
+        }
+    };
+
+    // Handle field blur
+    const handleBlur = (field: 'email' | 'password') => {
+        setTouched(prev => ({ ...prev, [field]: true }));
+        if (field === 'email') {
+            validateField('email', email);
+        } else {
+            validateField('password', password);
+        }
+    };
+
+    // Check if form is valid
+    const isFormValid = (): boolean => {
+        const emailError = validateEmail(email);
+        const passwordError = validatePassword(password);
+
+        const newErrors = {
+            email: emailError || '',
+            password: passwordError || ''
+        };
+
+        setErrors(newErrors);
+
+        return !emailError && !passwordError;
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+
+        // Mark all fields as touched
+        setTouched({
+            email: true,
+            password: true
+        });
+
+        // Validate form before submission
+        if (!isFormValid()) {
+            setMessageProps({
+                feMessage: 'Please fix the errors before submitting',
+                httpStatus: 400
+            });
+            return;
+        }
+
         setLoading(true);
         setMessageProps(null);
 
@@ -61,7 +159,7 @@ const Login = () => {
 
             } else {
                 setMessageProps({
-                    feMessage: result.message,
+                    feMessage: result.message || 'Login failed. Please check your credentials.',
                     httpStatus: result.status
                 });
                 console.error(`Error Message:`, result.message);
@@ -87,8 +185,8 @@ const Login = () => {
     // Modern gradient background
     const gradientBackground = `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.95)} 0%, ${alpha(theme.palette.secondary.dark, 0.85)} 100%)`;
 
-    // Modern input styles with floating effect
-    const modernInputStyles = {
+    // Modern input styles with floating effect and error handling
+    const modernInputStyles = (hasError: boolean) => ({
         '& .MuiFilledInput-root': {
             bgcolor: alpha(theme.palette.background.paper, 0.6),
             backdropFilter: 'blur(10px)',
@@ -103,19 +201,30 @@ const Login = () => {
                 transform: 'translateY(-2px)',
                 boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
             },
+            ...(hasError && {
+                border: `1px solid ${theme.palette.error.main}`,
+                '&:hover': {
+                    border: `1px solid ${theme.palette.error.main}`,
+                },
+            }),
         },
         '& .MuiInputLabel-root': {
-            color: theme.palette.text.secondary,
+            color: hasError ? theme.palette.error.main : theme.palette.text.secondary,
             fontWeight: 500,
             '&.Mui-focused': {
-                color: theme.palette.primary.main,
+                color: hasError ? theme.palette.error.main : theme.palette.primary.main,
             },
         },
         '& .MuiFilledInput-input': {
             color: theme.palette.text.primary,
             padding: '16px 20px',
         },
-    };
+        '& .MuiFormHelperText-root': {
+            color: theme.palette.error.main,
+            marginLeft: 0,
+            fontWeight: 500,
+        },
+    });
 
     return (
         <Box
@@ -259,46 +368,55 @@ const Login = () => {
                                 </Typography>
 
                                 {/* Login Form */}
-                                <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+                                <form onSubmit={handleSubmit} style={{ width: '100%' }} noValidate>
                                     <Stack spacing={3}>
                                         <TextField
                                             variant="filled"
                                             label="Email Address"
                                             type="email"
                                             value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            sx={modernInputStyles}
+                                            onChange={handleEmailChange}
+                                            onBlur={() => handleBlur('email')}
+                                            error={touched.email && !!errors.email}
+                                            helperText={touched.email && errors.email}
+                                            sx={modernInputStyles(touched.email && !!errors.email)}
                                             fullWidth
                                             placeholder="teacher@school.com"
+                                            disabled={loading}
                                             InputProps={{
                                                 disableUnderline: true,
                                                 startAdornment: (
                                                     <InputAdornment position="start">
                                                         <IconifyIcon
                                                             icon="mdi:email-outline"
-                                                            color={theme.palette.text.secondary}
+                                                            color={touched.email && errors.email ? theme.palette.error.main : theme.palette.text.secondary}
                                                             width={20}
                                                         />
                                                     </InputAdornment>
                                                 ),
                                             }}
                                         />
+
                                         <TextField
                                             variant="filled"
                                             label="Password"
                                             type={showPassword ? 'text' : 'password'}
                                             value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            sx={modernInputStyles}
+                                            onChange={handlePasswordChange}
+                                            onBlur={() => handleBlur('password')}
+                                            error={touched.password && !!errors.password}
+                                            helperText={touched.password && errors.password}
+                                            sx={modernInputStyles(touched.password && !!errors.password)}
                                             fullWidth
                                             placeholder="Enter your password"
+                                            disabled={loading}
                                             InputProps={{
                                                 disableUnderline: true,
                                                 startAdornment: (
                                                     <InputAdornment position="start">
                                                         <IconifyIcon
                                                             icon="mdi:lock-outline"
-                                                            color={theme.palette.text.secondary}
+                                                            color={touched.password && errors.password ? theme.palette.error.main : theme.palette.text.secondary}
                                                             width={20}
                                                         />
                                                     </InputAdornment>
@@ -310,6 +428,7 @@ const Login = () => {
                                                             onClick={handleClickShowPassword}
                                                             size="small"
                                                             edge="end"
+                                                            disabled={loading}
                                                             sx={{
                                                                 mr: 1,
                                                                 color: theme.palette.text.secondary,
@@ -346,6 +465,7 @@ const Login = () => {
                                                                 color: theme.palette.primary.main,
                                                             },
                                                         }}
+                                                        disabled={loading}
                                                     />
                                                 }
                                                 label="Remember me"
@@ -416,6 +536,7 @@ const Login = () => {
                                                 startIcon={<IconifyIcon icon="flat-color-icons:google" width={24} />}
                                                 variant="outlined"
                                                 fullWidth
+                                                disabled={loading}
                                                 sx={{
                                                     py: 1.2,
                                                     borderRadius: '12px',
@@ -437,6 +558,7 @@ const Login = () => {
                                                 startIcon={<IconifyIcon icon="logos:facebook" width={24} />}
                                                 variant="outlined"
                                                 fullWidth
+                                                disabled={loading}
                                                 sx={{
                                                     py: 1.2,
                                                     borderRadius: '12px',
