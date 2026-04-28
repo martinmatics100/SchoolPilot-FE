@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
     Drawer,
     IconButton,
@@ -26,6 +26,7 @@ import {
 } from "../../../../api/studentService";
 import { type Branch } from "../../../../types/interfaces/i-user";
 import { type StudentDetail, type UpdateStudentPayload } from "../../../../types/interfaces/i-student";
+import { useAssetUpload } from "../../../../hooks/useAsset";
 
 interface AddressData {
     addressLine1: string;
@@ -60,6 +61,16 @@ const EditStudentDrawer = ({
         fetchPermissionData: false,
     });
     const { apiClient, selectedAccount } = useAuth();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Asset upload hook
+    const {
+        upload,
+        isUploading: isPhotoUploading,
+        uploadProgress,
+        error: uploadError,
+        clearError: clearUploadError
+    } = useAssetUpload(selectedAccount);
 
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
@@ -82,7 +93,13 @@ const EditStudentDrawer = ({
         classLevel?: number;
     } | null>(null);
 
+    // State for photo management
+    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
+    const [hasPhotoChanged, setHasPhotoChanged] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const [dotCount, setDotCount] = useState(0);
+
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
 
@@ -112,8 +129,85 @@ const EditStudentDrawer = ({
             setSelectedClass(null);
             setAlertMessage({});
             setFormFields([]);
+            setUploadedPhotoAssetId(null);
+            setHasPhotoChanged(false);
+            clearUploadError();
         }
-    }, [open]);
+    }, [open, clearUploadError]);
+
+    // Handle file selection and upload
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            setAlertMessage({
+                feMessage: "Invalid file type. Please upload JPG, PNG, or WEBP images only.",
+                httpStatus: 400
+            });
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setAlertMessage({
+                feMessage: "File too large. Maximum size is 5MB.",
+                httpStatus: 400
+            });
+            return;
+        }
+
+        setHasPhotoChanged(true);
+        clearUploadError();
+
+        // Show preview immediately
+        const previewUrl = URL.createObjectURL(file);
+        setStudentPhotoUrl(previewUrl);
+
+        setAlertMessage({ feMessage: "Uploading new profile picture..." });
+
+        const result = await upload(file);
+
+        if (result) {
+            setUploadedPhotoAssetId(result.fileId);
+            setAlertMessage({ feMessage: "Profile picture uploaded successfully! Click Update Student to save changes." });
+            // Clear success message after 3 seconds
+            setTimeout(() => {
+                if (alertMessage.feMessage === "Profile picture uploaded successfully! Click Update Student to save changes.") {
+                    setAlertMessage({});
+                }
+            }, 3000);
+        } else {
+            // Revert preview on failure
+            setStudentPhotoUrl(studentData?.photoUrl || null);
+            setAlertMessage({ feMessage: "Failed to upload profile picture", httpStatus: 500 });
+        }
+
+        // Clear the file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    // Handle photo removal
+    const handleRemovePhoto = async () => {
+        setHasPhotoChanged(true);
+        setUploadedPhotoAssetId(null);
+        setStudentPhotoUrl(null);
+        setAlertMessage({ feMessage: "Photo will be removed when you update the student" });
+        setTimeout(() => {
+            setAlertMessage({});
+        }, 2000);
+    };
+
+    // Open file picker when clicking the avatar
+    const handleAvatarClick = () => {
+        if (!isPhotoUploading && !isSubmitting) {
+            fileInputRef.current?.click();
+        }
+    };
 
     useEffect(() => {
         const loadBranches = async () => {
@@ -196,6 +290,7 @@ const EditStudentDrawer = ({
                         classId: student.classRoomId || '',
                         status: statusEnum?.value?.toString() || '',
                         address: formattedAddress,
+                        photoUrl: student.photoUrl,
                     };
 
                     setStudentData(formattedData);
@@ -343,6 +438,7 @@ const EditStudentDrawer = ({
 
     const handleSubmit = async (data: any) => {
         try {
+            setIsSubmitting(true);
             setAlertMessage({ feMessage: "Updating student data..." });
 
             const genderValue = data.gender ? parseInt(data.gender) : 0;
@@ -353,6 +449,7 @@ const EditStudentDrawer = ({
                 AddressLine1: data.address.addressLine1 || "",
                 State: data.address.state || "",
                 Country: data.address.country || "",
+                ZipCode: data.address.postalCode || "",
             } : undefined;
 
             const payload: UpdateStudentPayload = {
@@ -367,6 +464,10 @@ const EditStudentDrawer = ({
                 DateOfBirth: data.dateOfBirth,
                 Address: formattedAddress,
                 Notes: data.notes,
+                // Include PhotoAssetId if a new photo was uploaded
+                ...(hasPhotoChanged && {
+                    PhotoAssetId: uploadedPhotoAssetId || null, // null will remove the photo
+                }),
             };
 
             const response = await updateStudent(selectedAccount!, studentId!, payload);
@@ -391,6 +492,8 @@ const EditStudentDrawer = ({
                 beMessage: error.message,
                 httpStatus: error.status || 500,
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -400,6 +503,9 @@ const EditStudentDrawer = ({
         setStudentPhotoUrl(null);
         setSelectedClass(null);
         setFormFields([]);
+        setUploadedPhotoAssetId(null);
+        setHasPhotoChanged(false);
+        clearUploadError();
         onClose();
     };
 
@@ -423,6 +529,9 @@ const EditStudentDrawer = ({
         return `${baseText}${dots}`;
     };
 
+    // Check if submit should be disabled
+    const isSubmitDisabled = isPhotoUploading || isSubmitting;
+
     return (
         <Drawer
             anchor="right"
@@ -444,6 +553,15 @@ const EditStudentDrawer = ({
                 },
             }}
         >
+            {/* Hidden file input */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+            />
+
             <Fade in={open} timeout={300}>
                 <Box>
                     {/* Header */}
@@ -516,7 +634,18 @@ const EditStudentDrawer = ({
                         </Box>
                     )}
 
-                    {/* Student Avatar */}
+                    {/* Upload Error Display */}
+                    {uploadError && (
+                        <Box sx={{ mb: 3 }}>
+                            <MessageDisplay
+                                feMessage="Upload Error"
+                                beMessage={uploadError}
+                                httpStatus={500}
+                            />
+                        </Box>
+                    )}
+
+                    {/* Student Avatar - Clickable */}
                     <Grow in={!!studentData} timeout={500}>
                         <Box
                             sx={{
@@ -527,30 +656,134 @@ const EditStudentDrawer = ({
                                 mt: 2,
                             }}
                         >
-                            <Paper
-                                elevation={0}
+                            <Box
                                 sx={{
-                                    borderRadius: "50%",
-                                    overflow: "hidden",
-                                    border: `3px solid ${theme.palette.primary.main}`,
-                                    boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                    position: "relative",
+                                    cursor: isPhotoUploading || isSubmitting ? "not-allowed" : "pointer",
+                                    "&:hover": {
+                                        "& .edit-overlay": {
+                                            opacity: 1,
+                                        },
+                                    },
                                 }}
+                                onClick={handleAvatarClick}
                             >
-                                <Avatar
-                                    src={studentPhotoUrl || undefined}
-                                    alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                                <Paper
+                                    elevation={0}
                                     sx={{
-                                        width: { xs: 100, sm: 120 },
-                                        height: { xs: 100, sm: 120 },
-                                        fontSize: { xs: "2.5rem", sm: "3rem" },
-                                        bgcolor: studentPhotoUrl ? "transparent" : theme.palette.primary.main,
-                                        color: "white",
-                                        fontWeight: 600,
+                                        borderRadius: "50%",
+                                        overflow: "hidden",
+                                        border: `3px solid ${theme.palette.primary.main}`,
+                                        boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                        position: "relative",
                                     }}
                                 >
-                                    {!studentPhotoUrl && getInitials()}
-                                </Avatar>
-                            </Paper>
+                                    <Avatar
+                                        src={studentPhotoUrl || undefined}
+                                        alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                                        sx={{
+                                            width: { xs: 100, sm: 120 },
+                                            height: { xs: 100, sm: 120 },
+                                            fontSize: { xs: "2.5rem", sm: "3rem" },
+                                            bgcolor: studentPhotoUrl ? "transparent" : theme.palette.primary.main,
+                                            color: "white",
+                                            fontWeight: 600,
+                                            transition: "opacity 0.3s",
+                                        }}
+                                    >
+                                        {!studentPhotoUrl && getInitials()}
+                                    </Avatar>
+
+                                    {/* Edit overlay */}
+                                    <Box
+                                        className="edit-overlay"
+                                        sx={{
+                                            position: "absolute",
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            bgcolor: alpha(theme.palette.common.black, 0.6),
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            borderRadius: "50%",
+                                            opacity: 0,
+                                            transition: "opacity 0.3s",
+                                            flexDirection: "column",
+                                            gap: 0.5,
+                                        }}
+                                    >
+                                        <IconifyIcon
+                                            icon="mdi:camera"
+                                            width={24}
+                                            sx={{ color: "white" }}
+                                        />
+                                        <Typography
+                                            variant="caption"
+                                            sx={{ color: "white", fontSize: "0.7rem" }}
+                                        >
+                                            Change Photo
+                                        </Typography>
+                                    </Box>
+
+                                    {/* Uploading overlay */}
+                                    {isPhotoUploading && (
+                                        <Box
+                                            sx={{
+                                                position: "absolute",
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                bgcolor: alpha(theme.palette.common.black, 0.7),
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                borderRadius: "50%",
+                                                flexDirection: "column",
+                                                gap: 1,
+                                            }}
+                                        >
+                                            <CircularProgress size={40} sx={{ color: "white" }} />
+                                            <Typography
+                                                variant="caption"
+                                                sx={{ color: "white" }}
+                                            >
+                                                {uploadProgress}%
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </Paper>
+
+                                {/* Remove photo button */}
+                                {studentPhotoUrl && !isPhotoUploading && (
+                                    <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemovePhoto();
+                                        }}
+                                        sx={{
+                                            position: "absolute",
+                                            bottom: 0,
+                                            right: 0,
+                                            bgcolor: theme.palette.error.main,
+                                            color: "white",
+                                            "&:hover": {
+                                                bgcolor: theme.palette.error.dark,
+                                            },
+                                            width: 28,
+                                            height: 28,
+                                            "& .MuiSvgIcon-root": {
+                                                fontSize: 16,
+                                            },
+                                        }}
+                                    >
+                                        <IconifyIcon icon="mdi:delete" width={16} />
+                                    </IconButton>
+                                )}
+                            </Box>
                         </Box>
                     </Grow>
 
@@ -579,9 +812,10 @@ const EditStudentDrawer = ({
                                         title=""
                                         fields={formFields}
                                         onSubmit={handleSubmit}
-                                        submitButtonText="Update Student"
+                                        submitButtonText={isPhotoUploading ? "Uploading Photo..." : isSubmitting ? "Updating Student..." : "Update Student"}
                                         columns={2}
                                         initialValues={studentData}
+                                        submitDisabled={isSubmitDisabled}
                                     />
                                 </Box>
                             </Fade>
