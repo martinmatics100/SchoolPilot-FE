@@ -50,15 +50,15 @@ const navItems: INavbarItem[] = [
 
     // Access Control
 
-    // {
-    //     id: 5,
-    //     path: '/app/permission',
-    //     title: 'Permissions',
-    //     icon: 'mdi:shield-account',
-    //     active: true,
-    //     group: 'Access Control',
-    //     roles: [UserRoles.ADMIN],
-    // },
+    {
+        id: 5,
+        path: '/app/permission',
+        title: 'Permissions',
+        icon: 'mdi:shield-account',
+        active: true,
+        group: 'Access Control',
+        roles: [UserRoles.ADMIN],
+    },
     {
         id: 6,
         path: '/app/audit',

@@ -74,9 +74,9 @@ const SchoolLevels = lazy(
 const SchoolSubjects = lazy(
   () => import("../pages/admin/academics/subjects/index"),
 );
-const CreateSubject = lazy(
-  () => import("../pages/admin/academics/subjects/createSubject"),
-);
+// const CreateSubject = lazy(
+//   () => import("../pages/admin/academics/subjects/createSubject"),
+// );
 const SchoolClasses = lazy(
   () => import("../pages/admin/academics/classes/index"),
 );
@@ -279,14 +279,14 @@ const routes: RouteObject[] = [
                   </ErrorBoundary>
                 ),
               },
-              {
-                path: "create-subject",
-                element: (
-                  <ErrorBoundary>
-                    <CreateSubject />
-                  </ErrorBoundary>
-                ),
-              },
+              // {
+              //   path: "create-subject",
+              //   element: (
+              //     <ErrorBoundary>
+              //       <CreateSubject />
+              //     </ErrorBoundary>
+              //   ),
+              // },
             ],
           },
           {

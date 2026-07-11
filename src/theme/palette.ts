@@ -7,6 +7,7 @@ declare module '@mui/material/styles' {
         linkHover?: string;
         linkActive?: string;
         muted?: string;
+        checked?: string;
     }
 }
 
@@ -57,6 +58,7 @@ const darkPalette: PaletteOptions = {
         linkHover: teal[300],
         linkActive: teal[700],
         muted: stone[400],
+        checked: grey[900],    
     },
     divider: stone[700],
     action: {
@@ -115,6 +117,7 @@ const lightPalette: PaletteOptions = {
         linkHover: teal[300],
         linkActive: teal[700],
         muted: stone[400],
+        checked: stone[900],    
     },
     divider: stone[700],
     action: {

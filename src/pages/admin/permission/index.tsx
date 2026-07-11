@@ -623,7 +623,7 @@ const PermissionTable: React.FC = () => {
         transform: 'scale(1.35)',
         color: theme.palette.grey[500],
         '&.Mui-checked': {
-            color: theme.palette.text.link,
+            color: theme.palette.text.checked,
         },
     };
 

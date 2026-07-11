@@ -3,7 +3,7 @@ import { ReusableTable, type Column } from "../../../../components/table";
 import { getInitialAuthData } from "../../../../utils/apiClient";
 import { useEnums } from "../../../../hooks/useEnums";
 import { NavigationButton } from "../../../../components/navigation-button";
-import { fetchClassesWithSubjects, updateClassSubjects } from "../../../../api/subjectServies";
+import { fetchClassesWithSubjects, createSubject } from "../../../../api/subjectServies";
 import {
   Alert,
   Box,
@@ -29,6 +29,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
+import { useAuth } from "../../../../context";
 
 // Define the actual interface based on your API response
 interface ClassSubjectsResponse {
@@ -36,6 +37,18 @@ interface ClassSubjectsResponse {
   className: string;
   subjects: number[];
 }
+
+// Define the subject assignment type
+interface SubjectAssignment {
+  subjectId: number;
+  subjectType: number;
+  applicableStream?: number | null;
+}
+
+const SubjectAssignmentType = {
+  Core: 1,
+  Elective: 2,
+} as const;
 
 const Subjects = () => {
   const [data, setData] = useState<ClassSubjectsResponse[]>([]);
@@ -57,7 +70,7 @@ const Subjects = () => {
   const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
   const [updating, setUpdating] = useState(false);
 
-  const { selectedAccount } = getInitialAuthData();
+  const { apiClient, selectedAccount } = useAuth();
   const { enums, isLoading: isEnumLoading } = useEnums({
     fetchPermissionData: false,
   });
@@ -175,14 +188,28 @@ const Subjects = () => {
 
     setUpdating(true);
     try {
-      // Call API to update class subjects
-      await updateClassSubjects(selectedAccount, selectedClass.classId, {
-        subjects: selectedSubjects
-      });
+      // Build the subject assignments array
+      // All subjects are treated as Core (type 1) since we're not handling streams in this modal
+      const subjectAssignments: SubjectAssignment[] = selectedSubjects.map(subjectId => ({
+        subjectId: subjectId,
+        subjectType: SubjectAssignmentType.Core,
+        applicableStream: null,
+      }));
+
+      // Prepare the payload
+      const payload = {
+        classId: selectedClass.classId,
+        subjectAssignments: subjectAssignments,
+      };
+
+      console.log("Payload being sent:", payload); // For debugging
+
+      // Call createSubject API
+      await createSubject(apiClient, payload);
 
       setSnackbar({
         open: true,
-        message: "Subjects updated successfully",
+        message: "Subjects assigned successfully",
         severity: "success",
       });
 
@@ -197,11 +224,11 @@ const Subjects = () => {
       // Close modal
       setEditModalOpen(false);
       setSelectedClass(null);
-    } catch (error) {
-      console.error("Failed to update subjects", error);
+    } catch (error: any) {
+      console.error("Failed to assign subjects", error);
       setSnackbar({
         open: true,
-        message: "Failed to update subjects",
+        message: error.response?.data?.title || "Failed to assign subjects",
         severity: "error",
       });
     } finally {
@@ -240,9 +267,9 @@ const Subjects = () => {
         <IconButton aria-label="edit" onClick={() => handleEdit(row)}>
           <EditIcon color="primary" />
         </IconButton>
-        <IconButton aria-label="delete" onClick={() => handleDelete(row.classId)}>
+        {/* <IconButton aria-label="delete" onClick={() => handleDelete(row.classId)}>
           <DeleteIcon color="primary" />
-        </IconButton>
+        </IconButton> */}
       </div>
     ),
   };
@@ -276,19 +303,6 @@ const Subjects = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "8px",
-          marginBottom: "8px",
-        }}
-      >
-        <NavigationButton to="create-subject" sx={{ alignContent: "flex-end" }}>
-          <AddIcon />
-        </NavigationButton>
-      </div>
-
       <ReusableTable
         title="Subject List"
         columns={columns}
@@ -367,6 +381,20 @@ const Subjects = () => {
                           checked={selectedSubjects.includes(subject.value)}
                           onChange={() => handleSubjectToggle(subject.value)}
                           color="primary"
+                          sx={{
+                            '& .MuiSvgIcon-root': {
+                              fontSize: 20,
+                            },
+                            '&.Mui-checked': {
+                              color: theme.palette.text.checked,
+                              '& .MuiSvgIcon-root': {
+                                fontSize: 20,
+                              },
+                            },
+                            '&:hover': {
+                              backgroundColor: 'rgba(211, 47, 47, 0.04)',
+                            },
+                          }}
                         />
                       }
                       label={subject.displayName || subject.name}
@@ -376,6 +404,9 @@ const Subjects = () => {
                           backgroundColor: theme.palette.action.hover,
                         },
                         borderRadius: 1,
+                        '& .MuiFormControlLabel-label': {
+                          fontSize: '1rem',
+                        },
                       }}
                     />
                   ))
@@ -402,8 +433,8 @@ const Subjects = () => {
                     onDelete={() => handleSubjectToggle(subjectValue)}
                     deleteIcon={<CloseIcon />}
                     sx={{
-                      backgroundColor: theme.palette.primary.light,
-                      color: theme.palette.primary.contrastText,
+                      backgroundColor: theme.palette.background.default,
+                      color: theme.palette.text.secondary,
                       '& .MuiChip-deleteIcon': {
                         color: theme.palette.primary.contrastText,
                         '&:hover': {
