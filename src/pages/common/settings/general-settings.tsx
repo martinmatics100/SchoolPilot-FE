@@ -120,10 +120,10 @@ const GeneralSettings = () => {
         if (!isEnumLoading && schoolDataLoaded && enums && Object.keys(initialValues).length > 0) {
             const fields: FormField[] = [
                 {
-                    name: "id",  // Add hidden field for ID
+                    name: "id", 
                     label: "School ID",
                     type: "text",
-                    hidden: true,  // This hides the field
+                    hidden: true,
                     colSpan: 1,
                 },
                 {
@@ -140,6 +140,7 @@ const GeneralSettings = () => {
                     type: "text",
                     required: true,
                     colSpan: 1,
+                    readOnly: true,
                 },
                 {
                     name: "principalName",
@@ -161,6 +162,7 @@ const GeneralSettings = () => {
                     required: true,
                     colSpan: 1,
                     options: getEnumOptions(enums.SchoolSessions),
+                    readOnly: true,
                 },
                 {
                     name: "schoolTerm",
@@ -169,6 +171,7 @@ const GeneralSettings = () => {
                     required: true,
                     colSpan: 1,
                     options: getEnumOptions(enums.SchoolTerms),
+                    readOnly: true,
                 },
                 {
                     name: "schoolCategory",
@@ -208,13 +211,15 @@ const GeneralSettings = () => {
                     label: "School Address",
                     type: "address",
                     colSpan: 3,
+                    readOnly: true,
                 },
                 {
                     name: "phoneNumber",
                     label: "School Contact Number",
                     type: "phone",
                     colSpan: 3,
-                    extraProps: { enums }
+                    extraProps: { enums },
+                    readOnly: true,
                 },
             ];
 

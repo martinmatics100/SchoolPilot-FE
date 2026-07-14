@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Box, Typography, Card, CardContent, Grid, CircularProgress, alpha, Divider, Stack, Chip, useMediaQuery } from '@mui/material';
-import Image from '../../../components/base/image';
 import { useTheme } from "@mui/material";
 import { useEnums } from '../../../hooks/useEnums';
-import image from "../../../assets/palmfitLogoWithText.png";
 import { SchoolService } from '../../../api/schoolService';
 import { type SchoolDetails } from '../../../types/interfaces/i-school';
 import IconifyIcon from '../../../components/base/iconifyIcon';
@@ -120,7 +118,7 @@ const Index = () => {
             <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
                 {/* Welcome Header */}
                 <Box sx={{ mb: { xs: 4, sm: 5, md: 6 } }}>
-                    <Typography
+                    {/* <Typography
                         variant="h4"
                         sx={{
                             fontWeight: 700,
@@ -131,7 +129,7 @@ const Index = () => {
                         }}
                     >
                         {greeting},
-                    </Typography>
+                    </Typography> */}
                     <Typography
                         variant="h5"
                         sx={{
@@ -169,27 +167,52 @@ const Index = () => {
                                     gap: { xs: 3, md: 4 },
                                 }}
                             >
-                                {/* Logo */}
+                                {/* Logo Placeholder - No Logo Uploaded */}
                                 <Box
                                     sx={{
                                         flexShrink: 0,
-                                        p: 2.5,
+                                        width: { xs: '120px', sm: '140px', md: '160px' },
+                                        height: { xs: '120px', sm: '140px', md: '160px' },
                                         bgcolor: alpha(theme.palette.primary.main, 0.04),
                                         borderRadius: 4,
-                                        display: 'inline-flex',
+                                        display: 'flex',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                                        p: 2,
                                     }}
                                 >
-                                    <Image
-                                        src={image}
-                                        alt={`${schoolData?.schoolName || 'School'} Logo`}
-                                        sx={{
-                                            width: { xs: '100px', sm: '120px', md: '140px' },
-                                            height: 'auto',
-                                            objectFit: 'contain',
-                                        }}
+                                    <IconifyIcon
+                                        icon="mdi:image-off-outline"
+                                        width={40}
+                                        color={alpha(theme.palette.text.secondary, 0.5)}
                                     />
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: alpha(theme.palette.text.secondary, 0.6),
+                                            mt: 1,
+                                            textAlign: 'center',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 500,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                        }}
+                                    >
+                                        No Logo Yet
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: alpha(theme.palette.text.secondary, 0.4),
+                                            mt: 0.5,
+                                            textAlign: 'center',
+                                            fontSize: '0.6rem',
+                                        }}
+                                    >
+                                        Upload a logo to personalize your school
+                                    </Typography>
                                 </Box>
 
                                 {/* School Details */}

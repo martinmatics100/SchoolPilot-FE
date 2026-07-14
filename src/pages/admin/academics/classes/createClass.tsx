@@ -52,7 +52,7 @@ const CreateClass = () => {
       label: "Class",
       type: "typeahead",
       required: true,
-      placeholder: "Type to search class (e.g. SS1, JSS2)",
+      placeholder: "Type to search class (e.g. PRIMARY 1, JSS2)",
       fetchOptions: fetchSchoolClasses,
     },
     {
