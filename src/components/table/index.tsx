@@ -53,7 +53,6 @@ interface ReusableTableProps {
   showCheckboxes?: boolean;
   showRowsPerPage?: boolean;
   showPagination?: boolean;
-  tableMinWidth?: string | number;
 }
 
 export const ReusableTable: React.FC<ReusableTableProps> = ({
@@ -79,8 +78,6 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
   showCheckboxes = true,
   showRowsPerPage = true,
   showPagination = true,
-  tableMinWidth = "100%",
-
 }) => {
   const [internalPage, setInternalPage] = React.useState(0);
   const [internalRowsPerPage, setInternalRowsPerPage] =
@@ -248,7 +245,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
       sx={{
         width: "100%",
         overflow: "hidden",
-        bgcolor: "background.default",
+        bgcolor: "background.default", // Changed from background.default
         borderRadius: 3,
         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
         transition: "box-shadow 0.2s ease",
@@ -269,7 +266,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
             variant="h6"
             sx={{
               fontWeight: 600,
-              color: "text.secondary",
+              color: "text.primary", // Changed from text.secondary
               fontSize: "1.25rem",
               letterSpacing: "-0.01em",
             }}
@@ -279,18 +276,8 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
         </Box>
       )}
 
-      <TableContainer sx={{
-        maxHeight: 450, overflowX: "auto", "&::-webkit-scrollbar": {
-          height: 0,
-        },
-      }}>
-        <Table stickyHeader aria-label="reusable table"
-          sx={{
-            minWidth: tableMinWidth, tableLayout: "fixed", "& .MuiTableCell-root": {
-              wordBreak: "break-word", // Prevent text overflow
-              whiteSpace: "normal", // Allow text to wrap
-            },
-          }}>
+      <TableContainer sx={{ maxHeight: 450, overflowX: "auto" }}>
+        <Table stickyHeader aria-label="reusable table" sx={{ minWidth: 800 }}>
           <TableHead>
             <TableRow>
               {showCheckboxes && (
@@ -395,7 +382,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                         : alpha(theme.palette.action.hover, 0.04),
                     },
                     "& .MuiTableCell-root": {
-                      borderBottom: `1px solid ${alpha(theme.palette.text.secondary, 0.15)}`,
+                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
                     },
                     "&:last-child .MuiTableCell-root": {
                       borderBottom: "none",
