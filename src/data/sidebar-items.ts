@@ -81,15 +81,15 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    {
-        id: 8,
-        path: '/app/academics/levels',
-        title: 'Levels',
-        icon: 'mdi:stairs',
-        active: true,
-        group: 'Academics',
-        roles: [UserRoles.ADMIN],
-    },
+    // {
+    //     id: 8,
+    //     path: '/app/academics/levels',
+    //     title: 'Levels',
+    //     icon: 'mdi:stairs',
+    //     active: true,
+    //     group: 'Academics',
+    //     roles: [UserRoles.ADMIN],
+    // },
 
     {
         id: 9,
@@ -212,7 +212,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:cog',
         active: true,
         group: 'Settings',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 ]
 

@@ -210,10 +210,14 @@ const DashboardStats: React.FC = () => {
             value: data?.activeStudentCount ?? 0,
             icon: <PeopleIcon fontSize="large" color="primary" />
         },
-
         {
             title: "Active Teachers",
             value: data?.activeTeacherCount ?? 0,
+            icon: <SchoolIcon fontSize="large" color="success" />
+        },
+        {
+            title: "Number of classes",
+            value: data?.numberOfClassRooms ?? 0,
             icon: <SchoolIcon fontSize="large" color="success" />
         },
 

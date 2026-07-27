@@ -13,11 +13,12 @@ import {
   useTheme,
   Chip,
 } from "@mui/material";
-import IconifyIcon from "../../components/base/iconifyIcon";
 
 interface Subject {
   subject: number;
   totalScore: number | null;
+  testScore: number | null;
+  examScore: number | null;
 }
 
 interface Student {
@@ -40,6 +41,7 @@ interface BroadsheetTableProps {
     sn?: number | string;
     name?: number | string;
     subject?: number | string;
+    score?: number | string;
   };
 }
 
@@ -56,6 +58,8 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
       failed: theme.palette.error.main,
       promoted: theme.palette.success.main,
       retained: theme.palette.warning.main,
+      pass: theme.palette.success.main,
+      fail: theme.palette.error.main,
     };
     return statusColors[status?.toLowerCase()] || theme.palette.text.secondary;
   };
@@ -67,6 +71,21 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
     return theme.palette.text.primary;
   };
 
+  const getScoreColor = (score: number | null) => {
+    if (score === null) return theme.palette.text.secondary;
+    if (score >= 50) return theme.palette.success.main;
+    return theme.palette.error.main;
+  };
+
+  // Line styles for better visibility
+  const lineStyles = {
+    headerBottom: `2px solid ${theme.palette.grey[700]}`,
+    subjectSeparator: `1px solid ${theme.palette.grey[400]}`,
+    rowSeparator: `1px solid ${theme.palette.grey[300]}`,
+    summarySeparator: `1px solid ${theme.palette.grey[500]}`,
+    nameSeparator: `1px solid ${theme.palette.grey[400]}`,
+  };
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <TableContainer
@@ -76,270 +95,393 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
           overflowX: "auto",
           bgcolor: "background.default",
           borderRadius: 3,
-          border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          border: `2px solid ${theme.palette.grey[400]}`,
         }}
       >
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
+              {/* S/N */}
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   width: columnWidths?.sn || 50,
                   fontWeight: 700,
                   fontSize: "0.75rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  borderRight: lineStyles.nameSeparator,
+                  py: 2,
                 }}
               >
                 S/N
               </TableCell>
+
+              {/* Student Name */}
               <TableCell
+                rowSpan={2}
                 sx={{
-                  width: columnWidths?.name || 250,
+                  width: columnWidths?.name || 200,
                   fontWeight: 700,
                   fontSize: "0.75rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
-                  whiteSpace: "nowrap",
+                  borderBottom: lineStyles.headerBottom,
+                  borderRight: lineStyles.nameSeparator,
+                  py: 2,
                 }}
               >
                 Student Name
               </TableCell>
 
-              {/* SUBJECT HEADERS VERTICAL */}
+              {/* Subject Headers - First row (Subject Names) */}
               {subjects.map((subj, i) => (
                 <TableCell
-                  key={i}
+                  key={`subject-${i}`}
+                  align="center"
+                  colSpan={3}
                   sx={{
-                    width: columnWidths?.subject || 60,
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                    height: "120px",
-                    writingMode: "vertical-rl",
-                    transform: "rotate(180deg)",
+                    fontWeight: 700,
                     fontSize: "0.7rem",
-                    fontWeight: 600,
                     color: theme.palette.primary.main,
                     bgcolor: alpha(theme.palette.primary.main, 0.04),
-                    borderBottom: `2px solid ${theme.palette.primary.main}`,
-                    py: 1.5,
+                    borderBottom: lineStyles.subjectSeparator,
+                    borderRight: i < subjects.length - 1 ? lineStyles.subjectSeparator : 'none',
+                    py: 1,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
                   }}
                 >
                   {subj}
                 </TableCell>
               ))}
 
+              {/* Summary Headers */}
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  borderLeft: lineStyles.summarySeparator,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 70,
                 }}
               >
                 Total Subj
               </TableCell>
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 70,
                 }}
               >
                 Obtainable
               </TableCell>
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 80,
                 }}
               >
                 Grand Total
               </TableCell>
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 65,
                 }}
               >
                 Average
               </TableCell>
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 65,
                 }}
               >
                 Position
               </TableCell>
               <TableCell
+                rowSpan={2}
+                align="center"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: theme.palette.text.primary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `2px solid ${theme.palette.primary.main}`,
-                  py: 1.5,
+                  borderBottom: lineStyles.headerBottom,
+                  py: 2,
                   whiteSpace: "nowrap",
+                  minWidth: 65,
                 }}
               >
                 Status
               </TableCell>
             </TableRow>
+
+            {/* Second Row - Test, Exam, Total labels */}
+            <TableRow>
+              {subjects.map((_, i) => (
+                <React.Fragment key={`subheader-${i}`}>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: "0.6rem",
+                      color: theme.palette.text.secondary,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      borderBottom: lineStyles.headerBottom,
+                      borderRight: i < subjects.length - 1 ? lineStyles.subjectSeparator : 'none',
+                      py: 0.75,
+                      px: 0.5,
+                      minWidth: 40,
+                    }}
+                  >
+                    Test
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: "0.6rem",
+                      color: theme.palette.text.secondary,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      borderBottom: lineStyles.headerBottom,
+                      borderRight: i < subjects.length - 1 ? lineStyles.subjectSeparator : 'none',
+                      py: 0.75,
+                      px: 0.5,
+                      minWidth: 40,
+                    }}
+                  >
+                    Exam
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "0.6rem",
+                      color: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      borderBottom: lineStyles.headerBottom,
+                      borderRight: i < subjects.length - 1 ? lineStyles.subjectSeparator : 'none',
+                      py: 0.75,
+                      px: 0.5,
+                      minWidth: 40,
+                    }}
+                  >
+                    Total
+                  </TableCell>
+                </React.Fragment>
+              ))}
+            </TableRow>
           </TableHead>
 
           <TableBody>
-            {students.map((student, index) => (
-              <TableRow
-                key={student.studentId}
-                sx={{
-                  "&:hover": {
-                    bgcolor: alpha(theme.palette.action.hover, 0.04),
-                  },
-                  "&:last-child td, &:last-child th": {
-                    border: 0,
-                  },
-                }}
-              >
-                <TableCell
+            {students.map((student, index) => {
+              const isLastRow = index === students.length - 1;
+              return (
+                <TableRow
+                  key={student.studentId}
                   sx={{
-                    color: theme.palette.text.secondary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
+                    "&:hover": {
+                      bgcolor: alpha(theme.palette.action.hover, 0.04),
+                    },
                   }}
                 >
-                  {index + 1}
-                </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 500,
-                    color: theme.palette.text.primary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.studentName}
-                </TableCell>
-
-                {/* SUBJECT SCORES */}
-                {student.subjects.map((sub, i) => (
+                  {/* S/N */}
                   <TableCell
-                    key={i}
                     align="center"
                     sx={{
-                      color: sub.totalScore !== null && sub.totalScore >= 50
-                        ? theme.palette.success.main
-                        : sub.totalScore !== null && sub.totalScore < 50
-                          ? theme.palette.error.main
-                          : theme.palette.text.secondary,
-                      fontWeight: sub.totalScore !== null && sub.totalScore >= 50 ? 600 : 400,
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+                      color: theme.palette.text.secondary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      borderRight: lineStyles.nameSeparator,
                       py: 1.5,
                     }}
                   >
-                    {sub.totalScore !== null ? sub.totalScore : "–"}
+                    {index + 1}
                   </TableCell>
-                ))}
 
-                <TableCell
-                  align="center"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.totalSubjects}
-                </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.totalObtainable}
-                </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{
-                    fontWeight: 600,
-                    color: theme.palette.text.primary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.totalScore}
-                </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.average}
-                </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{
-                    fontWeight: 600,
-                    color: getPositionColor(student.positionText),
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  {student.positionText}
-                </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-                    py: 1.5,
-                  }}
-                >
-                  <Chip
-                    label={student.resultStatus}
-                    size="small"
+                  {/* Student Name */}
+                  <TableCell
                     sx={{
-                      bgcolor: alpha(getStatusColor(student.resultStatus), 0.1),
-                      color: getStatusColor(student.resultStatus),
                       fontWeight: 500,
-                      fontSize: "0.7rem",
-                      height: 24,
+                      color: theme.palette.text.primary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      borderRight: lineStyles.nameSeparator,
+                      py: 1.5,
                     }}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+                  >
+                    {student.studentName}
+                  </TableCell>
+
+                  {/* Subject Scores - Test, Exam, Total with separators */}
+                  {student.subjects.map((sub, i) => (
+                    <React.Fragment key={`scores-${i}`}>
+                      {/* Test Score */}
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: getScoreColor(sub.testScore),
+                          fontWeight: sub.testScore !== null && sub.testScore >= 50 ? 600 : 400,
+                          fontSize: "0.8rem",
+                          borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                          borderRight: lineStyles.subjectSeparator,
+                          py: 1.5,
+                          px: 0.5,
+                        }}
+                      >
+                        {sub.testScore !== null ? sub.testScore : "–"}
+                      </TableCell>
+
+                      {/* Exam Score */}
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: getScoreColor(sub.examScore),
+                          fontWeight: sub.examScore !== null && sub.examScore >= 50 ? 600 : 400,
+                          fontSize: "0.8rem",
+                          borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                          borderRight: lineStyles.subjectSeparator,
+                          py: 1.5,
+                          px: 0.5,
+                        }}
+                      >
+                        {sub.examScore !== null ? sub.examScore : "–"}
+                      </TableCell>
+
+                      {/* Total Score */}
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: getScoreColor(sub.totalScore),
+                          fontWeight: sub.totalScore !== null && sub.totalScore >= 50 ? 700 : 400,
+                          fontSize: "0.85rem",
+                          borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                          borderRight: i < student.subjects.length - 1 ? lineStyles.subjectSeparator : 'none',
+                          py: 1.5,
+                          px: 0.5,
+                        }}
+                      >
+                        {sub.totalScore !== null ? sub.totalScore : "–"}
+                      </TableCell>
+                    </React.Fragment>
+                  ))}
+
+                  {/* Summary Cells */}
+                  <TableCell
+                    align="center"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      borderLeft: lineStyles.summarySeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    {student.totalSubjects}
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    {student.totalObtainable}
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 700,
+                      color: student.totalScore >= 500 ? theme.palette.success.main : theme.palette.text.primary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    {student.totalScore}
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    {student.average}
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 700,
+                      color: getPositionColor(student.positionText),
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    {student.positionText}
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
+                      py: 1.5,
+                    }}
+                  >
+                    <Chip
+                      label={student.resultStatus}
+                      size="small"
+                      sx={{
+                        bgcolor: alpha(getStatusColor(student.resultStatus), 0.1),
+                        color: getStatusColor(student.resultStatus),
+                        fontWeight: 600,
+                        fontSize: "0.65rem",
+                        height: 24,
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>

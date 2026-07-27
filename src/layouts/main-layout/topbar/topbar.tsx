@@ -291,7 +291,7 @@ const Topbar = ({
                     <IconifyIcon icon="mdi:message" width={29} height={32} />
                   </IconButton>
                 </Badge>
-                <ThemeToggle />
+                {/* <ThemeToggle /> */}
                 <UserDropdown />
               </>
             ) : (

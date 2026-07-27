@@ -2,23 +2,33 @@ import { Box, Typography } from "@mui/material";
 import AppTabs from "../../../components/app-tabs/index";
 
 import GeneralSettings from "./general-settings";
-import SchoolSettings from "./school-settings";
-import UserPermissions from "./user-permissions";
+import AppearanceSettings from "./apperance";
+import CurrentUserProfile from "./profile";
+import BillingSettings from "./billing";
+import NotificationsSettings from "./notification";
 
 const Settings = () => {
 
     const tabs = [
         {
+            label: "Profile",
+            component: <CurrentUserProfile />,
+        },
+        {
             label: "System Settings",
             component: <GeneralSettings />,
         },
         {
-            label: "School",
-            component: <SchoolSettings />,
+            label: "Appearance",
+            component: <AppearanceSettings />,
         },
+        // {
+        //     label: "Notifications",
+        //     component: <NotificationsSettings />,
+        // },
         {
-            label: "Permissions",
-            component: <UserPermissions />,
+            label: "Billing & Subscription",
+            component: <BillingSettings />,
         },
     ];
 
