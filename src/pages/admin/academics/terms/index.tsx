@@ -40,7 +40,7 @@ const Index = () => {
   const [assessmentData, setAssessmentData] = useState<AssessmentTypeConfig[]>(
     [],
   );
-  const [updatedScores, setUpdatedScores] = useState<Record<string, number>>(
+  const [updatedScores, setUpdatedScores] = useState<Record<string, string>>(
     {},
   );
   const [editAllOpen, setEditAllOpen] = useState(false);
@@ -227,34 +227,26 @@ const Index = () => {
   }
 
   const handleEditAll = () => {
-    const initialScores: Record<string, number> = {};
+    const initialScores: Record<string, string> = {};
     assessmentData.forEach((item) => {
-      initialScores[item.id] = item.maxScore;
+      initialScores[item.id] = String(item.maxScore);
     });
     setUpdatedScores(initialScores);
     setEditAllOpen(true);
   };
 
   const handleScoreChange = (id: string, value: string) => {
-    if (value === "") {
-      setUpdatedScores((prev) => ({ ...prev, [id]: 0 }));
-      setError("");
-      return;
-    }
-    const numValue = Number(value);
-    if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-      setUpdatedScores((prev) => ({ ...prev, [id]: numValue }));
-      setError("");
-    } else if (numValue > 100) {
-      setError("Score cannot exceed 100");
-    }
+    setUpdatedScores((prev) => ({ ...prev, [id]: value }));
+    setError("");
   };
 
   const handleUpdateAll = async () => {
-    const total = Object.values(updatedScores).reduce(
-      (sum, val) => sum + val,
-      0,
-    );
+    // Calculate total - convert strings to numbers for calculation
+    const total = Object.values(updatedScores).reduce((sum: number, val: string) => {
+      const num = parseInt(val) || 0;
+      return sum + num;
+    }, 0);
+
     if (total !== 100) {
       setError(`Total must equal 100. Current total: ${total}`);
       return;
@@ -262,10 +254,14 @@ const Index = () => {
     setError("");
 
     try {
-      const configs = assessmentData.map((item) => ({
-        assessmentType: item.assessmentType,
-        maxScore: updatedScores[item.id],
-      }));
+      const configs = assessmentData.map((item) => {
+        const value = updatedScores[item.id];
+        const maxScore = parseInt(value) || 0;
+        return {
+          assessmentType: item.assessmentType,
+          maxScore: maxScore,
+        };
+      });
       await SchoolService.updateAssessmentTypesBatch(configs);
       setEditAllOpen(false);
       fetchAssessmentTypes();
@@ -275,10 +271,11 @@ const Index = () => {
     }
   };
 
-  const totalScore = Object.values(updatedScores).reduce(
-    (sum, val) => sum + val,
-    0,
-  );
+  // Calculate total for display - convert strings to numbers
+  const totalScore = Object.values(updatedScores).reduce((sum: number, val: string) => {
+    const num = parseInt(val) || 0;
+    return sum + num;
+  }, 0);
   const isTotalValid = totalScore === 100;
 
   // Mobile card view for terms
@@ -567,7 +564,7 @@ const Index = () => {
                   gap: 1,
                   p: 1.5,
                   borderRadius: 2,
-                  bgcolor: alpha(theme.palette.background.paper, 0.5),
+                  bgcolor: alpha(theme.palette.background.default, 0.5),
                   border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
                 }}
               >
@@ -578,23 +575,21 @@ const Index = () => {
                 </Box>
                 <Box sx={{ width: { xs: "100%", sm: 120 } }}>
                   <TextField
-                    type="number"
+                    type="text"
                     size="small"
                     fullWidth
-                    value={updatedScores[item.id] ?? item.maxScore}
-                    onChange={(e) => handleScoreChange(item.id, e.target.value)}
+                    value={updatedScores[item.id] ?? String(item.maxScore)}
+                    onChange={(e) => {
+                      // Only allow digits
+                      const value = e.target.value;
+                      if (value === "" || /^\d+$/.test(value)) {
+                        handleScoreChange(item.id, value);
+                      }
+                    }}
                     placeholder="0"
-                    InputProps={{
-                      inputProps: {
-                        min: 0,
-                        max: 100,
-                        step: 1,
-                      },
-                      endAdornment: (
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                          %
-                        </Typography>
-                      ),
+                    inputProps={{
+                      inputMode: "numeric",
+                      pattern: "[0-9]*",
                     }}
                     sx={{
                       "& .MuiOutlinedInput-root": {
