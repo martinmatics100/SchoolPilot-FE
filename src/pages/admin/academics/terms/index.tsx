@@ -235,9 +235,19 @@ const Index = () => {
     setEditAllOpen(true);
   };
 
-  const handleScoreChange = (id: string, value: number) => {
-    setUpdatedScores((prev) => ({ ...prev, [id]: value }));
-    setError("");
+  const handleScoreChange = (id: string, value: string) => {
+    if (value === "") {
+      setUpdatedScores((prev) => ({ ...prev, [id]: 0 }));
+      setError("");
+      return;
+    }
+    const numValue = Number(value);
+    if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+      setUpdatedScores((prev) => ({ ...prev, [id]: numValue }));
+      setError("");
+    } else if (numValue > 100) {
+      setError("Score cannot exceed 100");
+    }
   };
 
   const handleUpdateAll = async () => {
@@ -271,6 +281,78 @@ const Index = () => {
   );
   const isTotalValid = totalScore === 100;
 
+  // Mobile card view for terms
+  const TermsMobileView = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1 }}>
+      {terms.map((term) => (
+        <Card
+          key={term.value}
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            bgcolor: "background.default",
+          }}
+        >
+          <CardContent sx={{ py: 1.5, px: 2 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" fontWeight={500}>
+                {termMap[term.value.toString()] || term.name}
+              </Typography>
+              {schoolDetails?.currentTerm === term.value && (
+                <Chip
+                  label="Active"
+                  size="small"
+                  color="success"
+                  sx={{ height: 20, fontSize: "0.65rem" }}
+                />
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+
+  // Mobile card view for assessments
+  const AssessmentsMobileView = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1 }}>
+      {assessmentData.map((item) => (
+        <Card
+          key={item.id}
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            bgcolor: "background.default",
+          }}
+        >
+          <CardContent sx={{ py: 1.5, px: 2 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={1}>
+                <IconifyIcon
+                  icon="mdi:clipboard-text-outline"
+                  width={18}
+                  color={theme.palette.primary.main}
+                />
+                <Typography variant="body2" fontWeight={500}>
+                  {assessmentMap[item.assessmentType.toString()] || item.assessmentType}
+                </Typography>
+              </Box>
+              <Chip
+                label={`${item.maxScore}%`}
+                size="small"
+                sx={{
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: theme.palette.primary.main,
+                  fontWeight: 600,
+                }}
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       {/* Header */}
@@ -298,11 +380,7 @@ const Index = () => {
         </Typography>
       </Box>
 
-      <Box
-        display="flex"
-        flexDirection="column"
-        gap={3}
-      >
+      <Box display="flex" flexDirection="column" gap={3}>
         {/* School Terms Section */}
         <Paper
           elevation={0}
@@ -349,16 +427,19 @@ const Index = () => {
           </Box>
 
           <Box sx={{ p: { xs: 1, sm: 2 } }}>
-            <ReusableTable
-              columns={termColumns}
-              data={terms}
-              showActionColumn={false}
-              loading={loading || isEnumsLoading}
-              showCheckboxes={false}
-              showPagination={false}
-              showSorting={false}
-              tableMinWidth={isMobile ? 300 : "100%"}
-            />
+            {isMobile ? (
+              <TermsMobileView />
+            ) : (
+                <ReusableTable
+                  columns={termColumns}
+                  data={terms}
+                  showActionColumn={false}
+                  loading={loading || isEnumsLoading}
+                  showCheckboxes={false}
+                  showPagination={false}
+                  showSorting={false}
+                />
+            )}
           </Box>
         </Paper>
 
@@ -393,7 +474,7 @@ const Index = () => {
                 Assessment Types
               </Typography>
             </Stack>
-            <Box display="flex" gap={1}>
+            <Box display="flex" gap={1} flexWrap="wrap">
               <Chip
                 label={`${assessmentData.length} types`}
                 size="small"
@@ -420,16 +501,19 @@ const Index = () => {
           </Box>
 
           <Box sx={{ p: { xs: 1, sm: 2 } }}>
-            <ReusableTable
-              columns={assessmentColumns}
-              data={assessmentData || []}
-              showActionColumn={false}
-              loading={loading}
-              showCheckboxes={false}
-              showPagination={false}
-              showSorting={false}
-              tableMinWidth={isMobile ? 300 : "100%"}
-            />
+            {isMobile ? (
+              <AssessmentsMobileView />
+            ) : (
+                <ReusableTable
+                  columns={assessmentColumns}
+                  data={assessmentData || []}
+                  showActionColumn={false}
+                  loading={loading}
+                  showCheckboxes={false}
+                  showPagination={false}
+                  showSorting={false}
+                />
+            )}
           </Box>
         </Paper>
       </Box>
@@ -460,10 +544,7 @@ const Index = () => {
           <Typography variant="h6" fontWeight={600}>
             Edit Assessment Types
           </Typography>
-          <IconButton
-            onClick={() => setEditAllOpen(false)}
-            size="small"
-          >
+          <IconButton onClick={() => setEditAllOpen(false)} size="small">
             <IconifyIcon icon="mdi:close" width={24} />
           </IconButton>
         </DialogTitle>
@@ -481,8 +562,9 @@ const Index = () => {
                 key={item.id}
                 sx={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 2,
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "stretch", sm: "center" },
+                  gap: 1,
                   p: 1.5,
                   borderRadius: 2,
                   bgcolor: alpha(theme.palette.background.paper, 0.5),
@@ -494,18 +576,22 @@ const Index = () => {
                     {assessmentMap[item.assessmentType.toString()] || item.assessmentType}
                   </Typography>
                 </Box>
-                <Box sx={{ width: 120 }}>
+                <Box sx={{ width: { xs: "100%", sm: 120 } }}>
                   <TextField
                     type="number"
                     size="small"
+                    fullWidth
                     value={updatedScores[item.id] ?? item.maxScore}
-                    onChange={(e) =>
-                      handleScoreChange(item.id, Number(e.target.value))
-                    }
+                    onChange={(e) => handleScoreChange(item.id, e.target.value)}
+                    placeholder="0"
                     InputProps={{
-                      inputProps: { min: 0, max: 100 },
+                      inputProps: {
+                        min: 0,
+                        max: 100,
+                        step: 1,
+                      },
                       endAdornment: (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
                           %
                         </Typography>
                       ),
@@ -513,6 +599,9 @@ const Index = () => {
                     sx={{
                       "& .MuiOutlinedInput-root": {
                         borderRadius: 2,
+                        "& input": {
+                          padding: "8px 12px",
+                        },
                       },
                     }}
                   />
@@ -579,6 +668,7 @@ const Index = () => {
             p: 2.5,
             borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
             gap: 1,
+            flexWrap: "wrap",
           }}
         >
           <Button
