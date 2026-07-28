@@ -42,7 +42,6 @@ const Topbar = ({
   const theme = useTheme();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const {
@@ -64,12 +63,6 @@ const Topbar = ({
     { id: 1, message: "New comment on your post" },
     { id: 2, message: "Your order has been shipped" },
     { id: 3, message: "You have a new follower" },
-  ];
-
-  const settingsOptions = [
-    { id: 1, option: "Account Settings" },
-    { id: 2, option: "Privacy Settings" },
-    { id: 3, option: "Notification Settings" },
   ];
 
   const messagesOptions = [
@@ -101,7 +94,7 @@ const Topbar = ({
   // Primary items (always visible on mobile)
   const primaryItems = () => (
     <Stack direction="row" gap={1.5} alignItems="center">
-      <ThemeToggle />
+      {/* <ThemeToggle /> */}
       <UserDropdown />
     </Stack>
   );
@@ -162,18 +155,6 @@ const Topbar = ({
           }}
         >
           <ListItemText primary="Messages" />
-        </ListItem>
-
-        {/* Settings */}
-        <ListItem
-          component="div"
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            setShowMoreMenu(false);
-            setSettingsOpen(true);
-          }}
-        >
-          <ListItemText primary="Settings" />
         </ListItem>
 
         {/* Account Info (if needed) */}
@@ -281,9 +262,6 @@ const Topbar = ({
                   variant="dot"
                   sx={{ "& .MuiBadge-badge": { top: 11, right: 11 } }}
                 >
-                  <IconButton onClick={() => setSettingsOpen(true)}>
-                    <IconifyIcon icon="ic:round-settings" width={29} height={32} />
-                  </IconButton>
                   <IconButton onClick={() => setNotificationsOpen(true)}>
                     <IconifyIcon icon="ph:bell-bold" width={29} height={32} />
                   </IconButton>
@@ -344,45 +322,6 @@ const Topbar = ({
           {notifications.map((notification) => (
             <ListItem key={notification.id}>
               <ListItemText primary={notification.message} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
-
-      {/* Drawer for Settings */}
-      <Drawer
-        anchor="right"
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        PaperProps={{
-          sx: {
-            width: "300px",
-            "@media (min-width: 1024px)": {
-              width: "30%",
-            },
-          },
-        }}
-      >
-        <IconButton
-          onClick={() => setSettingsOpen(false)}
-          sx={{ alignSelf: "flex-start", margin: 2 }}
-        >
-          <IconifyIcon icon="ic:round-close" width={24} height={24} />
-        </IconButton>
-        <Typography
-          variant="h6"
-          sx={{
-            textAlign: "center",
-            margin: 2,
-            fontWeight: "bold",
-          }}
-        >
-          Settings
-        </Typography>
-        <List>
-          {settingsOptions.map((setting) => (
-            <ListItem key={setting.id}>
-              <ListItemText primary={setting.option} />
             </ListItem>
           ))}
         </List>

@@ -13,6 +13,14 @@ import {
   DialogActions,
   Button,
   TextField,
+  Typography,
+  alpha,
+  Paper,
+  Stack,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
 } from "@mui/material";
 import { getInitialAuthData } from "../../../../utils/apiClient";
 import { useEnums } from "../../../../hooks/useEnums";
@@ -22,6 +30,7 @@ import {
 } from "../../../../types/interfaces/i-school";
 import { SchoolService } from "../../../../api/schoolService";
 import { type AssessmentTypeConfig } from "../../../../types/interfaces/i-assessment";
+import IconifyIcon from "../../../../components/base/iconifyIcon";
 
 const Index = () => {
   const [terms, setTerms] = useState<SchoolTerm[]>([]);
@@ -40,6 +49,7 @@ const Index = () => {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const { selectedAccount } = getInitialAuthData();
   const { enums, isLoading: isEnumsLoading } = useEnums({
     fetchPermissionData: false,
@@ -141,14 +151,21 @@ const Index = () => {
       minWidth: 150,
       sortable: true,
       format: (value: string, row: SchoolTerm) => (
-        <span>
-          {termMap[row.value.toString()] || value}
+        <Box display="flex" alignItems="center" gap={1}>
+          <span>{termMap[row.value.toString()] || value}</span>
           {schoolDetails?.currentTerm === row.value && (
-            <span style={{ color: "red", marginLeft: "8px" }}>
-              (active term)
-            </span>
+            <Chip
+              label="Active"
+              size="small"
+              color="success"
+              sx={{
+                height: 20,
+                fontSize: "0.65rem",
+                fontWeight: 600,
+              }}
+            />
           )}
-        </span>
+        </Box>
       ),
     },
   ];
@@ -160,13 +177,34 @@ const Index = () => {
       label: "Assessment Type",
       minWidth: 150,
       sortable: true,
-      format: (value: number) => assessmentMap[value.toString()] || value,
+      format: (value: number) => (
+        <Box display="flex" alignItems="center" gap={1}>
+          <IconifyIcon
+            icon="mdi:clipboard-text-outline"
+            width={18}
+            color={theme.palette.primary.main}
+          />
+          <span>{assessmentMap[value.toString()] || value}</span>
+        </Box>
+      ),
     },
     {
       id: "maxScore",
       label: "Max Score",
       minWidth: 100,
       sortable: true,
+      format: (value: number) => (
+        <Chip
+          label={`${value}%`}
+          size="small"
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            color: theme.palette.primary.main,
+            fontWeight: 600,
+            fontSize: "0.75rem",
+          }}
+        />
+      ),
     },
   ];
 
@@ -176,9 +214,14 @@ const Index = () => {
         display="flex"
         justifyContent="center"
         alignItems="center"
-        minHeight="200px"
+        minHeight="300px"
+        flexDirection="column"
+        gap={2}
       >
-        <CircularProgress />
+        <CircularProgress size={40} />
+        <Typography variant="body2" color="text.secondary">
+          Loading school information...
+        </Typography>
       </Box>
     );
   }
@@ -194,6 +237,7 @@ const Index = () => {
 
   const handleScoreChange = (id: string, value: number) => {
     setUpdatedScores((prev) => ({ ...prev, [id]: value }));
+    setError("");
   };
 
   const handleUpdateAll = async () => {
@@ -202,7 +246,7 @@ const Index = () => {
       0,
     );
     if (total !== 100) {
-      setError("Total of all scores must equal 100");
+      setError(`Total must equal 100. Current total: ${total}`);
       return;
     }
     setError("");
@@ -217,93 +261,351 @@ const Index = () => {
       fetchAssessmentTypes();
     } catch (err) {
       console.error("Error updating assessment types batch:", err);
+      setError("Failed to update assessment types. Please try again.");
     }
   };
 
+  const totalScore = Object.values(updatedScores).reduce(
+    (sum, val) => sum + val,
+    0,
+  );
+  const isTotalValid = totalScore === 100;
+
   return (
-    <Box
-      display="flex"
-      flexDirection={isMobile ? "column" : "row"}
-      gap={2}
-      alignItems="stretch"
-    >
-      {/* Left Half - School Terms */}
-      <Box flex={1}>
-        <ReusableTable
-          title="School Terms"
-          columns={termColumns}
-          data={terms}
-          showActionColumn={false}
-          loading={loading || isEnumsLoading}
-          showCheckboxes={false}
-          showPagination={false}
-          showSorting={false}
-        />
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 700,
+            color: "text.primary",
+            fontSize: { xs: "1.25rem", sm: "1.5rem" },
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <IconifyIcon
+            icon="mdi:school-outline"
+            width={28}
+            color={theme.palette.primary.main}
+          />
+          School Configuration
+        </Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+          Manage school terms and assessment configurations
+        </Typography>
       </Box>
 
-      {/* Divider between tables */}
-      {!isMobile && (
-        <Divider
-          orientation="vertical"
-          flexItem
-          sx={{ borderColor: "grey.400" }}
-        />
-      )}
-
-      {/* Right Half - Assessment Types */}
-      <Box flex={1}>
-        <ReusableTable
-          title="Assessment Types"
-          columns={assessmentColumns}
-          data={assessmentData || []}
-          showActionColumn={false} // no per-row actions
-          loading={loading}
-          showCheckboxes={false}
-          showPagination={false}
-          showSorting={false}
-        />
-
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ mt: 2 }}
-          onClick={handleEditAll}
+      <Box
+        display="flex"
+        flexDirection="column"
+        gap={3}
+      >
+        {/* School Terms Section */}
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            overflow: "hidden",
+            bgcolor: "background.default",
+          }}
         >
-          Edit All
-        </Button>
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <IconifyIcon
+                icon="mdi:calendar-multiple"
+                width={24}
+                color={theme.palette.primary.main}
+              />
+              <Typography variant="h6" fontWeight={600}>
+                School Terms
+              </Typography>
+              {schoolDetails?.currentTerm && (
+                <Chip
+                  label={`Active: ${termMap[schoolDetails.currentTerm.toString()] || schoolDetails.currentTerm}`}
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ height: 24 }}
+                />
+              )}
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              {terms.length} {terms.length === 1 ? "term" : "terms"} configured
+            </Typography>
+          </Box>
+
+          <Box sx={{ p: { xs: 1, sm: 2 } }}>
+            <ReusableTable
+              columns={termColumns}
+              data={terms}
+              showActionColumn={false}
+              loading={loading || isEnumsLoading}
+              showCheckboxes={false}
+              showPagination={false}
+              showSorting={false}
+              tableMinWidth={isMobile ? 300 : "100%"}
+            />
+          </Box>
+        </Paper>
+
+        {/* Assessment Types Section */}
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            overflow: "hidden",
+            bgcolor: "background.default",
+          }}
+        >
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <IconifyIcon
+                icon="mdi:clipboard-check-outline"
+                width={24}
+                color={theme.palette.primary.main}
+              />
+              <Typography variant="h6" fontWeight={600}>
+                Assessment Types
+              </Typography>
+            </Stack>
+            <Box display="flex" gap={1}>
+              <Chip
+                label={`${assessmentData.length} types`}
+                size="small"
+                variant="outlined"
+              />
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<IconifyIcon icon="mdi:pencil-outline" width={18} />}
+                onClick={handleEditAll}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  "&:hover": {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                  },
+                }}
+              >
+                Edit All
+              </Button>
+            </Box>
+          </Box>
+
+          <Box sx={{ p: { xs: 1, sm: 2 } }}>
+            <ReusableTable
+              columns={assessmentColumns}
+              data={assessmentData || []}
+              showActionColumn={false}
+              loading={loading}
+              showCheckboxes={false}
+              showPagination={false}
+              showSorting={false}
+              tableMinWidth={isMobile ? 300 : "100%"}
+            />
+          </Box>
+        </Paper>
       </Box>
 
       {/* Edit All Modal */}
-      <Dialog open={editAllOpen} onClose={() => setEditAllOpen(false)}>
-        <DialogTitle sx={{ bgcolor: theme.palette.background.default }}>
-          Edit All Assessment Types
+      <Dialog
+        open={editAllOpen}
+        onClose={() => setEditAllOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 3,
+            bgcolor: "background.default",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            pb: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight={600}>
+            Edit Assessment Types
+          </Typography>
+          <IconButton
+            onClick={() => setEditAllOpen(false)}
+            size="small"
+          >
+            <IconifyIcon icon="mdi:close" width={24} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ bgcolor: theme.palette.background.default }}>
-          {assessmentData.map((item) => (
-            <TextField
-              key={item.id}
-              label={
-                assessmentMap[item.assessmentType.toString()] ||
-                item.assessmentType
-              }
-              type="number"
-              value={updatedScores[item.id] ?? item.maxScore}
-              onChange={(e) =>
-                handleScoreChange(item.id, Number(e.target.value))
-              }
-              fullWidth
-              margin="normal"
-            />
-          ))}
+
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Adjust the maximum scores for each assessment type. Total must equal 100%.
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {assessmentData.map((item) => (
+              <Box
+                key={item.id}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.background.paper, 0.5),
+                  border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+                }}
+              >
+                <Box flex={1}>
+                  <Typography variant="body2" fontWeight={500}>
+                    {assessmentMap[item.assessmentType.toString()] || item.assessmentType}
+                  </Typography>
+                </Box>
+                <Box sx={{ width: 120 }}>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={updatedScores[item.id] ?? item.maxScore}
+                    onChange={(e) =>
+                      handleScoreChange(item.id, Number(e.target.value))
+                    }
+                    InputProps={{
+                      inputProps: { min: 0, max: 100 },
+                      endAdornment: (
+                        <Typography variant="caption" color="text.secondary">
+                          %
+                        </Typography>
+                      ),
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
           {error && (
-            <Box color="error.main" mt={1}>
-              {error}
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: alpha(theme.palette.error.main, 0.1),
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <IconifyIcon
+                icon="mdi:alert-circle-outline"
+                width={20}
+                color={theme.palette.error.main}
+              />
+              <Typography variant="body2" color="error.main">
+                {error}
+              </Typography>
             </Box>
           )}
+
+          <Box
+            sx={{
+              mt: 2,
+              p: 1.5,
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.info.main, 0.08),
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Total:
+            </Typography>
+            <Chip
+              label={`${totalScore}%`}
+              size="small"
+              sx={{
+                bgcolor: isTotalValid
+                  ? alpha(theme.palette.success.main, 0.1)
+                  : alpha(theme.palette.error.main, 0.1),
+                color: isTotalValid
+                  ? theme.palette.success.main
+                  : theme.palette.error.main,
+                fontWeight: 600,
+              }}
+            />
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ bgcolor: theme.palette.background.default }}>
-          <Button onClick={() => setEditAllOpen(false)}>Cancel</Button>
-          <Button onClick={handleUpdateAll} variant="contained" color="primary">
+
+        <DialogActions
+          sx={{
+            p: 2.5,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={() => setEditAllOpen(false)}
+            variant="outlined"
+            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateAll}
+            variant="contained"
+            disabled={!isTotalValid}
+            startIcon={<IconifyIcon icon="mdi:content-save-outline" width={18} />}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              "&:hover": {
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+              },
+              "&.Mui-disabled": {
+                background: theme.palette.action.disabledBackground,
+              },
+            }}
+          >
             Update All
           </Button>
         </DialogActions>
