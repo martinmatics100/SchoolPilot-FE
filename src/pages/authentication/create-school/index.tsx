@@ -298,6 +298,7 @@ export default function CreateSchoolPage() {
                 {
                     name: data.name,
                     schoolName: data.name,
+                    schoolEmail: data.schoolEmail,
                     schoolType: SchoolTypeEnum[data.type] || 1,
                     schoolStatus: 1,
                     schoolCategory: SchoolCategoryEnum[data.category] || 1,
@@ -521,21 +522,21 @@ export default function CreateSchoolPage() {
             console.log('Submitting payload:', JSON.stringify(payload, null, 2));
 
             // API call
-            // const response = await fetch('https://localhost:7029/api/v1/school-setup', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify(payload)
-            // });
-
-            const response = await fetch('https://schoolpilot-6zr4.onrender.com/api/v1/school-setup', {
+            const response = await fetch('https://localhost:7029/api/v1/school-setup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload)
             });
+
+            // const response = await fetch('https://schoolpilot-6zr4.onrender.com/api/v1/school-setup', {
+            //     method: 'POST',
+            //     headers: {
+            //         'Content-Type': 'application/json',
+            //     },
+            //     body: JSON.stringify(payload)
+            // });
 
             if (!response.ok) {
                 throw new Error('Failed to create school');
