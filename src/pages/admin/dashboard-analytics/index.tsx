@@ -7,7 +7,7 @@ const Index = () => {
     return (
         <div>
             <h1>Dashboard Analytics</h1>
-            <LoadingHandler>
+            <LoadingHandler showLoader={false}>
                 <Box display="grid" gridTemplateColumns="repeat(12, 1fr)" gap={3.5}>
                     <Box gridColumn={{ xs: 'span 12', '2xl': 'span 8' }} order={{ xs: 0 }}>
                         <DashboardStats />

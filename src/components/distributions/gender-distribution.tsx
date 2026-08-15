@@ -6,6 +6,7 @@ import { type DashboardCountsResponse } from "../../types/interfaces/i-dashboard
 import { useTheme } from "@mui/material";
 
 const UserDistribution: React.FC = () => {
+
     const theme = useTheme();
     const [counts, setCounts] = useState<DashboardCountsResponse | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -39,7 +40,6 @@ const UserDistribution: React.FC = () => {
         return <Alert severity="error">{error}</Alert>;
     }
 
-    // Map Backend numbers to the Chart
     const labels = ["Males", "Females"];
     const data = [
         counts?.numberOfMaleStudents ?? 0,
@@ -47,7 +47,6 @@ const UserDistribution: React.FC = () => {
     ];
     const colors = ["#42A5F5", "#FF6384"];
 
-    // Check if there is data to show (preventing a blank circle)
     const hasData = data[0] > 0 || data[1] > 0;
 
     return (
@@ -63,7 +62,7 @@ const UserDistribution: React.FC = () => {
                     marginBottom: 3
                 }}
             >
-                Stuents Gender Distribution
+                Students Gender Distribution
             </Typography>
 
             {hasData ? (
@@ -71,7 +70,7 @@ const UserDistribution: React.FC = () => {
                     labels={labels}
                     data={data}
                     colors={colors}
-                    showLegend={false} // Usually better to show legend for charts
+                    showLegend={false}
                 />
             ) : (
                 <Typography variant="body1" align="center" color="text.secondary">

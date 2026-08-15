@@ -26,6 +26,7 @@ import {
     Select,
     MenuItem,
     CircularProgress,
+    Divider,
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -42,10 +43,15 @@ import {
     Verified as VerifiedIcon,
     Close as CloseIcon,
     Save as SaveIcon,
+    Work as WorkIcon,
+    Person as PersonIcon,
+    Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../context';
 import { getUserProfile, updateUserProfile } from '../../../api/userService';
 import { useEnums } from '../../../hooks/useEnums';
+import DynamicForm, { type FormField } from '../../../components/my-form';
+import MessageDisplay from '../../../components/message-display';
 
 interface UserProfileData {
     id: string;
@@ -76,20 +82,6 @@ interface UserProfileData {
     createdAt?: string;
 }
 
-interface EditProfileFormData {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneNumber: string;
-    phoneType: number;
-    addressLine1: string;
-    city: string;
-    state: string;
-    country: string;
-    gender: number;
-    dateOfBirth: string;
-}
-
 const CurrentUserProfile: React.FC = () => {
     const theme = useTheme();
     const { selectedAccount, currentUser } = useAuth();
@@ -101,8 +93,10 @@ const CurrentUserProfile: React.FC = () => {
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState<string | null>(null);
     const [editSuccess, setEditSuccess] = useState(false);
+    const [formFields, setFormFields] = useState<FormField[]>([]);
+    const [initialValues, setInitialValues] = useState<Record<string, any>>({});
 
-    // Map enums - with fallback for role
+    // Map enums
     const genderMap = useMemo(() => {
         return (
             enums?.Gender?.reduce(
@@ -164,24 +158,6 @@ const CurrentUserProfile: React.FC = () => {
         );
     }, [enums]);
 
-    // Edit form state
-    const [editFormData, setEditFormData] = useState<EditProfileFormData>({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phoneNumber: '',
-        phoneType: 0,
-        addressLine1: '',
-        city: '',
-        state: '',
-        country: '',
-        gender: 0,
-        dateOfBirth: '',
-    });
-
-    // Form validation errors
-    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -201,18 +177,112 @@ const CurrentUserProfile: React.FC = () => {
         }
     }, [selectedAccount, currentUser]);
 
+    // Build form fields when enums and profile are available
+    useEffect(() => {
+        if (!isEnumsLoading && enums && profile) {
+            const fields: FormField[] = [
+                {
+                    name: "firstName",
+                    label: "First Name",
+                    type: "text",
+                    required: true,
+                    colSpan: 1,
+                },
+                {
+                    name: "lastName",
+                    label: "Last Name",
+                    type: "text",
+                    required: true,
+                    colSpan: 1,
+                },
+                {
+                    name: "email",
+                    label: "Email Address",
+                    type: "email",
+                    required: true,
+                    colSpan: 2,
+                },
+                {
+                    name: "gender",
+                    label: "Gender",
+                    type: "select",
+                    required: true,
+                    colSpan: 1,
+                    options:
+                        enums.Gender?.map((g: any) => ({
+                            value: g.value.toString(),
+                            label: g.displayName || g.name,
+                        })) || [],
+                },
+                {
+                    name: "dateOfBirth",
+                    label: "Date of Birth",
+                    type: "date",
+                    required: false,
+                    colSpan: 1,
+                },
+                {
+                    name: "phoneNumber",
+                    label: "Phone Number",
+                    type: "phone",
+                    required: false,
+                    colSpan: 2,
+                    extraProps: {
+                        enums: {
+                            PhoneType: enums?.PhoneType || [],
+                            Country: enums?.Country || []
+                        }
+                    }
+                },
+                {
+                    name: "address",
+                    label: "Address",
+                    type: "address",
+                    required: false,
+                    colSpan: 2,
+                },
+            ];
+
+            setFormFields(fields);
+
+            // Set initial values
+            setInitialValues({
+                firstName: profile.firstName || '',
+                lastName: profile.lastName || '',
+                email: profile.email || '',
+                gender: profile.gender?.toString() || '',
+                dateOfBirth: profile.dateOfBirth?.split('T')[0] || '',
+                phoneNumber: {
+                    number: profile.phoneNumber?.number || '',
+                    extension: profile.phoneNumber?.extension || '',
+                    phoneType: profile.phoneNumber?.phoneType?.toString() || '',
+                    country: profile.phoneNumber?.country || '',
+                },
+                address: {
+                    addressLine1: profile.address?.addressLine1 || '',
+                    addressLine2: profile.address?.addressLine2 || '',
+                    city: profile.address?.city || '',
+                    state: profile.address?.state || '',
+                    zipCode: profile.address?.zipCode || '',
+                    country: profile.address?.country || '',
+                },
+            });
+        }
+    }, [enums, isEnumsLoading, profile]);
+
+    // Helper functions with "Not available" handling
     const getGenderLabel = (genderValue?: number): string => {
-        if (genderValue === undefined || genderValue === null) return 'Not specified';
-        return genderMap[genderValue.toString()] || 'Not specified';
+        if (genderValue === undefined || genderValue === null) return 'Not available';
+        return genderMap[genderValue.toString()] || 'Not available';
     };
 
     const getStatusLabel = (statusValue?: number): string => {
-        if (statusValue === undefined || statusValue === null) return 'Not specified';
-        return statusMap[statusValue.toString()] || 'Not specified';
+        if (statusValue === undefined || statusValue === null) return 'Not available';
+        return statusMap[statusValue.toString()] || 'Not available';
     };
 
     const getRoleLabel = (roleValue?: number): string => {
-        if (roleValue === undefined || roleValue === null) return 'Not specified';
+        if (roleValue === undefined || roleValue === null) return 'Not available';
         const label = roleMap[roleValue.toString()];
         if (label) return label;
 
@@ -227,13 +297,13 @@ const CurrentUserProfile: React.FC = () => {
     };
 
     const getPhoneTypeLabel = (typeValue?: number): string => {
-        if (typeValue === undefined || typeValue === null) return 'Not specified';
-        return phoneTypeMap[typeValue.toString()] || 'Not specified';
+        if (typeValue === undefined || typeValue === null) return 'Not available';
+        return phoneTypeMap[typeValue.toString()] || 'Not available';
     };
 
     const getCountryLabel = (countryValue?: string | number): string => {
-        if (!countryValue) return 'Not specified';
-        return countryMap[countryValue.toString()] || 'Not specified';
+        if (!countryValue) return 'Not available';
+        return countryMap[countryValue.toString()] || 'Not available';
     };
 
     const getGenderIcon = (genderValue?: number) => {
@@ -243,35 +313,28 @@ const CurrentUserProfile: React.FC = () => {
         return <TransgenderIcon />;
     };
 
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Not specified';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        });
+    const formatDate = (dateString?: string): string => {
+        if (!dateString) return 'Not available';
+        try {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+        } catch {
+            return 'Not available';
+        }
+    };
+
+    const getDisplayValue = (value: any, fallback: string = 'Not available'): string => {
+        if (value === undefined || value === null || value === '') return fallback;
+        return String(value);
     };
 
     const handleOpenEditModal = () => {
-        if (profile) {
-            setEditFormData({
-                firstName: profile.firstName || '',
-                lastName: profile.lastName || '',
-                email: profile.email || '',
-                phoneNumber: profile.phoneNumber?.number || '',
-                phoneType: profile.phoneNumber?.phoneType || 0,
-                addressLine1: profile.address?.addressLine1 || '',
-                city: profile.address?.city || '',
-                state: profile.address?.state || '',
-                country: profile.address?.country || '',
-                gender: profile.gender || 0,
-                dateOfBirth: profile.dateOfBirth?.split('T')[0] || '',
-            });
-            setFormErrors({});
-            setEditError(null);
-            setEditSuccess(false);
-            setEditModalOpen(true);
-        }
+        setEditError(null);
+        setEditSuccess(false);
+        setEditModalOpen(true);
     };
 
     const handleEditClose = () => {
@@ -280,54 +343,41 @@ const CurrentUserProfile: React.FC = () => {
         setEditSuccess(false);
     };
 
-    const handleEditChange = (field: keyof EditProfileFormData, value: any) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
-        if (formErrors[field]) {
-            setFormErrors(prev => ({ ...prev, [field]: '' }));
-        }
-    };
-
-    const validateEditForm = (): boolean => {
-        const errors: Record<string, string> = {};
-
-        if (!editFormData.firstName.trim()) errors.firstName = 'First name is required';
-        if (!editFormData.lastName.trim()) errors.lastName = 'Last name is required';
-        if (!editFormData.email.trim()) errors.email = 'Email is required';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
-            errors.email = 'Invalid email format';
-        }
-        if (!editFormData.phoneNumber.trim()) errors.phoneNumber = 'Phone number is required';
-        if (!editFormData.addressLine1.trim()) errors.addressLine1 = 'Address is required';
-
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const handleEditSubmit = async () => {
-        if (!validateEditForm()) return;
-
+    const handleEditSubmit = async (data: any) => {
         setEditLoading(true);
         setEditError(null);
 
         try {
-            const payload = {
-                firstName: editFormData.firstName,
-                lastName: editFormData.lastName,
-                email: editFormData.email,
-                phoneNumber: {
-                    number: editFormData.phoneNumber,
-                    phoneType: editFormData.phoneType,
-                    country: editFormData.country || '566',
-                },
-                address: {
-                    addressLine1: editFormData.addressLine1,
-                    city: editFormData.city,
-                    state: editFormData.state,
-                    country: editFormData.country || '566',
-                },
-                gender: editFormData.gender,
-                dateOfBirth: editFormData.dateOfBirth,
+            // Build the payload from form data
+            const payload: any = {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                gender: parseInt(data.gender) || 0,
+                dateOfBirth: data.dateOfBirth || undefined,
             };
+
+            // Add phone number if provided
+            if (data.phoneNumber && data.phoneNumber.number) {
+                payload.phoneNumber = {
+                    number: data.phoneNumber.number,
+                    phoneType: parseInt(data.phoneNumber.phoneType) || 0,
+                    country: data.phoneNumber.country || '566',
+                    extension: data.phoneNumber.extension || '',
+                };
+            }
+
+            // Add address if provided
+            if (data.address && data.address.addressLine1) {
+                payload.address = {
+                    addressLine1: data.address.addressLine1,
+                    addressLine2: data.address.addressLine2 || '',
+                    city: data.address.city || '',
+                    state: data.address.state || '',
+                    zipCode: data.address.zipCode || '',
+                    country: data.address.country || '566',
+                };
+            }
 
             await updateUserProfile(selectedAccount!, currentUser?.id!, payload);
 
@@ -388,7 +438,7 @@ const CurrentUserProfile: React.FC = () => {
     return (
         <Box
             sx={{
-                minHeight: '100vh',
+                minHeight: '80vh',
                 background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(
                     theme.palette.background.default,
                     0.08
@@ -458,26 +508,28 @@ const CurrentUserProfile: React.FC = () => {
                                 </Avatar>
                             </Badge>
 
-                            <Box textAlign={{ xs: 'center', md: 'left' }}>
+                            <Box textAlign={{ xs: 'center', md: 'left' }} width="100%">
                                 <Typography variant="h4" fontWeight="bold" gutterBottom>
-                                    {profile.firstName} {profile.lastName}
+                                    {profile.firstName || 'Not available'} {profile.lastName || ''}
                                 </Typography>
-                                <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} mb={1} flexWrap="wrap" gap={1}>
+
+                                <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} flexWrap="wrap" gap={1}>
                                     <Chip
                                         icon={getGenderIcon(profile.gender)}
                                         label={getGenderLabel(profile.gender)}
                                         size="small"
-                                        sx={{ bgcolor: alpha(theme.palette.common.white, 0.2), color: 'white' }}
+                                        sx={{ bgcolor: alpha(theme.palette.common.white, 0.15), color: 'white' }}
                                     />
                                     <Chip
+                                        icon={<WorkIcon sx={{ fontSize: 16 }} />}
                                         label={getRoleLabel(profile.role)}
                                         size="small"
-                                        sx={{ bgcolor: alpha(theme.palette.common.white, 0.2), color: 'white' }}
+                                        sx={{ bgcolor: alpha(theme.palette.common.white, 0.15), color: 'white' }}
                                     />
                                     <Chip
+                                        icon={<StarIcon sx={{ fontSize: 16 }} />}
                                         label={getStatusLabel(profile.status)}
                                         size="small"
-                                        icon={<StarIcon sx={{ fontSize: 16 }} />}
                                         sx={{
                                             bgcolor: profile.status === 1
                                                 ? alpha(theme.palette.success.main, 0.9)
@@ -486,8 +538,10 @@ const CurrentUserProfile: React.FC = () => {
                                         }}
                                     />
                                 </Stack>
-                                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                                    {profile.schoolName}
+
+                                <Typography variant="body1" sx={{ opacity: 0.9, mt: 1 }}>
+                                    <SchoolIcon sx={{ fontSize: 16, verticalAlign: 'middle', mr: 0.5 }} />
+                                    {getDisplayValue(profile.schoolName)}
                                 </Typography>
                             </Box>
                         </Box>
@@ -533,71 +587,77 @@ const CurrentUserProfile: React.FC = () => {
                                             <Typography variant="caption" color="text.secondary" display="block">
                                                 Email Address
                                             </Typography>
-                                            <Typography variant="body1">{profile.email}</Typography>
+                                            <Typography variant="body1">
+                                                {getDisplayValue(profile.email)}
+                                            </Typography>
                                         </Box>
                                     </Box>
 
-                                    {profile.phoneNumber && (
-                                        <Box display="flex" alignItems="center" gap={2}>
-                                            <Box
-                                                sx={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: 2,
-                                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <PhoneIcon sx={{ color: theme.palette.primary.main }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary" display="block">
-                                                    Phone Number ({getPhoneTypeLabel(profile.phoneNumber.phoneType)})
-                                                </Typography>
-                                                <Typography variant="body1">
-                                                    +{profile.phoneNumber.country} {profile.phoneNumber.number}
-                                                </Typography>
-                                            </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <Box
+                                            sx={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 2,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <PhoneIcon sx={{ color: theme.palette.primary.main }} />
                                         </Box>
-                                    )}
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                Phone Number ({getPhoneTypeLabel(profile.phoneNumber?.phoneType)})
+                                            </Typography>
+                                            <Typography variant="body1">
+                                                {profile.phoneNumber ? (
+                                                    `+${profile.phoneNumber.country || ''} ${profile.phoneNumber.number || ''}`
+                                                ) : (
+                                                    'Not available'
+                                                )}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
 
-                                    {profile.address && (
-                                        <Box display="flex" alignItems="flex-start" gap={2}>
-                                            <Box
-                                                sx={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: 2,
-                                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                    mt: 0.5,
-                                                }}
-                                            >
-                                                <LocationIcon sx={{ color: theme.palette.primary.main }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary" display="block">
-                                                    Address
-                                                </Typography>
-                                                <Typography variant="body1" sx={{ wordWrap: 'break-word' }}>
-                                                    {profile.address.addressLine1}
-                                                    {profile.address.addressLine2 && `, ${profile.address.addressLine2}`}
-                                                    {profile.address.city && <>, {profile.address.city}</>}
-                                                    {profile.address.state && <>, {profile.address.state}</>}
-                                                    {profile.address.country && (
-                                                        <>, {getCountryLabel(profile.address.country)}</>
-                                                    )}
-                                                    {profile.address.zipCode && <>, {profile.address.zipCode}</>}
-                                                </Typography>
-                                            </Box>
+                                    <Box display="flex" alignItems="flex-start" gap={2}>
+                                        <Box
+                                            sx={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 2,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                mt: 0.5,
+                                            }}
+                                        >
+                                            <LocationIcon sx={{ color: theme.palette.primary.main }} />
                                         </Box>
-                                    )}
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                Address
+                                            </Typography>
+                                            <Typography variant="body1" sx={{ wordWrap: 'break-word' }}>
+                                                {profile.address ? (
+                                                    <>
+                                                        {getDisplayValue(profile.address.addressLine1)}
+                                                        {profile.address.addressLine2 && `, ${profile.address.addressLine2}`}
+                                                        {profile.address.city && `, ${profile.address.city}`}
+                                                        {profile.address.state && `, ${profile.address.state}`}
+                                                        {profile.address.country && `, ${getCountryLabel(profile.address.country)}`}
+                                                        {profile.address.zipCode && `, ${profile.address.zipCode}`}
+                                                    </>
+                                                ) : (
+                                                    'Not available'
+                                                )}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
                                 </Stack>
                             </CardContent>
                         </Card>
@@ -640,7 +700,9 @@ const CurrentUserProfile: React.FC = () => {
                                             <Typography variant="caption" color="text.secondary" display="block">
                                                 Date of Birth
                                             </Typography>
-                                            <Typography variant="body1">{formatDate(profile.dateOfBirth)}</Typography>
+                                            <Typography variant="body1">
+                                                {formatDate(profile.dateOfBirth)}
+                                            </Typography>
                                         </Box>
                                     </Box>
 
@@ -657,13 +719,15 @@ const CurrentUserProfile: React.FC = () => {
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            <BadgeIcon sx={{ color: theme.palette.secondary.main }} />
+                                            <PersonIcon sx={{ color: theme.palette.secondary.main }} />
                                         </Box>
                                         <Box>
                                             <Typography variant="caption" color="text.secondary" display="block">
-                                                Status
+                                                Member Since
                                             </Typography>
-                                            <Typography variant="body1">{getStatusLabel(profile.status)}</Typography>
+                                            <Typography variant="body1">
+                                                {formatDate(profile.createdAt)}
+                                            </Typography>
                                         </Box>
                                     </Box>
 
@@ -680,63 +744,17 @@ const CurrentUserProfile: React.FC = () => {
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            <SchoolIcon sx={{ color: theme.palette.secondary.main }} />
+                                            <WorkIcon sx={{ color: theme.palette.secondary.main }} />
                                         </Box>
                                         <Box>
                                             <Typography variant="caption" color="text.secondary" display="block">
-                                                Role
+                                                Date of Hire
                                             </Typography>
-                                            <Typography variant="body1">{getRoleLabel(profile.role)}</Typography>
+                                            <Typography variant="body1">
+                                                {formatDate(profile.dateOfHire)}
+                                            </Typography>
                                         </Box>
                                     </Box>
-
-                                    <Box display="flex" alignItems="center" gap={2}>
-                                        <Box
-                                            sx={{
-                                                width: 40,
-                                                height: 40,
-                                                borderRadius: 2,
-                                                bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0,
-                                            }}
-                                        >
-                                            <TransgenderIcon sx={{ color: theme.palette.secondary.main }} />
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary" display="block">
-                                                Gender
-                                            </Typography>
-                                            <Typography variant="body1">{getGenderLabel(profile.gender)}</Typography>
-                                        </Box>
-                                    </Box>
-
-                                    {profile.createdAt && (
-                                        <Box display="flex" alignItems="center" gap={2}>
-                                            <Box
-                                                sx={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: 2,
-                                                    bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <SchoolIcon sx={{ color: theme.palette.secondary.main }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary" display="block">
-                                                    Member Since
-                                                </Typography>
-                                                <Typography variant="body1">{formatDate(profile.createdAt)}</Typography>
-                                            </Box>
-                                        </Box>
-                                    )}
                                 </Stack>
                             </CardContent>
                         </Card>
@@ -744,7 +762,7 @@ const CurrentUserProfile: React.FC = () => {
                 </Box>
             </Container>
 
-            {/* Edit Profile Modal */}
+            {/* Edit Profile Modal - Using DynamicForm */}
             <Dialog
                 open={editModalOpen}
                 onClose={handleEditClose}
@@ -755,6 +773,7 @@ const CurrentUserProfile: React.FC = () => {
                     sx: {
                         borderRadius: 3,
                         bgcolor: theme.palette.background.default,
+                        maxHeight: '90vh',
                     },
                 }}
             >
@@ -773,7 +792,7 @@ const CurrentUserProfile: React.FC = () => {
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{ pt: 3, pb: 2 }}>
+                <DialogContent sx={{ pt: 3, pb: 2, overflowY: 'auto' }}>
                     {editSuccess && (
                         <Box sx={{
                             p: 2,
@@ -802,168 +821,18 @@ const CurrentUserProfile: React.FC = () => {
                         </Box>
                     )}
 
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5 }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="First Name"
-                                value={editFormData.firstName}
-                                onChange={(e) => handleEditChange('firstName', e.target.value)}
-                                error={!!formErrors.firstName}
-                                helperText={formErrors.firstName}
-                                fullWidth
-                                required
-                                size="medium"
-                            />
-                        </Box>
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="Last Name"
-                                value={editFormData.lastName}
-                                onChange={(e) => handleEditChange('lastName', e.target.value)}
-                                error={!!formErrors.lastName}
-                                helperText={formErrors.lastName}
-                                fullWidth
-                                required
-                                size="medium"
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 100%' }}>
-                            <TextField
-                                label="Email Address"
-                                type="email"
-                                value={editFormData.email}
-                                onChange={(e) => handleEditChange('email', e.target.value)}
-                                error={!!formErrors.email}
-                                helperText={formErrors.email}
-                                fullWidth
-                                required
-                                size="medium"
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(66.666% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="Phone Number"
-                                value={editFormData.phoneNumber}
-                                onChange={(e) => handleEditChange('phoneNumber', e.target.value)}
-                                error={!!formErrors.phoneNumber}
-                                helperText={formErrors.phoneNumber}
-                                fullWidth
-                                required
-                                size="medium"
-                            />
-                        </Box>
-                        <Box sx={{ flex: '1 1 calc(33.333% - 10px)', minWidth: '150px' }}>
-                            <FormControl fullWidth size="medium">
-                                <InputLabel>Phone Type</InputLabel>
-                                <Select
-                                    value={editFormData.phoneType}
-                                    onChange={(e) => handleEditChange('phoneType', e.target.value)}
-                                    label="Phone Type"
-                                >
-                                    {Object.entries(phoneTypeMap).map(([value, label]) => (
-                                        <MenuItem key={value} value={Number(value)}>
-                                            {label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 100%' }}>
-                            <TextField
-                                label="Address"
-                                value={editFormData.addressLine1}
-                                onChange={(e) => handleEditChange('addressLine1', e.target.value)}
-                                error={!!formErrors.addressLine1}
-                                helperText={formErrors.addressLine1}
-                                fullWidth
-                                required
-                                size="medium"
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="City"
-                                value={editFormData.city}
-                                onChange={(e) => handleEditChange('city', e.target.value)}
-                                fullWidth
-                                size="medium"
-                            />
-                        </Box>
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="State"
-                                value={editFormData.state}
-                                onChange={(e) => handleEditChange('state', e.target.value)}
-                                fullWidth
-                                size="medium"
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <FormControl fullWidth size="medium">
-                                <InputLabel>Gender</InputLabel>
-                                <Select
-                                    value={editFormData.gender}
-                                    onChange={(e) => handleEditChange('gender', e.target.value)}
-                                    label="Gender"
-                                >
-                                    {Object.entries(genderMap).map(([value, label]) => (
-                                        <MenuItem key={value} value={Number(value)}>
-                                            {label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Box>
-                        <Box sx={{ flex: '1 1 calc(50% - 10px)', minWidth: '200px' }}>
-                            <TextField
-                                label="Date of Birth"
-                                type="date"
-                                value={editFormData.dateOfBirth}
-                                onChange={(e) => handleEditChange('dateOfBirth', e.target.value)}
-                                fullWidth
-                                size="medium"
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Box>
-                    </Box>
+                    {formFields.length > 0 && initialValues && (
+                        <DynamicForm
+                            title=""
+                            fields={formFields}
+                            onSubmit={handleEditSubmit}
+                            submitButtonText={editLoading ? "Saving..." : "Save Changes"}
+                            columns={2}
+                            initialValues={initialValues}
+                            submitDisabled={editLoading}
+                        />
+                    )}
                 </DialogContent>
-
-                <DialogActions sx={{
-                    p: 2.5,
-                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    gap: 1,
-                }}>
-                    <Button
-                        onClick={handleEditClose}
-                        variant="outlined"
-                        disabled={editLoading}
-                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleEditSubmit}
-                        variant="contained"
-                        disabled={editLoading}
-                        startIcon={editLoading ? <CircularProgress size={20} /> : <SaveIcon />}
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                            '&:hover': {
-                                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
-                            },
-                        }}
-                    >
-                        {editLoading ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                </DialogActions>
             </Dialog>
         </Box>
     );

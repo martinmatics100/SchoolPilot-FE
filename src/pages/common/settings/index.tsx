@@ -22,14 +22,14 @@ const Settings = () => {
             label: "Appearance",
             component: <AppearanceSettings />,
         },
-        {
-            label: "Notifications",
-            component: <NotificationsSettings />,
-        },
-        {
-            label: "Billing & Subscription",
-            component: <BillingSettings />,
-        },
+        // {
+        //     label: "Notifications",
+        //     component: <NotificationsSettings />,
+        // },
+        // {
+        //     label: "Billing & Subscription",
+        //     component: <BillingSettings />,
+        // },
     ];
 
     return (

@@ -6,27 +6,6 @@ const useUserMenuItems = (): IUserMenuItem[] => {
 
     return [
         {
-            id: 1,
-            path: '/profile/my-profile',
-            title: 'View Profile',
-            icon: 'mingcute:user-2-fill',
-            color: theme.palette.common.white,
-        },
-        {
-            id: 2,
-            path: '/profile',
-            title: 'Account Settings',
-            icon: 'material-symbols:settings-account-box-rounded',
-            color: theme.palette.common.white,
-        },
-        {
-            id: 3,
-            path: '/profile',
-            title: 'Notifications',
-            icon: 'ion:notifications',
-            color: theme.palette.common.white,
-        },
-        {
             id: 4,
             path: '/plan/upgrade',
             title: 'Upgrade to pro',

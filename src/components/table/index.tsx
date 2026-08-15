@@ -9,7 +9,18 @@ import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
 import Checkbox from "@mui/material/Checkbox";
-import { useTheme, alpha, Box, Typography, CircularProgress, Skeleton } from "@mui/material";
+import {
+  useTheme,
+  alpha,
+  Box,
+  Typography,
+  CircularProgress,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Button,
+  IconButton
+} from "@mui/material";
 import IconifyIcon from "../../components/base/iconifyIcon";
 
 export interface Column {
@@ -23,6 +34,19 @@ export interface Column {
     index?: number
   ) => string | number | React.ReactNode;
   sortable?: boolean;
+}
+
+export interface TableActionButton {
+  label: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
+  variant?: "text" | "outlined" | "contained";
+  color?: "primary" | "secondary" | "success" | "error" | "info" | "warning";
+  size?: "small" | "medium" | "large";
+  disabled?: boolean;
+  loading?: boolean;
+  tooltip?: string;
+  show?: boolean; // Conditionally show/hide
 }
 
 interface ReusableTableProps {
@@ -53,6 +77,7 @@ interface ReusableTableProps {
   showCheckboxes?: boolean;
   showRowsPerPage?: boolean;
   showPagination?: boolean;
+  actionButtons?: TableActionButton[]; // New prop for title bar action buttons
 }
 
 export const ReusableTable: React.FC<ReusableTableProps> = ({
@@ -78,6 +103,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
   showCheckboxes = true,
   showRowsPerPage = true,
   showPagination = true,
+  actionButtons = [], // Default empty array
 }) => {
   const [internalPage, setInternalPage] = React.useState(0);
   const [internalRowsPerPage, setInternalRowsPerPage] =
@@ -94,6 +120,9 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
       : internalRowsPerPage;
 
   const isServerSide = totalCount !== undefined;
+
+  // Filter visible buttons
+  const visibleButtons = actionButtons.filter(btn => btn.show !== false);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     if (onPageChange) {
@@ -245,7 +274,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
       sx={{
         width: "100%",
         overflow: "hidden",
-        bgcolor: "background.default", // Changed from background.default
+        bgcolor: "background.default",
         borderRadius: 3,
         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
         transition: "box-shadow 0.2s ease",
@@ -260,19 +289,83 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
             p: 3,
             pb: 2,
             borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1,
           }}
         >
           <Typography
             variant="h6"
             sx={{
               fontWeight: 600,
-              color: "text.primary", // Changed from text.secondary
+              color: "text.secondary",
               fontSize: "1.25rem",
               letterSpacing: "-0.01em",
             }}
           >
             {title}
           </Typography>
+
+          {/* Action Buttons */}
+          {visibleButtons.length > 0 && (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{
+                flexWrap: "wrap",
+                gap: 1,
+              }}
+            >
+              {visibleButtons.map((button, index) => (
+                <React.Fragment key={`action-btn-${index}`}>
+                  {button.tooltip ? (
+                    <Tooltip title={button.tooltip} arrow>
+                      <span>
+                        <Button
+                          variant={button.variant || "contained"}
+                          color={button.color || "secondary"}
+                          size={button.size || "small"}
+                          onClick={button.onClick}
+                          disabled={button.disabled || button.loading}
+                          startIcon={button.loading ? <CircularProgress size={16} /> : button.icon}
+                          sx={{
+                            minWidth: "auto",
+                            px: 1.5,
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: 2,
+                          }}
+                        >
+                          {button.loading ? "Loading..." : button.label}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      variant={button.variant || "contained"}
+                      color={button.color || "secondary"}
+                      size={button.size || "small"}
+                      onClick={button.onClick}
+                      disabled={button.disabled || button.loading}
+                      startIcon={button.loading ? <CircularProgress size={16} /> : button.icon}
+                      sx={{
+                        minWidth: "auto",
+                        px: 1.5,
+                        textTransform: "none",
+                        fontWeight: 600,
+                        borderRadius: 2,
+                      }}
+                    >
+                      {button.loading ? "Loading..." : button.label}
+                    </Button>
+                  )}
+                </React.Fragment>
+              ))}
+            </Stack>
+          )}
         </Box>
       )}
 
@@ -284,9 +377,9 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                 <TableCell
                   padding="checkbox"
                   sx={{
-                    bgcolor: theme.palette.background.default, // Solid background color
+                    bgcolor: theme.palette.background.default,
                     borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
-                    zIndex: 2, // Ensure header stays above content
+                    zIndex: 2,
                   }}
                 >
                   <Checkbox
@@ -318,14 +411,14 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                     style={{ minWidth: column.minWidth }}
                     sortDirection={isSorted && showSorting ? order : false}
                     sx={{
-                      color: theme.palette.text.primary, // Changed from text.secondary
-                      fontWeight: 700, // Increased from 600
-                      fontSize: "0.75rem", // Slightly smaller
+                      color: theme.palette.text.secondary,
+                      fontWeight: 700,
+                      fontSize: "0.75rem",
                       textTransform: "uppercase",
                       letterSpacing: "0.8px",
-                      bgcolor: theme.palette.background.default, // Solid background color
-                      borderBottom: `2px solid ${theme.palette.primary.main}`, // Thicker primary color border
-                      zIndex: 2, // Ensure header stays above content
+                      bgcolor: theme.palette.background.default,
+                      borderBottom: `2px solid ${theme.palette.primary.main}`,
+                      zIndex: 2,
                       "& .MuiTableSortLabel-root": {
                         fontWeight: 700,
                       },
@@ -414,7 +507,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                         key={`${column.id}-${index}`}
                         align={column.align}
                         sx={{
-                          color: theme.palette.text.primary, // Changed from text.secondary
+                          color: theme.palette.text.secondary,
                           fontSize: "0.875rem",
                           py: 1.75,
                         }}

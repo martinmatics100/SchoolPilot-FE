@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { ReusableTable, type Column } from "../../../../components/table";
-import { useTheme } from "@mui/material";
+import { ReusableTable, type Column, type TableActionButton } from "../../../../components/table";
+import { useTheme, alpha } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
-import PersonIcon from "@mui/icons-material/Person"; // Teacher icon
+import PersonIcon from "@mui/icons-material/Person";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { NavigationButton } from "../../../../components/navigation-button";
 import { getInitialAuthData } from "../../../../utils/apiClient";
 import { useEnums } from "../../../../hooks/useEnums";
@@ -24,6 +25,7 @@ import {
   fetchTeachers,
   assignTeacherToClass,
 } from "../../../../api/classServices";
+import { useNavigate } from "react-router-dom";
 
 const AVAILABLE_CLASS_TEMPLATES: ClassModel[] = [
   {
@@ -113,6 +115,7 @@ const AVAILABLE_CLASS_TEMPLATES: ClassModel[] = [
 ];
 
 const Classes = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<ClassModel[]>([]);
   const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,36 +124,13 @@ const Classes = () => {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [assigningTeacher, setAssigningTeacher] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const theme = useTheme();
   const { selectedAccount } = getInitialAuthData();
   const { enums, isLoading: isEnumsLoading } = useEnums({
     fetchPermissionData: false,
   });
-
-  const handleAssignTeacher = (id: string) => {
-    setSelectedClassId(id);
-    setAssignModalOpen(true);
-  };
-
-  const handleAssignTeacherSubmit = async (teacherId: string) => {
-    if (!selectedClassId) return;
-
-    setAssigningTeacher(true);
-    try {
-      await assignTeacherToClass(selectedAccount, selectedClassId, teacherId);
-
-      setAssignModalOpen(false);
-      setSelectedClassId(null);
-
-      await loadClasses(); // reload class list to show updated teacher
-    } catch (error) {
-      console.error("Error assigning teacher:", error);
-      alert("Failed to assign teacher.");
-    } finally {
-      setAssigningTeacher(false);
-    }
-  };
 
   const classLevelMap = useMemo(() => {
     return (
@@ -202,6 +182,12 @@ const Classes = () => {
       .finally(() => setLoading(false));
   };
 
+  const refreshClasses = async () => {
+    setIsRefreshing(true);
+    await loadClasses();
+    setIsRefreshing(false);
+  };
+
   const processClassData = (classesData?: any[]) => {
     const dataToProcess = classesData || rawClasses;
 
@@ -242,7 +228,6 @@ const Classes = () => {
     try {
       const apiClient = createApiClient({ selectedAccount });
 
-      // Prepare payload according to backend expectation
       const payload = {
         Classes: selectedClasses.map((cls) => ({
           ClassName: cls.className,
@@ -257,35 +242,39 @@ const Classes = () => {
       console.log("Backend response:", response);
 
       if (response && (response.status === 200 || response.classIds)) {
-        // Success - close modal first, then reload data
         setModalOpen(false);
-
-        // Reload classes to get the newly created ones with their actual IDs
         await loadClasses();
-
-        // Show success message
-        // alert(`Successfully created ${response.classIds.length} classes!`);
       } else {
         throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Error creating classes:", error);
-      // alert('Failed to create classes. Please try again.');
-      // Don't close modal on error so user can try again
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleEdit = (id: string) => {
-    console.log("Edit class:", id);
+  const handleAssignTeacher = (id: string) => {
+    setSelectedClassId(id);
+    setAssignModalOpen(true);
   };
 
-  // const handleAssignTeacher = (id: string) => {
-  //     console.log('Assign teacher to class:', id);
-  //     // You can implement a modal or dialog for teacher assignment here
-  //     alert(`Assign teacher functionality for class ID: ${id}`);
-  // };
+  const handleAssignTeacherSubmit = async (teacherId: string) => {
+    if (!selectedClassId) return;
+
+    setAssigningTeacher(true);
+    try {
+      await assignTeacherToClass(selectedAccount, selectedClassId, teacherId);
+      setAssignModalOpen(false);
+      setSelectedClassId(null);
+      await loadClasses();
+    } catch (error) {
+      console.error("Error assigning teacher:", error);
+      alert("Failed to assign teacher.");
+    } finally {
+      setAssigningTeacher(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this class?")) {
@@ -329,7 +318,7 @@ const Classes = () => {
 
   const actionColumn = {
     label: "Actions",
-    minWidth: 200,
+    minWidth: 120,
     align: "center" as const,
     render: (row: ClassModel) => {
       const hasTeacher = row.formTeacher && row.formTeacher !== "-";
@@ -344,22 +333,58 @@ const Classes = () => {
             onClick={() => handleAssignTeacher(row.id)}
             title={title}
             size="small"
+            sx={{
+              color: hasTeacher ? theme.palette.secondary.main : theme.palette.primary.main,
+              "&:hover": {
+                bgcolor: alpha(hasTeacher ? theme.palette.secondary.main : theme.palette.primary.main, 0.1),
+              },
+            }}
           >
-            <PersonIcon color={hasTeacher ? "secondary" : "primary"} />
+            <PersonIcon />
           </IconButton>
 
-          {/* <IconButton
-                        aria-label="delete"
-                        onClick={() => handleDelete(row.id)}
-                        title="Delete Class"
-                        size="small"
-                    >
-                        <DeleteIcon color="error" />
-                    </IconButton> */}
+          <IconButton
+            aria-label="delete"
+            onClick={() => handleDelete(row.id)}
+            title="Delete Class"
+            size="small"
+            sx={{
+              color: theme.palette.error.main,
+              "&:hover": {
+                bgcolor: alpha(theme.palette.error.main, 0.1),
+              },
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
         </div>
       );
     },
   };
+
+  // Define table action buttons
+  const tableActionButtons: TableActionButton[] = [
+    {
+      label: "Add Class",
+      icon: <AddIcon />,
+      onClick: () => navigate("create-class"),
+      color: "info",
+      variant: "contained",
+      tooltip: "Add a new class",
+      show: true,
+    },
+    {
+      label: "Refresh",
+      icon: <RefreshIcon />,
+      onClick: refreshClasses,
+      color: "primary",
+      variant: "outlined",
+      disabled: isRefreshing,
+      loading: isRefreshing,
+      tooltip: "Refresh class list",
+      show: true,
+    },
+  ];
 
   if (loading || isEnumsLoading) {
     return (
@@ -375,20 +400,13 @@ const Classes = () => {
   }
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "8px",
-          marginBottom: "16px",
-        }}
-      >
-        <NavigationButton to="create-class" sx={{ alignContent: "flex-end" }}>
-          <AddIcon />
-        </NavigationButton>
-      </div>
-
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3, md: 4 },
+        bgcolor: "background.default",
+        minHeight: "85%",
+      }}
+    >
       <ReusableTable
         title="Class List"
         columns={columns}
@@ -397,10 +415,12 @@ const Classes = () => {
         actionColumn={actionColumn}
         loading={loading || isEnumsLoading}
         showCheckboxes={false}
-        showSorting={false}
+        showSorting={true}
         showPagination={true}
+        actionButtons={tableActionButtons}
       />
 
+      {/* Class Selection Modal for Bulk Add */}
       <ClassSelectionModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -410,6 +430,7 @@ const Classes = () => {
         isSubmitting={isCreating}
       />
 
+      {/* Assign Teacher Modal */}
       <AssignTeacherModal
         open={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}
@@ -417,7 +438,7 @@ const Classes = () => {
         fetchTeachers={() => fetchTeachers(selectedAccount, enums)}
         isSubmitting={assigningTeacher}
       />
-    </div>
+    </Box>
   );
 };
 

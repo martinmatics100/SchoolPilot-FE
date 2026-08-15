@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ReusableTable, type Column } from '../../../../components/table';
+import { ReusableTable, type Column, type TableActionButton } from '../../../../components/table';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -19,6 +19,9 @@ import { fetchUsers, deleteUsers } from '../../../../api/userService';
 import { type UserModel, type StatusConfig } from '../../../../types/interfaces/i-user';
 import PageError from '../../../../components/states/pageError';
 import PeopleIcon from '@mui/icons-material/People';
+import { useNavigate } from 'react-router-dom';
+import EditUserDrawer from "../edit-user-drawer";
+
 
 const statusConfig: StatusConfig = {
     active: {
@@ -36,26 +39,34 @@ const statusConfig: StatusConfig = {
 };
 
 const Index = () => {
+    const navigate = useNavigate();
+    const theme = useTheme();
+    const { selectedAccount } = getInitialAuthData();
+    const { enums, isLoading: isEnumsLoading } = useEnums({ fetchPermissionData: false });
+
     const [data, setData] = useState<UserModel[]>([]);
     const [rawUsers, setRawUsers] = useState<any[]>([]);
+
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalCount, setTotalCount] = useState(0);
+
     const [sortBy, setSortBy] = useState<string>('username');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+
     const [selectedRows, setSelectedRows] = useState<string[]>([]);
+
     const [loading, setLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [pageError, setPageError] = useState(false);
+    const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
         severity: 'success' as 'success' | 'error'
     });
-
-    const theme = useTheme();
-    const { selectedAccount } = getInitialAuthData();
-    const { enums, isLoading: isEnumsLoading } = useEnums({ fetchPermissionData: false });
 
     const [filters, setFilters] = useState({
         search: '',
@@ -77,17 +88,6 @@ const Index = () => {
 
         return [{ value: '', label: 'All Roles' }, ...options];
     }, [enums]);
-
-    const filterConfigs: FilterConfig[] = [
-        {
-            type: 'single-select',
-            label: 'User Role',
-            value: filters.role,
-            onChange: (value: string) =>
-                setFilters((prev) => ({ ...prev, role: value })),
-            options: roleOptions,
-        },
-    ];
 
     const userStatusMap = useMemo(() => {
         return (
@@ -116,6 +116,17 @@ const Index = () => {
         );
     }, [enums]);
 
+    const filterConfigs: FilterConfig[] = [
+        {
+            type: 'single-select',
+            label: 'User Role',
+            value: filters.role,
+            onChange: (value: string) =>
+                setFilters((prev) => ({ ...prev, role: value })),
+            options: roleOptions,
+        },
+    ];
+
     const loadUsers = async () => {
         if (!selectedAccount) {
             setPageError(true);
@@ -139,6 +150,17 @@ const Index = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Add this handler
+    const handleEdit = (id: string) => {
+        setSelectedUserId(id);
+        setEditDrawerOpen(true);
+    };
+
+    // Add this refresh function
+    const refreshUsers = () => {
+        loadUsers();
     };
 
     useEffect(() => {
@@ -180,24 +202,30 @@ const Index = () => {
         loadUsers();
     };
 
-    if (pageError) {
-        return (
-            <PageError
-                title="users"
-                action="loading"
-                ticketUrl="/support"
-                onRetry={retryFetchUsers}
-            />
-        );
-    }
-
-    if (loading || isEnumsLoading) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px" sx={{ bgcolor: 'background.default' }}>
-                <CircularProgress size={48} sx={{ color: 'primary.main' }} />
-            </Box>
-        );
-    }
+    const handleDeleteSelected = async () => {
+        if (selectedRows.length === 0) return;
+        setIsDeleting(true);
+        try {
+            await deleteUsers(selectedRows);
+            setData((prev) =>
+                prev.filter((user) => !selectedRows.includes(user.id))
+            );
+            setSelectedRows([]);
+            setSnackbar({
+                open: true,
+                message: `Deleted ${selectedRows.length} user${selectedRows.length > 1 ? 's' : ''}`,
+                severity: 'success',
+            });
+        } catch {
+            setSnackbar({
+                open: true,
+                message: 'Failed to delete users',
+                severity: 'error',
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const getStatusConfig = (status: string) => {
         const normalizedStatus = status.toLowerCase();
@@ -213,8 +241,28 @@ const Index = () => {
         return roleColors[role.toLowerCase()] || theme.palette.info.main;
     };
 
-    // Calculate active users count
-    const activeUsersCount = data.filter(user => user.status === 'active').length;
+    const tableActionButtons: TableActionButton[] = [
+        {
+            label: selectedRows.length > 0 ? `Delete Selected [${selectedRows.length}]` : 'Delete Selected',
+            icon: <DeleteIcon />,
+            onClick: handleDeleteSelected,
+            color: 'error',
+            variant: 'outlined',
+            disabled: selectedRows.length === 0 || isDeleting,
+            loading: isDeleting,
+            tooltip: selectedRows.length > 0 ? `Delete ${selectedRows.length} selected user${selectedRows.length > 1 ? 's' : ''}` : 'Select users to delete',
+            show: true,
+        },
+        {
+            label: 'Add',
+            icon: <AddIcon />,
+            onClick: () => navigate('create-user'),
+            color: 'info',
+            variant: 'contained',
+            tooltip: 'Add new user',
+            show: true,
+        },
+    ];
 
     const columns: Column[] = [
         {
@@ -237,10 +285,10 @@ const Index = () => {
                         {row.firstName?.charAt(0)}{row.lastName?.charAt(0)}
                     </Avatar>
                     <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                             {row.lastName}, {row.firstName}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        <Typography variant="caption" sx={{ color: 'text.primary' }}>
                             ID: {row.userId}
                         </Typography>
                     </Box>
@@ -339,7 +387,7 @@ const Index = () => {
             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                 <Tooltip title="Edit User" arrow>
                     <IconButton
-                        onClick={() => console.log('Edit', row.id)}
+                        onClick={() => handleEdit(row.id)}
                         size="small"
                         sx={{
                             color: theme.palette.info.main,
@@ -369,88 +417,33 @@ const Index = () => {
         ),
     };
 
+    if (pageError) {
+        return (
+            <PageError
+                title="users"
+                action="loading"
+                ticketUrl="/support"
+                onRetry={retryFetchUsers}
+            />
+        );
+    }
+
+    if (loading || isEnumsLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px" sx={{ bgcolor: 'background.default' }}>
+                <CircularProgress size={48} sx={{ color: 'primary.main' }} />
+            </Box>
+        );
+    }
+
     return (
         <Box
             sx={{
                 p: { xs: 2, sm: 3, md: 4 },
                 bgcolor: 'background.default',
-                minHeight: '100%',
+                minHeight: '85%',
             }}
         >
-
-            {/* Action Buttons - Far Right */}
-            <Box
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2,
-                    flexWrap: 'wrap',
-                }}
-            >
-                <NavigationButton
-                    onClick={async () => {
-                        if (selectedRows.length === 0) return;
-                        setIsDeleting(true);
-                        try {
-                            await deleteUsers(selectedRows);
-                            setData((prev) =>
-                                prev.filter((user) => !selectedRows.includes(user.id))
-                            );
-                            setSelectedRows([]);
-                            setSnackbar({
-                                open: true,
-                                message: `Deleted ${selectedRows.length} user${selectedRows.length > 1 ? 's' : ''}`,
-                                severity: 'success',
-                            });
-                        } catch {
-                            setSnackbar({
-                                open: true,
-                                message: 'Failed to delete users',
-                                severity: 'error',
-                            });
-                        } finally {
-                            setIsDeleting(false);
-                        }
-                    }}
-                    disabled={selectedRows.length === 0 || isDeleting}
-                    size="small"
-                    color="error"
-                    variant="outlined"
-                    startIcon={<DeleteIcon />}
-                    sx={{
-                        minWidth: 'auto',
-                        px: 1.5,
-                        '& .MuiButton-startIcon': {
-                            marginRight: selectedRows.length > 0 ? 0.5 : 0,
-                        },
-                    }}
-                >
-                    {selectedRows.length > 0 && `(${selectedRows.length})`}
-                </NavigationButton>
-
-                <NavigationButton
-                    size="small"
-                    color="info"
-                    variant="contained"
-                    to="create-user"
-                    startIcon={<AddIcon />}
-                    sx={{
-                        minWidth: 'auto',
-                        px: 1.5,
-                    }}
-                >
-                    Add
-                </NavigationButton>
-            </Box>
-
-            {/* Filters */}
-            {/* <Box sx={{ mb: 2 }}>
-                <FilterComponent filters={filterConfigs} />
-            </Box> */}
-
-            {/* Table */}
             <ReusableTable
                 title="Users List"
                 columns={columns}
@@ -475,11 +468,14 @@ const Index = () => {
                     setRowsPerPage(parseInt(event.target.value, 10));
                     setPage(1);
                 }}
-                onSelectedRowsChange={(selected) => setSelectedRows(selected)}
+                onSelectedRowsChange={(selected) => {
+                    const ids = selected.map((row: any) => row.id);
+                    setSelectedRows(ids);
+                }}
                 loading={loading || isEnumsLoading}
+                actionButtons={tableActionButtons}
             />
 
-            {/* Snackbar */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
@@ -497,6 +493,16 @@ const Index = () => {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+            {/* Edit User Drawer */}
+            <EditUserDrawer
+                open={editDrawerOpen}
+                onClose={() => {
+                    setEditDrawerOpen(false);
+                    setSelectedUserId(null);
+                }}
+                userId={selectedUserId}
+                onSuccess={refreshUsers}
+            />
         </Box>
     );
 };

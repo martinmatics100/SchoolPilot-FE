@@ -829,7 +829,7 @@ const PermissionTable: React.FC = () => {
                                                 const featureRowIndeterminate = isFeatureRowIndeterminate(feature, parentModule.moduleActions);
                                                 return (
                                                     <TableRow key={`feature-${parentModule.id}-${feature.id}`}>
-                                                        <TableCell sx={{ pl: 6 }}>
+                                                        <TableCell sx={{ pl: 6, color: theme.palette.text.secondary, fontWeight: 'bold' }}>
                                                             <Box display="flex" alignItems="center">
                                                                 <Checkbox
                                                                     checked={featureRowChecked}

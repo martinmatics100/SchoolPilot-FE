@@ -165,39 +165,9 @@ const navItems: INavbarItem[] = [
     // Settings
 
     // {
-    //     id: 14,
-    //     path: '/app/grading-system',
-    //     title: 'Grading Systems',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Result Settings',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
-    // {
-    //     id: 15,
-    //     path: '/app/comment-bank',
-    //     title: 'Comments Bank',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Result Settings',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
-    // {
     //     id: 16,
     //     path: '#',
     //     title: 'Cognitive Skills',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Result Settings',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
-    // {
-    //     id: 17,
-    //     path: '/app/report-reference',
-    //     title: 'Result Preference',
     //     icon: 'mdi:cog',
     //     active: true,
     //     group: 'Result Settings',
@@ -213,6 +183,34 @@ const navItems: INavbarItem[] = [
         active: true,
         group: 'Settings',
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+    },
+    // {
+    //     id: 17,
+    //     path: '/app/report-reference',
+    //     title: 'Result Preference',
+    //     icon: 'mdi:cog',
+    //     active: true,
+    //     group: 'Settings',
+    //     roles: [UserRoles.ADMIN],
+    // },
+    {
+        id: 14,
+        path: '/app/grading-system',
+        title: 'Grading Systems',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 15,
+        path: '/app/comment-bank',
+        title: 'Comments Bank',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN],
     },
 ]
 

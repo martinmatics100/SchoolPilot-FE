@@ -314,7 +314,7 @@ export default function CreateSchoolPage() {
                     },
                     schoolLocation: [
                         {
-                            name: `${data.name} Main Branch`,
+                            name: `${data.name}`,
                             address: {
                                 addressLine1: data.address.addressLine1,
                                 addressLine2: "",

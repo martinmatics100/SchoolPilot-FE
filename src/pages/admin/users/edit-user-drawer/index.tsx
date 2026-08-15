@@ -18,15 +18,12 @@ import DynamicForm, { type FormField } from "../../../../components/my-form";
 import { useEnums } from "../../../../hooks/useEnums";
 import { useAuth } from "../../../../context";
 import MessageDisplay from "../../../../components/message-display";
-import { fetchBranches } from "../../../../api/userService";
-import { fetchClasses } from "../../../../api/classServices";
-import {
-    getStudentById,
-    updateStudent,
-} from "../../../../api/studentService";
-import { type Branch } from "../../../../types/interfaces/i-user";
-import { type StudentDetail, type UpdateStudentPayload } from "../../../../types/interfaces/i-student";
+import { getUserProfile, updateUserProfile } from "../../../../api/userService";
 import { useAssetUpload } from "../../../../hooks/useAsset";
+
+// =========================================================================
+// Types & Interfaces
+// =========================================================================
 
 interface AddressData {
     addressLine1: string;
@@ -34,39 +31,85 @@ interface AddressData {
     city?: string | null;
     state: string;
     zipCode?: string | null;
-    county?: string | null;
     country: string;
 }
 
-interface StudentDetailWithAddress extends StudentDetail {
-    address?: AddressData;
+interface PhoneNumberData {
+    number: string;
+    phoneType?: number;
+    extension?: string | null;
+    country?: string | null;
+}
+
+interface UserDetail {
+    id: string;
+    schoolId: string;
+    schoolName: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    gender: number;
+    status: number;
+    role: number;
+    dateOfBirth: string | null;
+    address?: AddressData | null;
+    phoneNumber?: PhoneNumberData | null;
     photoUrl?: string | null;
 }
 
-interface EditStudentDrawerProps {
+interface UpdateUserPayload {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phoneNumber?: {
+        number: string;
+        extension?: string;
+        country: string;
+    };
+    address?: {
+        addressLine1: string;
+        addressLine2?: string;
+        city?: string;
+        state: string;
+        zipCode?: string;
+        country: string;
+    };
+    dateOfBirth?: string;
+    gender?: string;
+    photoAssetId?: string | null;
+}
+
+interface EditUserDrawerProps {
     open: boolean;
     onClose: () => void;
-    studentId: string | null;
+    userId: string | null;
     onSuccess: () => void;
 }
 
-const EditStudentDrawer = ({
+// =========================================================================
+// Main Component
+// =========================================================================
+
+const EditUserDrawer = ({
     open,
     onClose,
-    studentId,
+    userId,
     onSuccess,
-}: EditStudentDrawerProps) => {
+}: EditUserDrawerProps) => {
     const theme = useTheme();
     const { enums, isLoading: isEnumsLoading } = useEnums({
         fetchPermissionData: false,
     });
-    const { apiClient, selectedAccount } = useAuth();
+    const { selectedAccount } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    // Ref to track if student data has been loaded to prevent infinite loops
-    const hasLoadedStudentRef = useRef(false);
-    // Ref to store the current student ID to detect changes
-    const currentStudentIdRef = useRef<string | null>(null);
+
+    // Ref to track if user data has been loaded to prevent infinite loops
+    const hasLoadedUserRef = useRef(false);
+    const currentUserIdRef = useRef<string | null>(null);
+
+    // =========================================================================
+    // Hooks & State
+    // =========================================================================
 
     // Asset upload hook
     const {
@@ -77,35 +120,33 @@ const EditStudentDrawer = ({
         clearError: clearUploadError
     } = useAssetUpload(selectedAccount);
 
+    // Form state
     const [formFields, setFormFields] = useState<FormField[]>([]);
-    const [branches, setBranches] = useState<Branch[]>([]);
-    const [classes, setClasses] = useState<
-        Array<{ id: string; name: string; classLevel?: number }>
-    >([]);
-    const [studentData, setStudentData] = useState<any>(null);
-    const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
+    const [userData, setUserData] = useState<any>(null);
+    const [userPhotoUrl, setUserPhotoUrl] = useState<string | null>(null);
+
+    // Loading states
     const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Photo management
+    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
+    const [hasPhotoChanged, setHasPhotoChanged] = useState(false);
+
+    // UI states
     const [alertMessage, setAlertMessage] = useState<{
         feMessage?: string;
         beMessage?: string;
         httpStatus?: number;
     }>({});
-    const [isLoadingBranches, setIsLoadingBranches] = useState(false);
-    const [isLoadingClasses, setIsLoadingClasses] = useState(false);
-    const [selectedClass, setSelectedClass] = useState<{
-        id: string;
-        name: string;
-        classLevel?: number;
-    } | null>(null);
-
-    // State for photo management
-    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
-    const [hasPhotoChanged, setHasPhotoChanged] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [dotCount, setDotCount] = useState(0);
 
-    // Effect for animated dots
+    // =========================================================================
+    // Effects
+    // =========================================================================
+
+    // Animated title dots
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
 
@@ -122,27 +163,25 @@ const EditStudentDrawer = ({
         };
     }, [open]);
 
-    // Reset dot count when drawer closes
+    // Reset dot count when closed
     useEffect(() => {
         if (!open) {
             setDotCount(0);
         }
     }, [open]);
 
-    // Reset all states when drawer closes - FIXED: Only depend on 'open'
+    // Reset state when drawer closes - FIXED: Only depend on 'open'
     useEffect(() => {
         if (!open) {
-            setStudentData(null);
-            setStudentPhotoUrl(null);
-            setSelectedClass(null);
+            setUserData(null);
+            setUserPhotoUrl(null);
             setAlertMessage({});
             setFormFields([]);
             setUploadedPhotoAssetId(null);
             setHasPhotoChanged(false);
-            // Reset the loaded ref when drawer closes
-            hasLoadedStudentRef.current = false;
-            currentStudentIdRef.current = null;
-            
+            hasLoadedUserRef.current = false;
+            currentUserIdRef.current = null;
+
             // Call clearUploadError without depending on it
             if (clearUploadError) {
                 clearUploadError();
@@ -150,7 +189,10 @@ const EditStudentDrawer = ({
         }
     }, [open]); // ✅ Only depend on 'open'
 
-    // Handle file selection and upload
+    // =========================================================================
+    // Photo Management
+    // =========================================================================
+
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -179,7 +221,7 @@ const EditStudentDrawer = ({
 
         // Show preview immediately
         const previewUrl = URL.createObjectURL(file);
-        setStudentPhotoUrl(previewUrl);
+        setUserPhotoUrl(previewUrl);
 
         setAlertMessage({ feMessage: "Uploading new profile picture..." });
 
@@ -187,22 +229,21 @@ const EditStudentDrawer = ({
 
         if (result) {
             setUploadedPhotoAssetId(result.fileId);
-            const successMessage = "Profile picture uploaded successfully! Click Update Student to save changes.";
+            const successMessage = "Profile picture uploaded successfully! Click Update User to save changes.";
             setAlertMessage({ feMessage: successMessage });
-            
-            // Clear success message after 3 seconds using a closure to avoid dependency issues
+
+            // Clear success message after 5 seconds using functional update
             setTimeout(() => {
                 setAlertMessage((prev) => {
-                    // Only clear if the message hasn't changed
                     if (prev.feMessage === successMessage) {
                         return {};
                     }
                     return prev;
                 });
-            }, 3000);
+            }, 5000);
         } else {
             // Revert preview on failure
-            setStudentPhotoUrl(studentData?.photoUrl || null);
+            setUserPhotoUrl(userData?.photoUrl || null);
             setAlertMessage({ feMessage: "Failed to upload profile picture", httpStatus: 500 });
         }
 
@@ -212,12 +253,11 @@ const EditStudentDrawer = ({
         }
     };
 
-    // Handle photo removal
-    const handleRemovePhoto = async () => {
+    const handleRemovePhoto = () => {
         setHasPhotoChanged(true);
         setUploadedPhotoAssetId(null);
-        setStudentPhotoUrl(null);
-        const removalMessage = "Photo will be removed when you update the student";
+        setUserPhotoUrl(null);
+        const removalMessage = "Photo will be removed when you update the user";
         setAlertMessage({ feMessage: removalMessage });
         setTimeout(() => {
             setAlertMessage((prev) => {
@@ -226,133 +266,111 @@ const EditStudentDrawer = ({
                 }
                 return prev;
             });
-        }, 2000);
+        }, 3000);
     };
 
-    // Open file picker when clicking the avatar
     const handleAvatarClick = () => {
         if (!isPhotoUploading && !isSubmitting) {
             fileInputRef.current?.click();
         }
     };
 
-    // Load branches
-    useEffect(() => {
-        const loadBranches = async () => {
-            if (selectedAccount) {
-                setIsLoadingBranches(true);
-                try {
-                    const fetchedBranches = await fetchBranches(selectedAccount, apiClient);
-                    setBranches(fetchedBranches);
-                } catch (err) {
-                    console.error("Failed to load branches:", err);
-                } finally {
-                    setIsLoadingBranches(false);
-                }
-            }
-        };
-        loadBranches();
-    }, [selectedAccount, apiClient]);
+    // =========================================================================
+    // Data Loading - FIXED: Added ref to prevent infinite loops
+    // =========================================================================
 
-    // Load classes
     useEffect(() => {
-        const loadClasses = async () => {
-            if (selectedAccount) {
-                setIsLoadingClasses(true);
-                try {
-                    const fetchedClasses = await fetchClasses(selectedAccount);
-                    setClasses(
-                        fetchedClasses.map((c: any) => ({
-                            id: c.id,
-                            name: c.className,
-                            classLevel: c.classLevel,
-                        }))
-                    );
-                } catch (err) {
-                    console.error("Failed to load classes:", err);
-                } finally {
-                    setIsLoadingClasses(false);
-                }
-            }
-        };
-        loadClasses();
-    }, [selectedAccount]);
-
-    // Load student data - FIXED: Removed 'classes' dependency to prevent infinite loop
-    useEffect(() => {
-        const loadStudentData = async () => {
-            // Check if we have all required data and haven't loaded this student yet
-            const shouldLoad = open && 
-                              studentId && 
-                              selectedAccount && 
-                              enums && 
-                              !hasLoadedStudentRef.current;
+        const loadUserData = async () => {
+            // Check if we have all required data and haven't loaded this user yet
+            const shouldLoad = open &&
+                userId &&
+                selectedAccount &&
+                !hasLoadedUserRef.current;
 
             if (!shouldLoad) {
                 return;
             }
 
-            // If student ID changed, reset the loaded flag
-            if (currentStudentIdRef.current !== studentId) {
-                hasLoadedStudentRef.current = false;
-                currentStudentIdRef.current = studentId;
+            // If user ID changed, reset the loaded flag
+            if (currentUserIdRef.current !== userId) {
+                hasLoadedUserRef.current = false;
+                currentUserIdRef.current = userId;
             }
 
             setLoading(true);
             setAlertMessage({});
 
             try {
-                const student: StudentDetailWithAddress = await getStudentById(selectedAccount, studentId);
+                // Use getUserProfile from userService
+                const user = await getUserProfile(selectedAccount, userId);
 
-                setStudentPhotoUrl(student.photoUrl || null);
-
+                // Map enum values to display names
                 const genderEnum = enums?.Gender?.find(
-                    (g: any) => g.displayName === student.gender || g.name === student.gender
+                    (g: any) => g.value === user.gender || g.name === user.gender
                 );
 
-                const statusEnum = enums?.StudentStatus?.find(
-                    (s: any) => s.displayName === student.status || s.name === student.status
+                const statusEnum = enums?.UserStatus?.find(
+                    (s: any) => s.value === user.status || s.name === user.status
                 );
 
-                const formattedAddress = student.address ? {
-                    addressLine1: student.address.addressLine1 || "",
-                    postalCode: student.address.zipCode || "",
-                    country: student.address.country || "",
-                    state: student.address.state || "",
+                const roleEnum = enums?.UserRole?.find(
+                    (r: any) => r.value === user.role || r.name === user.role
+                );
+
+                // Format address
+                const formattedAddress = user.address ? {
+                    addressLine1: user.address.addressLine1 || "",
+                    addressLine2: user.address.addressLine2 || "",
+                    city: user.address.city || "",
+                    state: user.address.state || "",
+                    zipCode: user.address.zipCode || "",
+                    country: user.address.country || "",
                 } : {
                     addressLine1: "",
-                    postalCode: "",
-                    country: "",
+                    addressLine2: "",
+                    city: "",
                     state: "",
+                    zipCode: "",
+                    country: "",
+                };
+
+                // Format phone number
+                const formattedPhone = user.phoneNumber ? {
+                    number: user.phoneNumber.number || "",
+                    phoneType: user.phoneNumber.phoneType || 0,
+                    extension: user.phoneNumber.extension || "",
+                    country: user.phoneNumber.country || "",
+                } : {
+                    number: "",
+                    phoneType: 0,
+                    extension: "",
+                    country: "",
                 };
 
                 const formattedData = {
-                    id: student.id,
-                    firstName: student.firstName,
-                    lastName: student.lastName,
-                    dateOfBirth: student.dateOfBirth?.split('T')[0] || '',
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
                     gender: genderEnum?.value?.toString() || '',
-                    schoolId: student.schoolId || '',
-                    classId: student.classRoomId || '',
                     status: statusEnum?.value?.toString() || '',
+                    role: roleEnum?.value?.toString() || '',
+                    dateOfBirth: user.dateOfBirth?.split('T')[0] || '',
+                    schoolId: user.schoolId || '',
                     address: formattedAddress,
-                    photoUrl: student.photoUrl,
+                    phoneNumber: formattedPhone,
+                    photoUrl: user.photoUrl,
                 };
 
-                setStudentData(formattedData);
-
-                if (student.classRoomId) {
-                    const studentClass = classes.find(c => c.id === student.classRoomId);
-                    setSelectedClass(studentClass || null);
-                }
+                setUserData(formattedData);
+                setUserPhotoUrl(user.photoUrl || null);
 
                 // Mark as loaded to prevent re-fetching
-                hasLoadedStudentRef.current = true;
-
+                hasLoadedUserRef.current = true;
             } catch (error) {
-                console.error("Error loading student data:", error);
+                console.error("Error loading user data:", error);
                 setAlertMessage({
-                    feMessage: "Failed to load student data.",
+                    feMessage: "Failed to load user data.",
                     httpStatus: 500,
                 });
             } finally {
@@ -360,23 +378,19 @@ const EditStudentDrawer = ({
             }
         };
 
-        loadStudentData();
-    }, [open, studentId, selectedAccount, enums]); // ✅ Removed 'classes' from dependencies
+        loadUserData();
+    }, [open, userId, selectedAccount, enums]); // ✅ Removed dependencies that could cause loops
 
-    // Build form fields
+    // =========================================================================
+    // Form Configuration - FIXED: Added proper conditions
+    // =========================================================================
+
     useEffect(() => {
-        // Only build fields when we have all required data
-        if (
-            !isEnumsLoading &&
-            !isLoadingClasses &&
-            enums &&
-            studentData &&
-            classes.length > 0
-        ) {
+        if (!isEnumsLoading && enums && userData) {
             const fields: FormField[] = [
                 {
                     name: "id",
-                    label: "Student ID",
+                    label: "User ID",
                     type: "text",
                     required: false,
                     colSpan: 1,
@@ -397,6 +411,13 @@ const EditStudentDrawer = ({
                     colSpan: 1,
                 },
                 {
+                    name: "email",
+                    label: "Email",
+                    type: "email",
+                    required: true,
+                    colSpan: 1,
+                },
+                {
                     name: "dateOfBirth",
                     label: "Date of Birth",
                     type: "date",
@@ -409,7 +430,6 @@ const EditStudentDrawer = ({
                     type: "select",
                     required: true,
                     colSpan: 1,
-                    readOnly: true,
                     options:
                         enums.Gender?.map((g: any) => ({
                             value: g.value.toString(),
@@ -417,115 +437,106 @@ const EditStudentDrawer = ({
                         })) || [],
                 },
                 {
-                    name: "classId",
-                    label: "Class",
+                    name: "role",
+                    label: "Role",
                     type: "select",
                     required: true,
                     colSpan: 1,
-                    options: classes.map((cls) => ({ value: cls.id, label: cls.name })),
-                    onChange: (value: string) => {
-                        const selected = classes.find((c) => c.id === value);
-                        setSelectedClass(selected || null);
-                    },
-                },
-            ];
-
-            if (selectedClass && selectedClass.classLevel === 4) {
-                fields.push({
-                    name: "streamType",
-                    label: "Stream",
-                    type: "select",
-                    required: false,
-                    colSpan: 1,
-                    placeholder: "Select Stream",
                     options:
-                        enums.StreamType?.map((s: any) => ({
+                        enums.UserRole?.map((r: any) => ({
+                            value: r.value.toString(),
+                            label: r.displayName || r.name,
+                        })) || [],
+                    readOnly: true, // Role should not be editable for existing users
+                },
+                {
+                    name: "status",
+                    label: "Status",
+                    type: "select",
+                    required: true,
+                    colSpan: 1,
+                    options:
+                        enums.UserStatus?.map((s: any) => ({
                             value: s.value.toString(),
                             label: s.displayName || s.name,
                         })) || [],
-                });
-            }
-
-            fields.push({
-                name: "status",
-                label: "Status",
-                type: "select",
-                required: true,
-                colSpan: 1,
-                options:
-                    enums.StudentStatus?.map((s: any) => ({
-                        value: s.value.toString(),
-                        label: s.displayName || s.name,
-                    })) || [],
-            });
-
-            fields.push({
-                name: "address",
-                label: "Address",
-                type: "address",
-                required: false,
-                colSpan: 2,
-            });
-
-            fields.push({
-                name: "notes",
-                label: "Notes",
-                type: "multiline",
-                required: false,
-                colSpan: 2,
-                rows: 4,
-            });
+                },
+                {
+                    name: "address",
+                    label: "Address",
+                    type: "address",
+                    required: false,
+                    colSpan: 2,
+                },
+                {
+                    name: "phoneNumber",
+                    label: "Phone Number",
+                    type: "phone",
+                    required: false,
+                    colSpan: 2,
+                    extraProps: {
+                        enums: {
+                            PhoneType: enums?.PhoneType || [],
+                            Country: enums?.Country || []
+                        }
+                    }
+                },
+            ];
 
             setFormFields(fields);
         }
-    }, [
-        enums,
-        isEnumsLoading,
-        isLoadingClasses,
-        classes,
-        studentData,
-        selectedClass,
-    ]);
+    }, [enums, isEnumsLoading, userData]);
+
+    // =========================================================================
+    // Handlers
+    // =========================================================================
 
     const handleSubmit = async (data: any) => {
         try {
             setIsSubmitting(true);
-            setAlertMessage({ feMessage: "Updating student data..." });
+            setAlertMessage({ feMessage: "Updating user data..." });
 
-            const genderValue = data.gender ? parseInt(data.gender) : 0;
-            const statusValue = data.status ? parseInt(data.status) : 0;
-            const streamTypeValue = data.streamType ? parseInt(data.streamType) : null;
-
-            const formattedAddress = data.address ? {
-                AddressLine1: data.address.addressLine1 || "",
-                State: data.address.state || "",
-                Country: data.address.country || "",
-                ZipCode: data.address.postalCode || "",
-            } : undefined;
-
-            const payload: UpdateStudentPayload = {
-                Id: studentId!,
-                SchoolId: data.schoolId,
-                FirstName: data.firstName,
-                LastName: data.lastName,
-                Gender: genderValue,
-                Status: statusValue,
-                ClassRoomId: data.classId,
-                StreamType: streamTypeValue,
-                DateOfBirth: data.dateOfBirth,
-                Address: formattedAddress,
-                Notes: data.notes,
-                // Include PhotoAssetId if a new photo was uploaded
-                ...(hasPhotoChanged && {
-                    PhotoAssetId: uploadedPhotoAssetId || null, // null will remove the photo
-                }),
+            // Build the payload
+            const payload: UpdateUserPayload = {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                gender: data.gender,
+                dateOfBirth: data.dateOfBirth || undefined,
             };
 
-            const response = await updateStudent(selectedAccount!, studentId!, payload);
+            // Add address if provided
+            if (data.address && data.address.addressLine1) {
+                payload.address = {
+                    addressLine1: data.address.addressLine1 || "",
+                    addressLine2: data.address.addressLine2 || "",
+                    city: data.address.city || "",
+                    state: data.address.state || "",
+                    zipCode: data.address.zipCode || "",
+                    country: data.address.country || "",
+                };
+            }
 
-            if (response.success) {
+            // Add phone number if provided
+            if (data.phoneNumber && data.phoneNumber.number) {
+                payload.phoneNumber = {
+                    number: data.phoneNumber.number || "",
+                    extension: data.phoneNumber.extension || "",
+                    country: data.phoneNumber.country || "",
+                };
+            }
+
+            // Include PhotoAssetId if a new photo was uploaded
+            if (hasPhotoChanged) {
+                payload.photoAssetId = uploadedPhotoAssetId || null; // null will remove the photo
+            }
+
+            // Use updateUserProfile from userService
+            const response = await updateUserProfile(selectedAccount!, userId!, payload);
+
+            if (response) {
                 setAlertMessage({
-                    feMessage: "Student updated successfully!",
+                    feMessage: "User updated successfully!",
                     httpStatus: 200,
                 });
 
@@ -534,13 +545,13 @@ const EditStudentDrawer = ({
                     handleClose();
                 }, 1500);
             } else {
-                throw new Error(response.message || "Failed to update student");
+                throw new Error("Failed to update user");
             }
         } catch (error: any) {
             console.error("Update error:", error);
             setAlertMessage({
-                feMessage: "Failed to update student.",
-                beMessage: error.message,
+                feMessage: "Failed to update user.",
+                beMessage: error.message || "An unexpected error occurred",
                 httpStatus: error.status || 500,
             });
         } finally {
@@ -550,43 +561,46 @@ const EditStudentDrawer = ({
 
     const handleClose = () => {
         setAlertMessage({});
-        setStudentData(null);
-        setStudentPhotoUrl(null);
-        setSelectedClass(null);
+        setUserData(null);
+        setUserPhotoUrl(null);
         setFormFields([]);
         setUploadedPhotoAssetId(null);
         setHasPhotoChanged(false);
+        hasLoadedUserRef.current = false;
+        currentUserIdRef.current = null;
         if (clearUploadError) {
             clearUploadError();
         }
-        // Reset the loaded ref when closing
-        hasLoadedStudentRef.current = false;
-        currentStudentIdRef.current = null;
         onClose();
     };
 
+    // =========================================================================
+    // Helper Functions
+    // =========================================================================
+
     const getInitials = () => {
-        if (studentData?.firstName && studentData?.lastName) {
-            return `${studentData.firstName.charAt(0)}${studentData.lastName.charAt(0)}`.toUpperCase();
+        if (userData?.firstName && userData?.lastName) {
+            return `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`.toUpperCase();
         }
         return "?";
     };
 
-    const isReady = !isEnumsLoading &&
-        !isLoadingClasses &&
-        !loading &&
-        studentData &&
-        classes.length > 0 &&
-        formFields.length > 0;
-
     const getAnimatedTitle = () => {
-        const baseText = "Edit Student";
+        const baseText = "Edit User";
         const dots = ".".repeat(dotCount);
         return `${baseText}${dots}`;
     };
 
-    // Check if submit should be disabled
+    const isReady = !isEnumsLoading &&
+        !loading &&
+        userData &&
+        formFields.length > 0;
+
     const isSubmitDisabled = isPhotoUploading || isSubmitting;
+
+    // =========================================================================
+    // Render
+    // =========================================================================
 
     return (
         <Drawer
@@ -620,7 +634,7 @@ const EditStudentDrawer = ({
 
             <Fade in={open} timeout={300}>
                 <Box>
-                    {/* Header */}
+                    {/* ========== Header ========== */}
                     <Box
                         sx={{
                             display: "flex",
@@ -661,7 +675,7 @@ const EditStudentDrawer = ({
                                     {getAnimatedTitle()}
                                 </Typography>
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                    Update student information
+                                    Update user information
                                 </Typography>
                             </Box>
                         </Box>
@@ -679,7 +693,7 @@ const EditStudentDrawer = ({
                         </IconButton>
                     </Box>
 
-                    {/* Message Display */}
+                    {/* ========== Message Display ========== */}
                     {alertMessage.feMessage && (
                         <Box sx={{ mb: 3 }}>
                             <MessageDisplay
@@ -690,7 +704,7 @@ const EditStudentDrawer = ({
                         </Box>
                     )}
 
-                    {/* Upload Error Display */}
+                    {/* ========== Upload Error Display ========== */}
                     {uploadError && (
                         <Box sx={{ mb: 3 }}>
                             <MessageDisplay
@@ -701,8 +715,8 @@ const EditStudentDrawer = ({
                         </Box>
                     )}
 
-                    {/* Student Avatar - Clickable */}
-                    <Grow in={!!studentData} timeout={500}>
+                    {/* ========== User Avatar - Clickable ========== */}
+                    <Grow in={!!userData} timeout={500}>
                         <Box
                             sx={{
                                 display: "flex",
@@ -735,19 +749,19 @@ const EditStudentDrawer = ({
                                     }}
                                 >
                                     <Avatar
-                                        src={studentPhotoUrl || undefined}
-                                        alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                                        src={userPhotoUrl || undefined}
+                                        alt={`${userData?.firstName || ''} ${userData?.lastName || ''}`}
                                         sx={{
                                             width: { xs: 100, sm: 120 },
                                             height: { xs: 100, sm: 120 },
                                             fontSize: { xs: "2.5rem", sm: "3rem" },
-                                            bgcolor: studentPhotoUrl ? "transparent" : theme.palette.primary.main,
+                                            bgcolor: userPhotoUrl ? "transparent" : theme.palette.primary.main,
                                             color: "white",
                                             fontWeight: 600,
                                             transition: "opacity 0.3s",
                                         }}
                                     >
-                                        {!studentPhotoUrl && getInitials()}
+                                        {!userPhotoUrl && getInitials()}
                                     </Avatar>
 
                                     {/* Edit overlay */}
@@ -813,7 +827,7 @@ const EditStudentDrawer = ({
                                 </Paper>
 
                                 {/* Remove photo button */}
-                                {studentPhotoUrl && !isPhotoUploading && (
+                                {userPhotoUrl && !isPhotoUploading && (
                                     <IconButton
                                         size="small"
                                         onClick={(e) => {
@@ -843,10 +857,10 @@ const EditStudentDrawer = ({
                         </Box>
                     </Grow>
 
-                    {/* Divider */}
+                    {/* ========== Divider ========== */}
                     <Divider sx={{ mb: 3 }} />
 
-                    {/* Form or Loading */}
+                    {/* ========== Form or Loading ========== */}
                     {!isReady ? (
                         <Box
                             display="flex"
@@ -858,23 +872,23 @@ const EditStudentDrawer = ({
                         >
                             <CircularProgress size={48} sx={{ color: "primary.main" }} />
                             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                                Loading student data...
+                                Loading user data...
                             </Typography>
                         </Box>
                     ) : (
-                            <Fade in={isReady} timeout={400}>
-                                <Box>
-                                    <DynamicForm
-                                        title=""
-                                        fields={formFields}
-                                        onSubmit={handleSubmit}
-                                        submitButtonText={isPhotoUploading ? "Uploading Photo..." : isSubmitting ? "Updating Student..." : "Update Student"}
-                                        columns={2}
-                                        initialValues={studentData}
-                                        submitDisabled={isSubmitDisabled}
-                                    />
-                                </Box>
-                            </Fade>
+                        <Fade in={isReady} timeout={400}>
+                            <Box>
+                                <DynamicForm
+                                    title=""
+                                    fields={formFields}
+                                    onSubmit={handleSubmit}
+                                    submitButtonText={isPhotoUploading ? "Uploading Photo..." : isSubmitting ? "Updating User..." : "Update User"}
+                                    columns={2}
+                                    initialValues={userData}
+                                    submitDisabled={isSubmitDisabled}
+                                />
+                            </Box>
+                        </Fade>
                     )}
                 </Box>
             </Fade>
@@ -882,4 +896,4 @@ const EditStudentDrawer = ({
     );
 };
 
-export default EditStudentDrawer;
+export default EditUserDrawer;

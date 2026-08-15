@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { ReusableTable, type Column } from "../../../../components/table";
+import { ReusableTable, type Column, type TableActionButton } from "../../../../components/table";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,6 +21,7 @@ import { fetchStudents } from "../../../../api/studentService";
 import { type Student } from "../../../../types/interfaces/i-student";
 import { type StatusConfig } from "../../../../types/interfaces/i-user";
 import EditStudentDrawer from "../edit-student-drawer";
+import { useNavigate } from "react-router-dom";
 
 const statusConfig: StatusConfig = {
   active: {
@@ -68,6 +69,7 @@ const statusConfig: StatusConfig = {
 };
 
 const StudentList = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<Student[]>([]);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -80,6 +82,7 @@ const StudentList = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const theme = useTheme();
   const { selectedAccount } = getInitialAuthData();
@@ -179,9 +182,6 @@ const StudentList = () => {
     };
     return genderColors[gender.toLowerCase()] || theme.palette.info.main;
   };
-
-  // Calculate active students count
-  const activeStudentsCount = data.filter(student => student.status === 'active').length;
 
   const columns: Column[] = [
     {
@@ -366,28 +366,53 @@ const StudentList = () => {
     setPage(1);
   };
 
-  const handleAssignedSelected = async () => {
+  const handleAssignSelected = async () => {
     if (selectedRows.length === 0) return;
-    setIsDeleting(true);
+    setIsAssigning(true);
     try {
-      const response = await fetch("/api/users/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ids: selectedRows }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to delete users");
-      }
-      setData((prev) => prev.filter((user) => !selectedRows.includes(user.id)));
+      // Your assign logic here
+      console.log("Assigning students:", selectedRows);
+      // await api.assignStudents(selectedRows);
       setSelectedRows([]);
     } catch (error) {
-      console.error("Error deleting users:", error);
+      console.error("Error assigning students:", error);
     } finally {
-      setIsDeleting(false);
+      setIsAssigning(false);
     }
   };
+
+  // Define table action buttons
+  const tableActionButtons: TableActionButton[] = [
+    {
+      label: "Assign",
+      icon: <AssignmentIndIcon />,
+      onClick: handleAssignSelected,
+      color: "error",
+      variant: "outlined",
+      disabled: selectedRows.length === 0 || isAssigning,
+      loading: isAssigning,
+      tooltip: selectedRows.length > 0 ? `Assign ${selectedRows.length} selected students` : "Select students to assign",
+      show: true,
+    },
+    {
+      label: "Add",
+      icon: <AddIcon />,
+      onClick: () => navigate("create-student"),
+      color: "info",
+      variant: "contained",
+      tooltip: "Add new student",
+      show: true,
+    },
+    {
+      label: "Bulk Add",
+      icon: <PeopleIcon />,
+      onClick: () => navigate("bulk-create-student"),
+      color: "secondary",
+      variant: "outlined",
+      tooltip: "Bulk add students",
+      show: true,
+    },
+  ];
 
   if (isEnumsLoading && loading) {
     return (
@@ -408,82 +433,10 @@ const StudentList = () => {
       sx={{
         p: { xs: 2, sm: 3, md: 4 },
         bgcolor: "background.default",
-        minHeight: "100%",
+        minHeight: "85%",
       }}
     >
-      {/* Header Section */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            color: "text.primary",
-            fontSize: { xs: "1.25rem", sm: "1.5rem" },
-            mb: 0.5,
-          }}
-        >
-          Student Management
-        </Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
-          Manage all students across your school
-        </Typography>
-      </Box>
-
-      {/* Action Buttons - Far Right */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          gap: 1,
-          mb: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        <NavigationButton
-          onClick={handleAssignedSelected}
-          disabled={selectedRows.length === 0 || isDeleting}
-          size="small"
-          color="error"
-          variant="outlined"
-          startIcon={<AssignmentIndIcon />}
-          sx={{
-            minWidth: "auto",
-            px: 1.5,
-          }}
-        >
-          {selectedRows.length > 0 && `(${selectedRows.length})`}
-        </NavigationButton>
-
-        <NavigationButton
-          to="create-student"
-          size="small"
-          color="info"
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{
-            minWidth: "auto",
-            px: 1.5,
-          }}
-        >
-          Add
-        </NavigationButton>
-
-        <NavigationButton
-          to="bulk-create-student"
-          size="small"
-          color="secondary"
-          variant="outlined"
-          sx={{
-            minWidth: "auto",
-            px: 1.5,
-          }}
-        >
-          Bulk Add
-        </NavigationButton>
-      </Box>
-
-      {/* Table */}
+      {/* Table with action buttons in title bar */}
       <ReusableTable
         title="Students List"
         columns={columns}
@@ -495,13 +448,14 @@ const StudentList = () => {
         sortBy={sortBy}
         order={order}
         onSortChange={handleSortChange}
-        onSelectedRowsChange={(selected) => setSelectedRows(selected)}
+        onSelectedRowsChange={(selected) => setSelectedRows(selected.map((row: any) => row.id))}
         page={page - 1}
         onPageChange={handlePageChange}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={handleRowsPerPageChange}
         totalCount={totalCount}
         loading={loading || isEnumsLoading}
+        actionButtons={tableActionButtons}
       />
 
       {/* Edit Drawer */}

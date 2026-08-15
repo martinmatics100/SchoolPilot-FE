@@ -141,6 +141,7 @@ export const getUserProfile = async (
         email: response.email || '',
         phoneNumber: response.phoneNumber ? {
             number: response.phoneNumber.number,
+            phoneType: response.phoneNumber.phoneType,
             extension: response.phoneNumber.extension,
             country: response.phoneNumber.country
         } : null,
