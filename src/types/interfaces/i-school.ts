@@ -48,12 +48,16 @@ export interface SchoolInfoResponse {
     principalName: string | null;
     yearofEstablishment: number | null;
     currentTerm: number | null;
+    ShortCode: string | null;
     currentSession: number | null;
+    currentTermStartDate: string | null;
+    currentTermEndDate: string | null; 
     schoolCategory: number | null;
     schoolType: number | null;
     schoolStatus: number | null;
     schoolMotto: string | null;
     contactPersonEmail: string | null;
+    hasEnrolledStudents: boolean;
     contactPersonPhone: {
         id: string;
         phoneNumber: string;

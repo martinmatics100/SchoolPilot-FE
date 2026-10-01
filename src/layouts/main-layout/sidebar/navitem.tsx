@@ -1,23 +1,33 @@
-import { Link, ListItem, ListItemButton, ListItemIcon, ListItemText, Box, Tooltip, alpha } from '@mui/material';
+import {
+    Link,
+    ListItem,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Box,
+    Tooltip,
+    alpha,
+} from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 import { type INavbarItem as NavItemProps } from '../../../types/interfaces/i-navbar-items';
 import { useLocation } from 'react-router-dom';
-import { useTheme } from "@mui/material";
+import { useTheme } from '@mui/material';
 
 const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) => {
     const { pathname } = useLocation();
     const theme = useTheme();
 
     // Check if current path matches or starts with navItem.path
-    const isActive = pathname === navItem.path || pathname.startsWith(`${navItem.path}/`);
+    const isActive =
+        pathname === navItem.path || pathname.startsWith(`${navItem.path}/`);
 
     return (
         <ListItem
             disablePadding
             sx={{
                 display: 'block',
-                px: 0, // Remove padding completely when collapsed
-                py: 0.5,
+                px: open ? 1 : 0.5,
+                py: 0.25,
                 position: 'relative',
             }}
         >
@@ -35,32 +45,38 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                             boxShadow: theme.shadows[4],
                             py: 1,
                             px: 1.5,
-                        }
-                    }
+                            borderRadius: 1.5,
+                        },
+                    },
                 }}
             >
                 <ListItemButton
                     component={Link}
                     href={navItem.path}
                     sx={{
-                        opacity: navItem.active ? 1 : 0.6,
+                        opacity: navItem.active ? 1 : 0.85,
                         borderRadius: 2,
-                        mb: 0.5,
-                        py: 1.2,
-                        px: open ? 2 : 0, // Remove horizontal padding when collapsed
-                        justifyContent: 'center', // Always center, but text will show when open
+                        py: 1,
+                        px: open ? 1.5 : 0,
+                        justifyContent: open ? 'flex-start' : 'center',
                         alignItems: 'center',
-                        minHeight: 48,
+                        minHeight: 44,
                         width: '100%',
+                        position: 'relative',
+                        overflow: 'hidden',
+
+                        // Active / hover colors
                         bgcolor: isActive
-                            ? alpha(theme.palette.primary.main, 0.12)
+                            ? alpha(theme.palette.primary.main, 0.1)
                             : 'transparent',
                         color: isActive
                             ? theme.palette.primary.main
-                            : theme.palette.text.primary,
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        position: 'relative',
-                        overflow: 'hidden',
+                            : theme.palette.text.secondary,
+
+                        transition:
+                            'background-color 0.2s ease, color 0.2s ease, transform 0.2s ease',
+
+                        // Left active bar
                         '&::before': {
                             content: '""',
                             position: 'absolute',
@@ -68,18 +84,29 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                             top: '50%',
                             transform: 'translateY(-50%)',
                             width: isActive ? 3 : 0,
-                            height: '60%',
+                            height: '55%',
                             bgcolor: theme.palette.primary.main,
                             borderRadius: '0 4px 4px 0',
-                            transition: 'width 0.2s ease',
+                            transition: 'width 0.25s ease',
                         },
+
                         '&:hover': {
                             bgcolor: isActive
                                 ? alpha(theme.palette.primary.main, 0.16)
                                 : alpha(theme.palette.action.hover, 0.8),
-                            transform: open ? 'translateX(4px)' : 'scale(1.05)',
+                            color: isActive
+                                ? theme.palette.primary.main
+                                : theme.palette.text.primary,
+                            transform: open
+                                ? 'translateX(3px)'
+                                : 'scale(1.06)',
                             '&::before': {
                                 width: 3,
+                            },
+                            '& .nav-icon': {
+                                color: isActive
+                                    ? theme.palette.primary.main
+                                    : theme.palette.primary.dark,
                             },
                         },
                     }}
@@ -87,7 +114,7 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                     <ListItemIcon
                         sx={{
                             minWidth: 0,
-                            mr: open ? 2 : 0, // No margin when collapsed
+                            mr: open ? 1.5 : 0,
                             justifyContent: 'center',
                             display: 'flex',
                             alignItems: 'center',
@@ -98,24 +125,26 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                         }}
                     >
                         <IconifyIcon
+                            className="nav-icon"
                             icon={navItem.icon}
-                            width={open ? 22 : 36} // Even larger for better visibility
-                            height={open ? 22 : 36}
+                            width={open ? 22 : 26}
+                            height={open ? 22 : 26}
+                            sx={{ transition: 'color 0.2s ease' }}
                         />
                     </ListItemIcon>
+
                     {open && (
                         <ListItemText
                             primary={navItem.title}
                             primaryTypographyProps={{
-                                fontSize: '0.875rem',
+                                fontSize: '0.85rem',
                                 fontWeight: isActive ? 600 : 500,
-                                letterSpacing: '0.2px',
-                                sx: {
-                                    transition: 'all 0.2s ease',
-                                },
+                                letterSpacing: '0.15px',
+                                noWrap: true,
                             }}
                             sx={{
                                 opacity: open ? 1 : 0,
+                                transition: 'opacity 0.2s ease',
                                 '& .MuiTypography-root': {
                                     color: isActive
                                         ? theme.palette.primary.main
@@ -124,15 +153,19 @@ const NavItem = ({ navItem, open }: { navItem: NavItemProps; open: boolean }) =>
                             }}
                         />
                     )}
+
                     {isActive && open && (
                         <Box
                             sx={{
-                                position: 'absolute',
-                                right: 16,
-                                width: 4,
-                                height: 4,
+                                width: 6,
+                                height: 6,
                                 borderRadius: '50%',
                                 bgcolor: theme.palette.primary.main,
+                                flexShrink: 0,
+                                boxShadow: `0 0 0 3px ${alpha(
+                                    theme.palette.primary.main,
+                                    0.15,
+                                )}`,
                             }}
                         />
                     )}

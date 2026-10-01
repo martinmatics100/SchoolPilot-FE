@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useState, useMemo } from "react";
+import { type ReactElement, useEffect, useState, useMemo } from 'react';
 import {
     Link,
     List,
@@ -12,35 +12,36 @@ import {
     Button,
     Badge,
     Stack,
-} from "@mui/material";
-import navItems from "../../../data/sidebar-items";
-import SimpleBar from "simplebar-react";
-import NavItem from "./navitem";
-import { rootPaths } from "../../../routes/paths";
-import { drawerCloseWidth, drawerOpenWidth } from "..";
-import { useTheme } from "@mui/material";
-import IconifyIcon from "../../../components/base/iconifyIcon";
-import { useAuth } from "../../../context";
-import { Logo, SimpleLogo } from "../../../components/Logo";
-import { FeedbackModal } from "../../../components/feedback";
+    alpha,
+} from '@mui/material';
+import navItems from '../../../data/sidebar-items';
+import SimpleBar from 'simplebar-react';
+import NavItem from './navitem';
+import { rootPaths } from '../../../routes/paths';
+import { drawerCloseWidth, drawerOpenWidth } from '..';
+import { useTheme } from '@mui/material';
+import IconifyIcon from '../../../components/base/iconifyIcon';
+import { useAuth } from '../../../context';
+import { Logo, SimpleLogo } from '../../../components/Logo';
+import { FeedbackModal } from '../../../components/feedback';
 
 interface GroupIcons {
     [key: string]: string;
 }
 
 const groupIcons: GroupIcons = {
-    'DASHBOARD': 'solar:home-2-bold-duotone',
-    'MANAGMENT': 'solar:users-group-two-rounded-bold-duotone',
+    DASHBOARD: 'solar:home-2-bold-duotone',
+    MANAGMENT: 'solar:users-group-two-rounded-bold-duotone',
     'Service Management': 'solar:wrench-bold-duotone',
-    'Booking': 'solar:calendar-bold-duotone',
+    Booking: 'solar:calendar-bold-duotone',
     'FEEDBACK/REPORTS': 'solar:chat-round-like-bold-duotone',
-    'SETTINGS': 'solar:settings-bold-duotone',
-    'HOME': 'solar:home-2-bold-duotone',
-    'USERS': 'solar:users-group-two-rounded-bold-duotone',
-    'HELP': 'solar:question-circle-bold-duotone',
-    'Profile': 'solar:user-circle-bold-duotone',
-    'Handbook': 'solar:book-bold-duotone',
-    'Bookings': 'solar:calendar-bold-duotone'
+    SETTINGS: 'solar:settings-bold-duotone',
+    HOME: 'solar:home-2-bold-duotone',
+    USERS: 'solar:users-group-two-rounded-bold-duotone',
+    HELP: 'solar:question-circle-bold-duotone',
+    Profile: 'solar:user-circle-bold-duotone',
+    Handbook: 'solar:book-bold-duotone',
+    Bookings: 'solar:calendar-bold-duotone',
 };
 
 // Bottom action types
@@ -63,7 +64,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     // Listen for role changes
     useEffect(() => {
         const handleRoleChange = () => {
-            setForceUpdate(prev => prev + 1);
+            setForceUpdate((prev) => prev + 1);
         };
         window.addEventListener('localStorageRoleUpdated', handleRoleChange);
         return () => {
@@ -89,7 +90,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     // Initialize expanded groups
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
         const initialExpanded: Record<string, boolean> = {};
-        Object.keys(groupedNavItems).forEach(group => {
+        Object.keys(groupedNavItems).forEach((group) => {
             initialExpanded[group] = true;
         });
         return initialExpanded;
@@ -101,7 +102,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
             const newExpanded: Record<string, boolean> = {};
             let changed = false;
 
-            Object.keys(groupedNavItems).forEach(group => {
+            Object.keys(groupedNavItems).forEach((group) => {
                 if (prevExpanded[group] !== undefined) {
                     newExpanded[group] = prevExpanded[group];
                 } else {
@@ -130,20 +131,6 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
 
     // Bottom actions configuration
     const bottomActions: BottomAction[] = [
-        // {
-        //     id: 'news-feed',
-        //     icon: 'solar:newspaper-bold-duotone',
-        //     label: 'Latest News',
-        //     href: '/news-feed',
-        //     badge: 3,
-        // },
-        // {
-        //     id: 'announcements',
-        //     icon: 'solar:megaphone-bold-duotone',
-        //     label: 'Announcements',
-        //     href: '/announcements',
-        //     badge: 1,
-        // },
         {
             id: 'download-app',
             icon: 'solar:download-bold-duotone',
@@ -173,7 +160,16 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
     };
 
     return (
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Box
+            sx={{
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: theme.palette.background.default,
+                position: 'relative',
+            }}
+        >
+            {/* ── Top logo bar ────────────────────────────────────── */}
             <Toolbar
                 sx={{
                     position: 'fixed',
@@ -183,21 +179,22 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                     p: 0,
                     justifyContent: 'center',
                     width: open ? drawerOpenWidth - 1 : drawerCloseWidth - 1,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    transition: 'all 0.3s ease',
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+                    transition: 'width 0.3s ease, background-color 0.3s ease',
                 }}
             >
-                <Link href={rootPaths.homeRoot} sx={{
-                    mt: 2,
-                    textDecoration: 'none',
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    transition: 'transform 0.2s ease',
-                    '&:hover': {
-                        transform: 'scale(1.02)',
-                    }
-                }}>
+                <Link
+                    href={rootPaths.homeRoot}
+                    sx={{
+                        mt: 2,
+                        textDecoration: 'none',
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        transition: 'transform 0.2s ease',
+                        '&:hover': { transform: 'scale(1.02)' },
+                    }}
+                >
                     {open ? (
                         <Logo
                             variant="full"
@@ -211,59 +208,109 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                 </Link>
             </Toolbar>
 
-            {/* Scrollable Area for Navigation Items Only */}
-            <SimpleBar style={{
-                flex: 1,
-                backgroundColor: theme.palette.background.default,
-                marginTop: 88, // Offset for fixed toolbar
-                marginBottom: 'auto',
-                paddingBottom: '140px',
-            }}>
+            {/* ── Scrollable navigation ───────────────────────────── */}
+            <SimpleBar
+                style={{
+                    flex: 1,
+                    backgroundColor: theme.palette.background.default,
+                    marginTop: 88,
+                    marginBottom: 'auto',
+                    paddingBottom: '140px',
+                }}
+            >
                 <List
                     component="nav"
                     sx={{
                         bgcolor: theme.palette.background.default,
-                        py: 2.5,
+                        py: 2,
+                        px: open ? 1.5 : 1,
                     }}
                 >
                     {Object.entries(groupedNavItems).map(([group, items]) => (
-                        <div key={group}>
+                        <Box key={group} sx={{ mb: 1 }}>
+                            {/* ── Group header ─────────────────────── */}
                             <ListSubheader
                                 onClick={() => handleToggleGroup(group)}
                                 component="div"
+                                disableSticky
                                 sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: open ? "space-between" : "center",
-                                    bgcolor: theme.palette.background.default,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: open ? 'space-between' : 'center',
+                                    bgcolor: 'transparent',
                                     color: theme.palette.text.secondary,
-                                    cursor: "pointer",
-                                    px: open ? 3 : 0,
-                                    py: 2.5,
-                                    minHeight: 64,
-                                    borderBottom: open ? `1px solid ${theme.palette.divider}` : 'none',
+                                    cursor: 'pointer',
+                                    px: open ? 1.5 : 0,
+                                    py: 1.25,
+                                    minHeight: 44,
                                     transition: 'all 0.2s ease',
+                                    borderRadius: 2,
                                     '&:hover': {
-                                        bgcolor: open ? theme.palette.action.hover : 'transparent',
+                                        bgcolor: open
+                                            ? alpha(theme.palette.action.hover, 0.6)
+                                            : 'transparent',
                                     },
                                 }}
                             >
                                 {open ? (
-                                    <Typography
-                                        variant="subtitle2"
-                                        sx={{
-                                            textTransform: "uppercase",
-                                            fontWeight: 700,
-                                            letterSpacing: 1,
-                                            fontSize: '0.75rem',
-                                            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                                            backgroundClip: 'text',
-                                            WebkitBackgroundClip: 'text',
-                                            color: 'transparent',
-                                        }}
-                                    >
-                                        {group}
-                                    </Typography>
+                                    <>
+                                        <Stack
+                                            direction="row"
+                                            alignItems="center"
+                                            spacing={1}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 22,
+                                                    height: 22,
+                                                    borderRadius: 1.5,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    bgcolor: alpha(
+                                                        theme.palette.primary.main,
+                                                        0.1,
+                                                    ),
+                                                    color: theme.palette.primary.main,
+                                                }}
+                                            >
+                                                <IconifyIcon
+                                                    icon={
+                                                        groupIcons[group] ||
+                                                        'solar:folder-bold-duotone'
+                                                    }
+                                                    width={14}
+                                                    height={14}
+                                                />
+                                            </Box>
+                                            <Typography
+                                                variant="subtitle2"
+                                                sx={{
+                                                    textTransform: 'uppercase',
+                                                    fontWeight: 700,
+                                                    letterSpacing: 0.8,
+                                                    fontSize: '0.7rem',
+                                                    color: theme.palette.text.secondary,
+                                                }}
+                                            >
+                                                {group}
+                                            </Typography>
+                                        </Stack>
+
+                                        <IconifyIcon
+                                            icon={
+                                                expandedGroups[group]
+                                                    ? 'solar:alt-arrow-up-bold'
+                                                    : 'solar:alt-arrow-down-bold'
+                                            }
+                                            width={16}
+                                            sx={{
+                                                color: theme.palette.text.secondary,
+                                                transition:
+                                                    'transform 0.25s ease, color 0.2s ease',
+                                            }}
+                                        />
+                                    </>
                                 ) : (
                                     <Tooltip
                                         title={group}
@@ -279,8 +326,9 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                                     boxShadow: theme.shadows[4],
                                                     py: 1,
                                                     px: 1.5,
-                                                }
-                                            }
+                                                    borderRadius: 1.5,
+                                                },
+                                            },
                                         }}
                                     >
                                         <Box
@@ -288,56 +336,57 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                width: "100%",
+                                                    width: 44,
                                                 height: 44,
                                                     borderRadius: 2,
-                                                bgcolor: theme.palette.mode === 'dark'
-                                                        ? theme.palette.background.paper
-                                                        : theme.palette.grey[300],
-                                                    color: theme.palette.background.default,
+                                                    bgcolor: alpha(
+                                                        theme.palette.primary.main,
+                                                        0.08,
+                                                    ),
+                                                    color: theme.palette.primary.main,
                                                     transition: 'all 0.2s ease',
                                                     '&:hover': {
                                                         bgcolor: theme.palette.primary.main,
                                                         color: theme.palette.common.white,
-                                                        transform: 'scale(1.05)',
+                                                        transform: 'scale(1.06)',
                                                     },
                                             }}
                                         >
                                             <IconifyIcon
-                                                    icon={groupIcons[group] || 'solar:folder-bold-duotone'}
-                                                    width={24}
-                                                    height={24}
+                                                    icon={
+                                                        groupIcons[group] ||
+                                                        'solar:folder-bold-duotone'
+                                                    }
+                                                    width={22}
+                                                    height={22}
                                             />
                                         </Box>
                                     </Tooltip>
                                 )}
-
-                                {open && (
-                                    <IconifyIcon
-                                        icon={expandedGroups[group] ? 'solar:alt-arrow-up-bold' : 'solar:alt-arrow-down-bold'}
-                                        width={18}
-                                        sx={{
-                                            ml: 1,
-                                            color: theme.palette.text.secondary,
-                                            transition: 'transform 0.2s ease',
-                                        }}
-                                    />
-                                )}
                             </ListSubheader>
 
-                            <Collapse in={!!expandedGroups[group]} timeout="auto" unmountOnExit>
+                            {/* ── Group items ──────────────────────── */}
+                            <Collapse
+                                in={!!expandedGroups[group]}
+                                timeout="auto"
+                                unmountOnExit
+                            >
                                 <List component="div" disablePadding>
                                     {items.map((navItem) => (
-                                        <NavItem key={navItem.id} navItem={navItem} open={open} />
+                                        <NavItem
+                                            key={navItem.id}
+                                            navItem={navItem}
+                                            open={open}
+                                        />
                                     ))}
                                 </List>
                             </Collapse>
-                        </div>
+                        </Box>
                     ))}
                 </List>
             </SimpleBar>
 
-            {/* Fixed Bottom Section - Outside Scrollable Area */}
+            {/* ── Fixed bottom section ────────────────────────────── */}
             <Box
                 sx={{
                     position: 'fixed',
@@ -345,16 +394,16 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                     left: 0,
                     width: open ? drawerOpenWidth - 1 : drawerCloseWidth - 1,
                     bgcolor: theme.palette.background.default,
-                    borderTop: `1px solid ${theme.palette.divider}`,
-                    pt: 2,
-                    pb: 3,
+                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+                    pt: 1.5,
+                    pb: 2,
                     zIndex: 1200,
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.05)',
+                    transition: 'width 0.3s ease',
+                    // Softer shadow
+                    boxShadow: `0px -8px 24px ${alpha('#000', 0.06)}`,
                 }}
             >
-                <Divider sx={{ mb: 2, opacity: 0.6 }} />
-                <Stack spacing={1.5} sx={{ px: open ? 2 : 1 }}>
+                <Stack spacing={1} sx={{ px: open ? 1.5 : 1 }}>
                     {bottomActions.map((action) => (
                         <Tooltip
                             key={action.id}
@@ -365,25 +414,28 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                             <Button
                                 onClick={() => handleBottomActionClick(action)}
                                 component={action.href && !action.external ? Link : 'button'}
-                                href={action.href && !action.external ? action.href : undefined}
+                                href={
+                                    action.href && !action.external ? action.href : undefined
+                                }
                                 fullWidth
                                 sx={{
                                     justifyContent: open ? 'flex-start' : 'center',
                                     alignItems: 'center',
-                                    gap: open ? 2 : 0,
-                                    py: 1.5,
-                                    px: open ? 2 : 1,
+                                    gap: open ? 1.5 : 0,
+                                    py: 1.25,
+                                    px: open ? 1.5 : 1,
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    fontSize: '0.875rem',
+                                    fontSize: '0.85rem',
                                     color: theme.palette.text.primary,
                                     bgcolor: 'transparent',
                                     transition: 'all 0.2s ease',
                                     position: 'relative',
                                     '&:hover': {
-                                        bgcolor: theme.palette.action.hover,
-                                        transform: 'translateX(4px)',
+                                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                        color: theme.palette.primary.main,
+                                        transform: 'translateX(3px)',
                                         '& .MuiButton-startIcon': {
                                             transform: 'scale(1.1)',
                                         },
@@ -406,8 +458,8 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                                     >
                                         <IconifyIcon
                                             icon={action.icon}
-                                            width={open ? 22 : 28}
-                                            height={open ? 22 : 28}
+                                            width={open ? 22 : 26}
+                                            height={open ? 22 : 26}
                                             sx={{
                                                 transition: 'transform 0.2s ease',
                                                 color: theme.palette.primary.main,
@@ -439,6 +491,7 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
                     ))}
                 </Stack>
             </Box>
+
             <FeedbackModal
                 open={feedbackModalOpen}
                 onClose={() => setFeedbackModalOpen(false)}

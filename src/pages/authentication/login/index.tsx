@@ -6,7 +6,6 @@ import {
     Button,
     Divider,
     Checkbox,
-    FormGroup,
     TextField,
     IconButton,
     Typography,
@@ -17,6 +16,8 @@ import {
     Fade,
     useMediaQuery,
     alpha,
+    Avatar,
+    Tooltip,
 } from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 import { useState } from 'react';
@@ -28,10 +29,10 @@ import { useAuth } from '../../../context';
 import paths from '../../../routes/paths';
 import MessageDisplay from '../../../components/message-display';
 import { type MessageDisplayProps } from '../../../components/message-display';
-import { useTheme } from "@mui/material";
-import PasswordResetModal from '../passwordResetModal/index'; // Adjust the import path as needed
+import { useTheme } from '@mui/material';
+import PasswordResetModal from '../passwordResetModal/index';
 
-// Validation helper functions
+// ─── Validation ────────────────────────────────────────────────────────────
 const validateEmail = (email: string): string | null => {
     if (!email.trim()) return 'Email is required';
     const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
@@ -45,101 +46,73 @@ const validatePassword = (password: string): string | null => {
     return null;
 };
 
+// ─── Social Links Config ───────────────────────────────────────────────────
+const SOCIAL_LINKS = [
+    { label: 'Facebook', icon: 'mdi:facebook', color: '#1877F2', href: '#' },
+    { label: 'Twitter', icon: 'mdi:twitter', color: '#1DA1F2', href: '#' },
+    { label: 'LinkedIn', icon: 'mdi:linkedin', color: '#0A66C2', href: '#' },
+    { label: 'YouTube', icon: 'mdi:youtube', color: '#FF0000', href: '#' },
+    { label: 'Instagram', icon: 'mdi:instagram', color: '#E4405F', href: '#' },
+];
+
 const Login = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
-    const { login, selectedAccount, role } = useAuth();
+
+    const { login } = useAuth();
     const navigate = useNavigate();
-    const [showPassword, setShowPassword] = useState<boolean>(false);
-    const [email, setEmail] = useState<string>('');
-    const [password, setPassword] = useState<string>('');
-    const [loading, setLoading] = useState<boolean>(false);
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const [messageProps, setMessageProps] = useState<Partial<MessageDisplayProps> | null>(null);
-    const [resetModalOpen, setResetModalOpen] = useState<boolean>(false);
+    const [resetModalOpen, setResetModalOpen] = useState(false);
 
-    // Validation state
-    const [touched, setTouched] = useState({
-        email: false,
-        password: false
-    });
+    const [touched, setTouched] = useState({ email: false, password: false });
+    const [errors, setErrors] = useState({ email: '', password: '' });
 
-    // Error state
-    const [errors, setErrors] = useState({
-        email: '',
-        password: ''
-    });
-
-    // Real-time validation
+    // ── Validation helpers ────────────────────────────────────────────────
     const validateField = (field: 'email' | 'password', value: string) => {
-        if (field === 'email') {
-            const error = validateEmail(value);
-            setErrors(prev => ({ ...prev, email: error || '' }));
-            return !error;
-        } else {
-            const error = validatePassword(value);
-            setErrors(prev => ({ ...prev, password: error || '' }));
-            return !error;
-        }
+        const error =
+            field === 'email' ? validateEmail(value) : validatePassword(value);
+        setErrors((prev) => ({ ...prev, [field]: error || '' }));
+        return !error;
     };
 
-    // Handle email change
     const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setEmail(value);
-        if (touched.email) {
-            validateField('email', value);
-        }
+        if (touched.email) validateField('email', value);
     };
 
-    // Handle password change
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setPassword(value);
-        if (touched.password) {
-            validateField('password', value);
-        }
+        if (touched.password) validateField('password', value);
     };
 
-    // Handle field blur
     const handleBlur = (field: 'email' | 'password') => {
-        setTouched(prev => ({ ...prev, [field]: true }));
-        if (field === 'email') {
-            validateField('email', email);
-        } else {
-            validateField('password', password);
-        }
+        setTouched((prev) => ({ ...prev, [field]: true }));
+        validateField(field, field === 'email' ? email : password);
     };
 
-    // Check if form is valid
     const isFormValid = (): boolean => {
         const emailError = validateEmail(email);
         const passwordError = validatePassword(password);
-
-        const newErrors = {
-            email: emailError || '',
-            password: passwordError || ''
-        };
-
-        setErrors(newErrors);
-
+        setErrors({ email: emailError || '', password: passwordError || '' });
         return !emailError && !passwordError;
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        setTouched({ email: true, password: true });
 
-        // Mark all fields as touched
-        setTouched({
-            email: true,
-            password: true
-        });
-
-        // Validate form before submission
         if (!isFormValid()) {
             setMessageProps({
                 feMessage: 'Please fix the errors before submitting',
-                httpStatus: 400
+                httpStatus: 400,
             });
             return;
         }
@@ -151,72 +124,61 @@ const Login = () => {
             const result = await login(email, password);
             if (result.success) {
                 setMessageProps({
-                    beMessage: result.message || "Login successful",
-                    httpStatus: result.status
+                    beMessage: result.message || 'Login successful',
+                    httpStatus: result.status,
                 });
-
                 setTimeout(() => {
                     navigate('/authentication/welcome', { replace: true });
                 }, 1500);
-
             } else {
                 setMessageProps({
                     feMessage: result.message || 'Login failed. Please check your credentials.',
-                    httpStatus: result.status
+                    httpStatus: result.status,
                 });
-                console.error(`Error Message:`, result.message);
             }
         } catch (err) {
-            console.error("Login attempt failed:", err);
             let errorMsg = 'An unexpected error occurred.';
             if (err instanceof Error) errorMsg = err.message;
             else if (typeof err === 'string') errorMsg = err;
-            setMessageProps({
-                beMessage: errorMsg,
-                httpStatus: 400
-            });
+            setMessageProps({ beMessage: errorMsg, httpStatus: 400 });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleClickShowPassword = () => {
-        setShowPassword((prevShowPassword) => !prevShowPassword);
-    };
-
+    const handleClickShowPassword = () => setShowPassword((p) => !p);
     const handleOpenResetModal = (e: React.MouseEvent) => {
         e.preventDefault();
         setResetModalOpen(true);
     };
+    const handleCloseResetModal = () => setResetModalOpen(false);
 
-    const handleCloseResetModal = () => {
-        setResetModalOpen(false);
-    };
+    // ── Styles ────────────────────────────────────────────────────────────
+    const gradientBackground = `linear-gradient(135deg, ${alpha(
+        theme.palette.primary.dark,
+        0.95,
+    )} 0%, ${alpha(theme.palette.secondary.dark, 0.85)} 100%)`;
 
-    // Modern gradient background
-    const gradientBackground = `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.95)} 0%, ${alpha(theme.palette.secondary.dark, 0.85)} 100%)`;
-
-    // Modern input styles with floating effect and error handling
-    const modernInputStyles = (hasError: boolean) => ({
+    const inputStyles = (hasError: boolean) => ({
         '& .MuiFilledInput-root': {
             bgcolor: alpha(theme.palette.background.default, 0.6),
             backdropFilter: 'blur(10px)',
-            borderRadius: '16px',
-            transition: 'all 0.3s ease-in-out',
+            borderRadius: '14px',
+            transition: 'all 0.25s ease',
             '&:hover': {
                 bgcolor: alpha(theme.palette.background.default, 0.8),
-                transform: 'translateY(-2px)',
+                transform: 'translateY(-1px)',
             },
             '&.Mui-focused': {
-                bgcolor: alpha(theme.palette.background.default, 0.9),
-                transform: 'translateY(-2px)',
-                boxShadow: `0 4px 12px ${alpha(theme.palette.background.default, 0.15)}`,
+                bgcolor: alpha(theme.palette.background.default, 0.95),
+                transform: 'translateY(-1px)',
+                boxShadow: `0 0 0 3px ${alpha(
+                    hasError ? theme.palette.error.main : theme.palette.primary.main,
+                    0.15,
+                )}`,
             },
             ...(hasError && {
                 border: `1px solid ${theme.palette.error.main}`,
-                '&:hover': {
-                    border: `1px solid ${theme.palette.error.main}`,
-                },
             }),
         },
         '& .MuiInputLabel-root': {
@@ -228,7 +190,8 @@ const Login = () => {
         },
         '& .MuiFilledInput-input': {
             color: theme.palette.text.primary,
-            padding: '16px 20px',
+            padding: '16px 16px',
+            fontSize: { xs: '0.9rem', sm: '0.95rem' },
         },
         '& .MuiFormHelperText-root': {
             color: theme.palette.error.main,
@@ -240,7 +203,7 @@ const Login = () => {
     return (
         <Box
             sx={{
-                minHeight: '80vh',
+                minHeight: '100vh',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -251,17 +214,25 @@ const Login = () => {
                 px: { xs: 2, sm: 3, md: 4 },
             }}
         >
-            {/* Decorative background elements */}
+            {/* Decorative blobs */}
             <Box
                 sx={{
                     position: 'absolute',
-                    top: -50,
-                    right: -50,
-                    width: { xs: 200, sm: 300, md: 400 },
-                    height: { xs: 200, sm: 300, md: 400 },
+                    top: -60,
+                    right: -60,
+                    width: { xs: 180, sm: 280, md: 400 },
+                    height: { xs: 180, sm: 280, md: 400 },
                     borderRadius: '50%',
-                    background: `radial-gradient(circle, ${alpha(theme.palette.primary.light, 0.3)} 0%, transparent 70%)`,
+                    background: `radial-gradient(circle, ${alpha(
+                        theme.palette.primary.light,
+                        0.35,
+                    )} 0%, transparent 70%)`,
                     zIndex: 0,
+                    animation: 'float 8s ease-in-out infinite',
+                    '@keyframes float': {
+                        '0%,100%': { transform: 'translateY(0px)' },
+                        '50%': { transform: 'translateY(20px)' },
+                    },
                 }}
             />
             <Box
@@ -269,98 +240,119 @@ const Login = () => {
                     position: 'absolute',
                     bottom: -80,
                     left: -80,
-                    width: { xs: 250, sm: 350, md: 450 },
-                    height: { xs: 250, sm: 350, md: 450 },
+                    width: { xs: 220, sm: 340, md: 460 },
+                    height: { xs: 220, sm: 340, md: 460 },
                     borderRadius: '50%',
-                    background: `radial-gradient(circle, ${alpha(theme.palette.secondary.light, 0.25)} 0%, transparent 70%)`,
+                    background: `radial-gradient(circle, ${alpha(
+                        theme.palette.secondary.light,
+                        0.3,
+                    )} 0%, transparent 70%)`,
                     zIndex: 0,
+                    animation: 'float2 10s ease-in-out infinite',
+                    '@keyframes float2': {
+                        '0%,100%': { transform: 'translateY(0px)' },
+                        '50%': { transform: 'translateY(-25px)' },
+                    },
                 }}
             />
 
-            <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, p: 0 }}>
+            <Container
+                maxWidth="sm"
+                sx={{
+                    position: 'relative',
+                    zIndex: 1,
+                    p: 0,
+                    width: '100%',
+                }}
+            >
                 <Fade in timeout={800}>
                     <Paper
                         elevation={24}
                         sx={{
-                            borderRadius: { xs: 4, sm: 6 },
-                            bgcolor: alpha(theme.palette.background.default, 0.85),
+                            borderRadius: { xs: 3, sm: 5, md: 6 },
+                            bgcolor: alpha(theme.palette.background.default, 0.88),
                             backdropFilter: 'blur(20px)',
                             border: `1px solid ${alpha(theme.palette.common.white, 0.18)}`,
                             overflow: 'hidden',
                             transition: 'all 0.3s ease-in-out',
                             '&:hover': {
-                                boxShadow: `0 20px 40px ${alpha(theme.palette.common.black, 0.2)}`,
+                                boxShadow: `0 25px 50px ${alpha(theme.palette.common.black, 0.25)}`,
                             },
                         }}
                     >
-                        <Box sx={{ p: { xs: 3, sm: 4, md: 5 } }}>
-                            {/* Logo Section */}
+                        <Box sx={{ p: { xs: 2.5, sm: 3.5, md: 5 } }}>
+                            {/* ── Logo ─────────────────────────────────────── */}
                             <Box
                                 component="figure"
-                                mb={4}
+                                mb={{ xs: 3, sm: 4 }}
                                 mx="auto"
                                 textAlign="center"
                                 sx={{
-                                    animation: 'fadeInDown 0.8s ease-out',
+                                    animation: 'fadeInDown 0.7s ease-out',
                                     '@keyframes fadeInDown': {
-                                        from: {
-                                            opacity: 0,
-                                            transform: 'translateY(-30px)',
-                                        },
-                                        to: {
-                                            opacity: 1,
-                                            transform: 'translateY(0)',
-                                        },
+                                        from: { opacity: 0, transform: 'translateY(-25px)' },
+                                        to: { opacity: 1, transform: 'translateY(0)' },
                                     },
+                                    m: 0,
                                 }}
                             >
-                                <Link href={rootPaths.homeRoot} sx={{ display: 'inline-block' }}>
+                                <Link
+                                    href={rootPaths.homeRoot}
+                                    sx={{ display: 'inline-block' }}
+                                >
                                     <Image
                                         src={logoWithText}
-                                        alt="logo with text"
-                                        height={isMobile ? 50 : 65}
+                                        alt="SchoolPilot logo"
+                                        height={isMobile ? 45 : isTablet ? 55 : 65}
                                         sx={{
                                             transition: 'transform 0.3s ease',
-                                            '&:hover': {
-                                                transform: 'scale(1.05)',
-                                            },
+                                            '&:hover': { transform: 'scale(1.05)' },
                                         }}
                                     />
                                 </Link>
                             </Box>
 
-                            <Stack spacing={4}>
-                                {/* Title Section */}
+                            <Stack spacing={{ xs: 3, sm: 3.5 }}>
+                                {/* ── Title ─────────────────────────────────── */}
                                 <Box textAlign="center">
                                     <Typography
                                         variant="h3"
-                                        sx={{ 
-                                            fontWeight: 700,
+                                        sx={{
+                                            fontWeight: 800,
                                             background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                                             backgroundClip: 'text',
                                             WebkitBackgroundClip: 'text',
                                             WebkitTextFillColor: 'transparent',
-                                            mb: 1,
-                                            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
+                                            mb: 0.5,
+                                            fontSize: {
+                                                xs: '1.5rem',
+                                                sm: '1.85rem',
+                                                md: '2.15rem',
+                                            },
+                                            letterSpacing: '-0.02em',
                                         }}
                                     >
                                         Welcome Back!
                                     </Typography>
                                     <Typography
-                                        variant="body1"
+                                        variant="body2"
                                         color="text.secondary"
-                                        sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                                        sx={{
+                                            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                                            maxWidth: 320,
+                                            mx: 'auto',
+                                        }}
                                     >
-                                        Sign in to continue your learning journey
+                                        Sign in to manage your school activities
                                     </Typography>
                                 </Box>
 
-                                {/* Sign Up Link */}
+                                {/* ── Sign Up Link ─────────────────────────── */}
                                 <Typography
                                     variant="body2"
                                     textAlign="center"
                                     color="text.secondary"
-                                    sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                                    sx={{ fontSize: { xs: '0.78rem', sm: '0.85rem' } }}
                                 >
                                     New to SchoolPilot?{' '}
                                     <Link
@@ -369,18 +361,21 @@ const Login = () => {
                                         sx={{
                                             fontWeight: 600,
                                             color: theme.palette.primary.main,
-                                            '&:hover': {
-                                                color: theme.palette.primary.dark,
-                                            },
+                                            '&:hover': { color: theme.palette.primary.dark },
                                         }}
                                     >
                                         Create an account
                                     </Link>
                                 </Typography>
 
-                                {/* Login Form */}
-                                <form onSubmit={handleSubmit} style={{ width: '100%' }} noValidate>
-                                    <Stack spacing={3}>
+                                {/* ── Login Form ───────────────────────────── */}
+                                <form
+                                    onSubmit={handleSubmit}
+                                    style={{ width: '100%' }}
+                                    noValidate
+                                >
+                                    <Stack spacing={{ xs: 2.5, sm: 3 }}>
+                                        {/* Email */}
                                         <TextField
                                             variant="filled"
                                             label="Email Address"
@@ -390,9 +385,9 @@ const Login = () => {
                                             onBlur={() => handleBlur('email')}
                                             error={touched.email && !!errors.email}
                                             helperText={touched.email && errors.email}
-                                            sx={modernInputStyles(touched.email && !!errors.email)}
+                                            sx={inputStyles(touched.email && !!errors.email)}
                                             fullWidth
-                                            placeholder="teacher@school.com"
+                                            placeholder="admin@yourschool.com"
                                             disabled={loading}
                                             InputProps={{
                                                 disableUnderline: true,
@@ -400,7 +395,11 @@ const Login = () => {
                                                     <InputAdornment position="start">
                                                         <IconifyIcon
                                                             icon="mdi:email-outline"
-                                                            color={touched.email && errors.email ? theme.palette.error.main : theme.palette.text.secondary}
+                                                            color={
+                                                                touched.email && errors.email
+                                                                    ? theme.palette.error.main
+                                                                    : theme.palette.text.secondary
+                                                            }
                                                             width={20}
                                                         />
                                                     </InputAdornment>
@@ -408,6 +407,7 @@ const Login = () => {
                                             }}
                                         />
 
+                                        {/* Password */}
                                         <TextField
                                             variant="filled"
                                             label="Password"
@@ -417,7 +417,7 @@ const Login = () => {
                                             onBlur={() => handleBlur('password')}
                                             error={touched.password && !!errors.password}
                                             helperText={touched.password && errors.password}
-                                            sx={modernInputStyles(touched.password && !!errors.password)}
+                                            sx={inputStyles(touched.password && !!errors.password)}
                                             fullWidth
                                             placeholder="Enter your password"
                                             disabled={loading}
@@ -427,7 +427,11 @@ const Login = () => {
                                                     <InputAdornment position="start">
                                                         <IconifyIcon
                                                             icon="mdi:lock-outline"
-                                                            color={touched.password && errors.password ? theme.palette.error.main : theme.palette.text.secondary}
+                                                            color={
+                                                                touched.password && errors.password
+                                                                    ? theme.palette.error.main
+                                                                    : theme.palette.text.secondary
+                                                            }
                                                             width={20}
                                                         />
                                                     </InputAdornment>
@@ -441,7 +445,7 @@ const Login = () => {
                                                             edge="end"
                                                             disabled={loading}
                                                             sx={{
-                                                                mr: 1,
+                                                                mr: 0.5,
                                                                 color: theme.palette.text.secondary,
                                                                 '&:hover': {
                                                                     color: theme.palette.primary.main,
@@ -459,7 +463,7 @@ const Login = () => {
                                             }}
                                         />
 
-                                        {/* Remember Me & Forgot Password */}
+                                        {/* Remember / Forgot */}
                                         <Stack
                                             direction="row"
                                             justifyContent="space-between"
@@ -470,6 +474,7 @@ const Login = () => {
                                             <FormControlLabel
                                                 control={
                                                     <Checkbox
+                                                        size="small"
                                                         sx={{
                                                             color: theme.palette.text.secondary,
                                                             '&.Mui-checked': {
@@ -483,7 +488,10 @@ const Login = () => {
                                                 sx={{
                                                     color: 'text.secondary',
                                                     '& .MuiTypography-root': {
-                                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                                        fontSize: {
+                                                            xs: '0.75rem',
+                                                            sm: '0.85rem',
+                                                        },
                                                     },
                                                 }}
                                             />
@@ -492,75 +500,98 @@ const Login = () => {
                                                 onClick={handleOpenResetModal}
                                                 underline="hover"
                                                 sx={{
-                                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                                    fontSize: {
+                                                        xs: '0.75rem',
+                                                        sm: '0.85rem',
+                                                    },
                                                     color: theme.palette.primary.main,
                                                     fontWeight: 500,
                                                     cursor: 'pointer',
+                                                    '&:hover': {
+                                                        color: theme.palette.primary.dark,
+                                                    },
                                                 }}
                                             >
                                                 Having trouble logging in?
                                             </Link>
                                         </Stack>
 
-                                        {/* Login Button */}
+                                        {/* Submit */}
                                         <Button
                                             type="submit"
                                             variant="contained"
                                             disabled={loading}
+                                            fullWidth
                                             sx={{
-                                                py: 1.5,
+                                                py: { xs: 1.35, sm: 1.5 },
                                                 borderRadius: '12px',
-                                                fontWeight: 600,
-                                                fontSize: '1rem',
+                                                fontWeight: 700,
+                                                fontSize: { xs: '0.9rem', sm: '1rem' },
                                                 textTransform: 'none',
                                                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                                                boxShadow: `0 8px 24px ${alpha(
+                                                    theme.palette.primary.main,
+                                                    0.35,
+                                                )}`,
                                                 '&:hover': {
                                                     background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
                                                     transform: 'translateY(-2px)',
-                                                    boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                                                    boxShadow: `0 12px 28px ${alpha(
+                                                        theme.palette.primary.main,
+                                                        0.45,
+                                                    )}`,
                                                 },
-                                                transition: 'all 0.3s ease',
-                                                position: 'relative',
+                                                '&:active': {
+                                                    transform: 'translateY(0)',
+                                                },
+                                                transition: 'all 0.25s ease',
                                             }}
                                         >
                                             {loading ? (
-                                                <CircularProgress size={24} sx={{ color: theme.palette.common.white }} />
+                                                <CircularProgress
+                                                    size={22}
+                                                    sx={{
+                                                        color: theme.palette.common.white,
+                                                    }}
+                                                />
                                             ) : (
                                                 'Sign In'
                                             )}
                                         </Button>
 
-                                        {/* Community Section */}
+                                        {/* ── Community ─────────────────────── */}
                                         <Box sx={{ mt: 1 }}>
-                                            <Divider sx={{ mb: 3 }}>
+                                            <Divider sx={{ mb: 2.5 }}>
                                                 <Typography
-                                                    variant="body2"
+                                                    variant="caption"
                                                     color="text.secondary"
-                                                    sx={{ px: 2 }}
+                                                    sx={{
+                                                        px: 1.5,
+                                                        fontWeight: 600,
+                                                        letterSpacing: '0.08em',
+                                                        textTransform: 'uppercase',
+                                                        fontSize: '0.65rem',
+                                                    }}
                                                 >
-                                                    Community
+                                                    Stay Connected
                                                 </Typography>
                                             </Divider>
 
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    gap: 2.5,
-                                                    py: 1,
-                                                }}
+                                            <Stack
+                                                alignItems="center"
+                                                spacing={2}
                                             >
-                                                {/* Community Text with Link */}
                                                 <Typography
                                                     variant="body2"
                                                     align="center"
                                                     sx={{
                                                         color: 'text.secondary',
-                                                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                                                        maxWidth: '100%',
-                                                        wordBreak: 'break-word',
+                                                        fontSize: {
+                                                            xs: '0.75rem',
+                                                            sm: '0.85rem',
+                                                        },
                                                         lineHeight: 1.6,
+                                                        maxWidth: 320,
                                                     }}
                                                 >
                                                     <Link
@@ -574,132 +605,68 @@ const Login = () => {
                                                             '&:hover': {
                                                                 color: theme.palette.primary.dark,
                                                             },
-                                                            transition: 'color 0.2s ease',
-                                                            cursor: 'pointer',
                                                         }}
                                                     >
-                                                        Join Our SchoolPilot User Community
-                                                    </Link>
-                                                    {' and Connect With Us on Social Media'}
+                                                        Join the SchoolPilot Community
+                                                    </Link>{' '}
+                                                    and connect with other school admins and teachers
                                                 </Typography>
 
-                                                {/* Social Media Icons */}
                                                 <Stack
                                                     direction="row"
-                                                    spacing={2}
+                                                    spacing={{ xs: 0.5, sm: 1 }}
                                                     justifyContent="center"
                                                     flexWrap="wrap"
                                                     useFlexGap
                                                 >
-                                                    <IconButton
-                                                        component="a"
-                                                        href="#"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="Facebook"
-                                                        sx={{
-                                                            color: theme.palette.text.secondary,
-                                                            transition: 'all 0.2s ease',
-                                                            '&:hover': {
-                                                                color: '#1877F2',
-                                                                transform: 'scale(1.15)',
-                                                                bgcolor: alpha('#1877F2', 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <IconifyIcon icon="mdi:facebook" width={28} />
-                                                    </IconButton>
-
-                                                    <IconButton
-                                                        component="a"
-                                                        href="#"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="Twitter"
-                                                        sx={{
-                                                            color: theme.palette.text.secondary,
-                                                            transition: 'all 0.2s ease',
-                                                            '&:hover': {
-                                                                color: '#1DA1F2',
-                                                                transform: 'scale(1.15)',
-                                                                bgcolor: alpha('#1DA1F2', 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <IconifyIcon icon="mdi:twitter" width={28} />
-                                                    </IconButton>
-
-                                                    <IconButton
-                                                        component="a"
-                                                        href="#"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="LinkedIn"
-                                                        sx={{
-                                                            color: theme.palette.text.secondary,
-                                                            transition: 'all 0.2s ease',
-                                                            '&:hover': {
-                                                                color: '#0A66C2',
-                                                                transform: 'scale(1.15)',
-                                                                bgcolor: alpha('#0A66C2', 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <IconifyIcon icon="mdi:linkedin" width={28} />
-                                                    </IconButton>
-
-                                                    <IconButton
-                                                        component="a"
-                                                        href="#"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="YouTube"
-                                                        sx={{
-                                                            color: theme.palette.text.secondary,
-                                                            transition: 'all 0.2s ease',
-                                                            '&:hover': {
-                                                                color: '#FF0000',
-                                                                transform: 'scale(1.15)',
-                                                                bgcolor: alpha('#FF0000', 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <IconifyIcon icon="mdi:youtube" width={28} />
-                                                    </IconButton>
-
-                                                    <IconButton
-                                                        component="a"
-                                                        href="#"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="Instagram"
-                                                        sx={{
-                                                            color: theme.palette.text.secondary,
-                                                            transition: 'all 0.2s ease',
-                                                            '&:hover': {
-                                                                color: '#E4405F',
-                                                                transform: 'scale(1.15)',
-                                                                bgcolor: alpha('#E4405F', 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <IconifyIcon icon="mdi:instagram" width={28} />
-                                                    </IconButton>
+                                                    {SOCIAL_LINKS.map((s) => (
+                                                        <Tooltip
+                                                            key={s.label}
+                                                            title={s.label}
+                                                            arrow
+                                                            placement="top"
+                                                        >
+                                                            <IconButton
+                                                                component="a"
+                                                                href={s.href}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                aria-label={s.label}
+                                                                size="small"
+                                                                sx={{
+                                                                    color: theme.palette.text.secondary,
+                                                                    width: { xs: 36, sm: 40 },
+                                                                    height: { xs: 36, sm: 40 },
+                                                                    borderRadius: '10px',
+                                                                    transition: 'all 0.2s ease',
+                                                                    '&:hover': {
+                                                                        color: s.color,
+                                                                        bgcolor: alpha(s.color, 0.12),
+                                                                        transform: 'translateY(-2px)',
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <IconifyIcon
+                                                                    icon={s.icon}
+                                                                    width={22}
+                                                                />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    ))}
                                                 </Stack>
 
-                                                {/* Optional: Community tagline */}
                                                 <Typography
                                                     variant="caption"
                                                     color="text.disabled"
                                                     sx={{
-                                                        fontSize: { xs: '0.6rem', sm: '0.65rem' },
+                                                        fontSize: '0.65rem',
                                                         textAlign: 'center',
-                                                        mt: 0.5,
+                                                        maxWidth: 260,
                                                     }}
                                                 >
-                                                    Join thousands of educators connecting and sharing best practices
+                                                    Trusted by schools to manage attendance, results, fees, and more
                                                 </Typography>
-                                            </Box>
+                                            </Stack>
                                         </Box>
                                     </Stack>
                                 </form>
@@ -716,7 +683,6 @@ const Login = () => {
                 )}
             </Container>
 
-            {/* Password Reset Modal */}
             <PasswordResetModal
                 open={resetModalOpen}
                 onClose={handleCloseResetModal}

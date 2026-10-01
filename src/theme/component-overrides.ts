@@ -36,7 +36,7 @@ import Grid from './components/Grid';
 import Link from './components/Link';
 import List from './components/List';
 import Menu from './components/Menu';
-
+import Tooltip from './components/Tooltip';
 const components: Components<Omit<Theme, 'components'>> = {
     MuiInputAdornment: InputAdornment,
     MuiLinearProgress: LinearProgress,
@@ -61,6 +61,7 @@ const components: Components<Omit<Theme, 'components'>> = {
     MuiDataGrid: DataGrid,
     MuiMenuItem: MenuItem,
     MuiGridLegacy: Grid2,
+    MuiTooltip: Tooltip,
     MuiDivider: Divider,
     MuiAppBar: AppBar,
     MuiAvatar: Avatar,

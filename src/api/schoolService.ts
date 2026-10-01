@@ -153,9 +153,12 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
         principalName?: string | null;
         yearofEstablishment?: number | null;
         currentTerm?: number | null;
+        currentTermStartDate: string | null;
+        currentTermEndDate: string | null; 
         currentSessions?: number | null;
         schoolCategory?: number | null;
         schoolType?: number | null;
+        shortCode?: string | null;
         schoolMotto?: string | null;
         contactPersonEmail?: string | null;
         contactPersonPhoneId?: string | null;
@@ -188,10 +191,13 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
             if (updateData.principalName !== undefined) payload.principalName = updateData.principalName;
             if (updateData.yearofEstablishment !== undefined) payload.yearofEstablishment = updateData.yearofEstablishment;
             if (updateData.currentTerm !== undefined) payload.currentTerm = updateData.currentTerm;
+            if (updateData.currentTermStartDate !== undefined) payload.currentTermStartDate = updateData.currentTermStartDate;
+            if (updateData.currentTermEndDate !== undefined) payload.currentTermEndDate = updateData.currentTermEndDate;
             if (updateData.currentSessions !== undefined) payload.currentSessions = updateData.currentSessions;
             if (updateData.schoolCategory !== undefined) payload.schoolCategory = updateData.schoolCategory;
             if (updateData.schoolType !== undefined) payload.schoolType = updateData.schoolType;
             if (updateData.schoolMotto !== undefined) payload.schoolMotto = updateData.schoolMotto;
+            if (updateData.shortCode !== undefined) payload.shortCode = updateData.shortCode;
             if (updateData.contactPersonEmail !== undefined) payload.contactPersonEmail = updateData.contactPersonEmail;
             if (updateData.contactPersonPhoneId !== undefined) payload.contactPersonPhoneId = updateData.contactPersonPhoneId;
             if (updateData.logoAssetId !== undefined) payload.logoAssetId = updateData.logoAssetId;

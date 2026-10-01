@@ -163,7 +163,7 @@ const StudentList = () => {
           schoolName: item.schoolName,
           gender: genderMap[genderValue] || "Not available",
           status: statusName.toLowerCase(),
-          studentId: item.studentId || "pending",
+          studentUniqueId: item.studentUniqueId || "pending",
           class: item.className || "not available",
           rawGender: item.gender,
           rawStatus: item.status,
@@ -189,30 +189,63 @@ const StudentList = () => {
       label: "Student",
       minWidth: 200,
       sortable: false,
-      format: (value, row: Student) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Avatar
-            sx={{
-              width: 36,
-              height: 36,
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: theme.palette.primary.main,
-              fontWeight: 600,
-              fontSize: "0.875rem",
-            }}
-          >
-            {row.firstName?.charAt(0)}{row.lastName?.charAt(0)}
-          </Avatar>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              {row.lastName}, {row.firstName}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              ID: {row.studentId}
-            </Typography>
+      format: (value, row: Student) => {
+        const hasId = row.studentUniqueId && row.studentUniqueId !== "pending";
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main,
+                fontWeight: 600,
+                fontSize: "0.875rem",
+              }}
+            >
+              {row.firstName?.charAt(0)}{row.lastName?.charAt(0)}
+            </Avatar>
+            <Box>
+              {/* Name: bigger and bolder */}
+              <Typography
+                variant="body1"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  color: "text.secondary",
+                  lineHeight: 1.2,
+                }}
+              >
+                {row.lastName}, {row.firstName}
+              </Typography>
+
+              {/* Student ID: colored if assigned, italic muted if pending */}
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "inline-block",
+                  mt: 0.25,
+                  fontWeight: hasId ? 600 : 400,
+                  fontStyle: hasId ? "normal" : "italic",
+                  color: hasId
+                    ? theme.palette.warning.dark
+                    : theme.palette.text.disabled,
+                  bgcolor: hasId
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : "transparent",
+                  px: hasId ? 0.75 : 0,
+                  py: hasId ? 0.25 : 0,
+                  borderRadius: 1,
+                  fontSize: "0.75rem",
+                  letterSpacing: hasId ? "0.02em" : "0",
+                }}
+              >
+                ID: {hasId ? row.studentUniqueId : "pending"}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      ),
+        );
+      },
     },
     {
       id: "gender",
@@ -395,7 +428,7 @@ const StudentList = () => {
       show: true,
     },
     {
-      label: "Add",
+      label: "New Student",
       icon: <AddIcon />,
       onClick: () => navigate("create-student"),
       color: "info",
@@ -404,12 +437,12 @@ const StudentList = () => {
       show: true,
     },
     {
-      label: "Bulk Add",
+      label: "Import",
       icon: <PeopleIcon />,
-      onClick: () => navigate("bulk-create-student"),
+      onClick: () => navigate("bulk-import-students"),
       color: "secondary",
       variant: "outlined",
-      tooltip: "Bulk add students",
+      tooltip: "Bulk import students",
       show: true,
     },
   ];

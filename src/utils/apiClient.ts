@@ -280,6 +280,10 @@ export const createApiClient = ({
 
   return {
     get: <T = any>(url: string) => requestWithTokenRefresh<T>(url, { method: 'GET' }),
+
+    // ⬇️ Add this — same as `get`, but flags the response as a Blob.
+    getBlob: (url: string) =>
+      requestWithTokenRefresh<Blob>(url, { method: 'GET' }, true),
     // 3. Update post signature to allow a boolean flag for blobs
     post: <T = any>(url: string, body: any, isBlob: boolean = false) =>
       requestWithTokenRefresh<T>(url, {

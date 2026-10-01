@@ -206,7 +206,7 @@ const CreateStudent: React.FC = () => {
           name: "dateOfBirth",
           label: "Date of Birth",
           type: "date",
-          required: true,
+          required: false,
           colSpan: 1,
         },
         {
@@ -218,17 +218,6 @@ const CreateStudent: React.FC = () => {
             enums.Gender?.map((g: any) => ({
               value: g.value.toString(),
               label: g.displayName || g.name,
-            })) || [],
-        },
-        {
-          name: "nationality",
-          label: "Nationality",
-          type: "select",
-          required: true,
-          options:
-            enums.Nationality?.map((n: any) => ({
-              value: n.value.toString(),
-              label: n.displayName || n.name,
             })) || [],
         },
         {

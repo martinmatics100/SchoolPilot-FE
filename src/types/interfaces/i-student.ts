@@ -23,7 +23,7 @@ export interface Student {
     lastName: string;
     gender: string;
     status: string;
-    studentId: string;
+    studentUniqueId: string;
     class: string;
     rawGender: number;
     rawStatus: number;
@@ -68,4 +68,6 @@ export interface UpdateStudentPayload {
     EmergencyContactName?: string;
     EmergencyContactPhone?: string;
     Notes?: string;
+    GuardianId?: string | null;
+    GuardianRelationship?: number | null;
 }

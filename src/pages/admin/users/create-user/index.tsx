@@ -1,17 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import DynamicForm from '../../../../components/my-form';
-import { type FormField } from '../../../../components/my-form';
-import { useEnums } from '../../../../hooks/useEnums';
-import { useAuth } from '../../../../context';
-import { NavigationButton } from '../../../../components/navigation-button';
-import MessageDisplay from '../../../../components/message-display';
-import { fetchSubjects, fetchBranches, createStaff } from '../../../../api/userService';
-import { type UserModel, type Branch, type Subject } from '../../../../types/interfaces/i-user';
-
+import React, { useEffect, useState } from "react";
+import DynamicForm from "../../../../components/my-form";
+import { type FormField } from "../../../../components/my-form";
+import { useEnums } from "../../../../hooks/useEnums";
+import { useAuth } from "../../../../context";
+import { NavigationButton } from "../../../../components/navigation-button";
+import MessageDisplay from "../../../../components/message-display";
+import { fetchBranches, createStaff } from "../../../../api/userService";
+import { type Branch, type Subject } from "../../../../types/interfaces/i-user";
+import { useAssetUpload } from "../../../../hooks/useAsset";
+import { Box, CircularProgress } from "@mui/material";
 
 const CreateStaff = () => {
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
     const { apiClient, selectedAccount } = useAuth();
+
+    // ── Asset upload hook (same as CreateStudent) ──
+    const {
+        upload,
+        isUploading: isPhotoUploading,
+        uploadProgress,
+        error: uploadError,
+        clearError: clearUploadError,
+    } = useAssetUpload(selectedAccount);
+
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
@@ -23,25 +34,15 @@ const CreateStaff = () => {
         beMessage?: string;
         httpStatus?: number;
     }>({});
-    const [submittedData, setSubmittedData] = useState<{ firstName: string; lastName: string } | null>(null);
+    const [submittedData, setSubmittedData] = useState<{
+        firstName: string;
+        lastName: string;
+    } | null>(null);
 
-    useEffect(() => {
-        const loadSubjects = async () => {
-            try {
-                const subjectsData = await fetchSubjects();
-                setSubjects(subjectsData);
-            } catch (error) {
-                console.error('Error fetching subjects:', error);
-                setAlertMessage({
-                    feMessage: 'Failed to load subjects. Please refresh the page.'
-                });
-            } finally {
-                setIsLoadingSubjects(false);
-            }
-        };
-
-        loadSubjects();
-    }, []);
+    // ── Photo upload state (same as CreateStudent) ──
+    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
+    const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const loadBranches = async () => {
@@ -51,10 +52,10 @@ const CreateStaff = () => {
                     const fetchedBranches = await fetchBranches(selectedAccount, apiClient);
                     setBranches(fetchedBranches);
                 } catch (err) {
-                    console.error('Failed to fetch branches:', err);
+                    console.error("Failed to fetch branches:", err);
                     setAlertMessage({
-                        feMessage: 'Failed to load branches. Please try again later.',
-                        httpStatus: 500
+                        feMessage: "Failed to load branches. Please try again later.",
+                        httpStatus: 500,
                     });
                 } finally {
                     setIsLoadingBranches(false);
@@ -64,65 +65,89 @@ const CreateStaff = () => {
         loadBranches();
     }, [apiClient, selectedAccount]);
 
+    // ── Handle photo file selection (auto-uploads, same as CreateStudent) ──
+    const handlePhotoSelect = async (file: File) => {
+        setSelectedPhotoFile(file);
+        setUploadedPhotoAssetId(null);
+        clearUploadError();
+
+        if (file) {
+            setAlertMessage({ feMessage: "Uploading profile picture..." });
+            const result = await upload(file);
+
+            if (result) {
+                setUploadedPhotoAssetId(result.fileId);
+                setAlertMessage({ feMessage: "Profile picture uploaded successfully!" });
+                setTimeout(() => setAlertMessage({}), 3000);
+            } else {
+                setAlertMessage({
+                    feMessage: "Failed to upload profile picture",
+                    httpStatus: 500,
+                });
+            }
+        }
+    };
+
     const handleSubmit = async (data: any) => {
         try {
-            setAlertMessage({
-                feMessage: 'Submitting staff data...'
-            });
+            setIsSubmitting(true);
+            setAlertMessage({ feMessage: "Submitting staff data..." });
+
+            // If the user picked a photo but it hasn't finished uploading, wait
+            if (selectedPhotoFile && !uploadedPhotoAssetId) {
+                setAlertMessage({
+                    feMessage: "Please wait for photo upload to complete...",
+                });
+                setIsSubmitting(false);
+                return;
+            }
 
             setSubmittedData({
                 firstName: data.firstName,
-                lastName: data.lastName
+                lastName: data.lastName,
             });
 
-            // Parse enum values to integers
             data.gender = parseInt(data.gender);
             data.role = parseInt(data.role);
-            data.employmentType = parseInt(data.employmentType);
-            data.maritalStatus = data.maritalStatus ? parseInt(data.maritalStatus) : undefined;
-            data.qualifications = parseInt(data.qualifications);
-            data.nationality = parseInt(data.nationality);
 
-            // Transform phone data
             let phoneData = null;
-            if (data.phone && typeof data.phone === 'object') {
+            if (data.phone && typeof data.phone === "object") {
                 phoneData = {
                     Number: data.phone.number,
-                    Extension: data.phone.extension || '',
+                    Extension: data.phone.extension || "",
                     PhoneType: parseInt(data.phone.phoneType),
-                    Country: data.phone.country || ''
+                    Country: data.phone.country || "",
                 };
             }
 
-            // Transform address data
             let addressData = null;
-            if (data.address1 && typeof data.address1 === 'object') {
+            if (data.address1 && typeof data.address1 === "object") {
                 addressData = {
                     AddressLine1: data.address1.addressLine1,
-                    AddressLine2: data.address1.addressLine2 || '',
-                    City: data.address1.city || '',
-                    State: data.address1.state || '',
-                    ZipCode: data.address1.postalCode || '',
-                    County: data.address1.county || '',
-                    Country: data.address1.country || ''
+                    AddressLine2: data.address1.addressLine2 || null,
+                    City: data.address1.city || null,
+                    Lga: data.address1.lga || null,
+                    State: data.address1.state,
+                    Country: data.address1.country,
                 };
             }
 
-            // Transform user locations
             let userLocations = [];
             if (data.userLocations && Array.isArray(data.userLocations)) {
                 userLocations = data.userLocations.map((location: any) => ({
                     Id: location.id,
                     Name: location.name,
-                    IsPrimaryLocation: location.isPrimaryLocation
+                    IsPrimaryLocation: location.isPrimaryLocation,
                 }));
             } else if (data.locationId) {
-                const selectedBranch = branches.find(b => b.id === data.locationId);
-                userLocations = [{
-                    Id: data.locationId,
-                    Name: selectedBranch?.name || '',
-                    IsPrimaryLocation: true
-                }];
+                const selectedBranch = branches.find((b) => b.id === data.locationId);
+                userLocations = [
+                    {
+                        Id: data.locationId,
+                        Name: selectedBranch?.name || "",
+                        IsPrimaryLocation: true,
+                    },
+                ];
             }
 
             const payload = {
@@ -130,20 +155,15 @@ const CreateStaff = () => {
                     FirstName: data.firstName,
                     LastName: data.lastName,
                     Email: data.email,
-                    DateOfBirth: data.dateOfBirth || null,
                     Gender: data.gender,
                     Role: data.role,
-                    EmploymentType: data.employmentType,
-                    MaritalStatus: data.maritalStatus,
-                    Qualifications: data.qualifications,
-                    Nationality: data.nationality,
-                    StartDate: data.startDate,
                     Address: addressData,
                     Phone: phoneData,
-                    Notes: data.notes || '',
-                    ProfilePictureId: data.profilePictureId || null,
-                    UserLocations: userLocations
-                }
+                    Notes: data.notes || "",
+                    // ── Use the uploaded Cloudinary asset ID ──
+                    ProfilePictureId: uploadedPhotoAssetId || null,
+                    UserLocations: userLocations,
+                },
             };
 
             const response = await createStaff(apiClient, payload);
@@ -151,184 +171,187 @@ const CreateStaff = () => {
             if (response.userId) {
                 setAlertMessage({
                     feMessage: `User ${data.lastName}, ${data.firstName} has been created successfully!`,
-                    httpStatus: 200
+                    httpStatus: 200,
                 });
+
+                // Reset photo state after success
+                setTimeout(() => {
+                    setSelectedPhotoFile(null);
+                    setUploadedPhotoAssetId(null);
+                }, 2000);
             } else {
-                throw new Error('Unexpected response from server');
+                throw new Error("Unexpected response from server");
             }
         } catch (error: any) {
-            console.error('Error submitting form:', error);
+            console.error("Error submitting form:", error);
             setAlertMessage({
-                feMessage: 'Failed to create staff. Please try again.',
-                beMessage: error.message || 'Unknown error occurred',
-                httpStatus: error.status || 500
+                feMessage: "Failed to create staff. Please try again.",
+                beMessage: error.message || "Unknown error occurred",
+                httpStatus: error.status || 500,
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const shouldHideSubjectsTaught = (designation: string | null) => {
         if (!designation || !enums?.UserRole) return false;
-
         const selectedDesignationObj = enums.UserRole.find(
-            d => d.value.toString() === designation
+            (d) => d.value.toString() === designation
         );
-
-        return selectedDesignationObj?.name === 'Non-Academic Staff' ||
-            selectedDesignationObj?.name === 'Accountant' ||
-            selectedDesignationObj?.name === 'Parent' ||
-            selectedDesignationObj?.name === 'Student';
+        return (
+            selectedDesignationObj?.name === "Non-Academic Staff" ||
+            selectedDesignationObj?.name === "Accountant" ||
+            selectedDesignationObj?.name === "Parent" ||
+            selectedDesignationObj?.name === "Student"
+        );
     };
 
     const shouldHideSomeInputs = (designation: string | null) => {
         if (!designation || !enums?.UserRole) return false;
-
         const selectedDesignationObj = enums.UserRole.find(
-            d => d.value.toString() === designation
+            (d) => d.value.toString() === designation
         );
-
-        return selectedDesignationObj?.name === 'Parent';
+        return selectedDesignationObj?.name === "Parent";
     };
 
     useEffect(() => {
         if (!isLoading && !isLoadingBranches && enums) {
             const fields: FormField[] = [
-                { name: 'firstName', label: 'First Name', type: 'text', required: true, placeholder: 'Enter User First Name', colSpan: 1 },
-                { name: 'lastName', label: 'Last Name', type: 'text', required: true, placeholder: 'Enter User Last Name', colSpan: 1 },
                 {
-                    name: 'email', label: 'Email Address', type: 'email', placeholder: 'Enter User Valid Email Address', required: true,
-                    infoText: 'This will be used to send notifications and informations', colSpan: 1
-                },
-                { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: false, colSpan: 1 },
-                {
-                    name: 'gender',
-                    label: 'Gender',
-                    type: 'select',
+                    name: "firstName",
+                    label: "First Name",
+                    type: "text",
                     required: true,
-                    placeholder: 'Select Gender',
+                    placeholder: "Enter User First Name",
                     colSpan: 1,
-                    options: enums.Gender?.map(g => ({
-                        value: g.value.toString(),
-                        label: g.displayName || g.name
-                    })) || []
                 },
                 {
-                    name: 'role',
-                    label: 'Role',
-                    type: 'select',
+                    name: "lastName",
+                    label: "Last Name",
+                    type: "text",
                     required: true,
-                    placeholder: 'Select User Role',
+                    placeholder: "Enter User Last Name",
                     colSpan: 1,
-                    options: enums.UserRole?.map(d => ({
-                        value: d.value.toString(),
-                        label: d.displayName || d.name
-                    })) || [],
-                    onChange: (value: string) => setSelectedDesignation(value)
                 },
                 {
-                    name: 'employmentType',
-                    label: 'Employment Type',
-                    type: 'select',
+                    name: "email",
+                    label: "Email Address",
+                    type: "email",
+                    placeholder: "Enter User Valid Email Address",
                     required: true,
-                    placeholder: 'Select Employment Type',
+                    infoText: "This will be used to send notifications and informations",
                     colSpan: 1,
-                    options: enums.EmploymentType?.map(e => ({
-                        value: e.value.toString(),
-                        label: e.displayName || e.name
-                    })) || [],
-                    hidden: shouldHideSomeInputs(selectedDesignation)
                 },
                 {
-                    name: 'locationId',
-                    label: 'Choose Branch',
-                    infoText: 'This is to assign the User to the associated school location',
-                    type: 'select',
+                    name: "gender",
+                    label: "Gender",
+                    type: "select",
                     required: true,
-                    placeholder: 'Select School Location',
+                    placeholder: "Select Gender",
                     colSpan: 1,
-                    options: branches.map(b => ({
+                    options:
+                        enums.Gender?.map((g) => ({
+                            value: g.value.toString(),
+                            label: g.displayName || g.name,
+                        })) || [],
+                },
+                {
+                    name: "role",
+                    label: "Role",
+                    type: "select",
+                    required: true,
+                    placeholder: "Select User Role",
+                    colSpan: 1,
+                    options:
+                        enums.UserRole?.map((d) => ({
+                            value: d.value.toString(),
+                            label: d.displayName || d.name,
+                        })) || [],
+                    onChange: (value: string) => setSelectedDesignation(value),
+                },
+                {
+                    name: "locationId",
+                    label: "Choose Branch",
+                    infoText: "This is to assign the User to the associated school location",
+                    type: "select",
+                    required: true,
+                    placeholder: "Select School Location",
+                    colSpan: 1,
+                    options: branches.map((b) => ({
                         value: b.id,
-                        label: b.name
-                    }))
+                        label: b.name,
+                    })),
                 },
                 {
-                    name: 'maritalStatus',
-                    label: 'Marital Status',
-                    type: 'select',
-                    required: false,
-                    placeholder: 'Select Marital Status',
-                    colSpan: 1,
-                    options: enums.MaritalStatus?.map(m => ({
-                        value: m.value.toString(),
-                        label: m.displayName || m.name
-                    })) || [],
-                    hidden: shouldHideSomeInputs(selectedDesignation)
-                },
-                {
-                    name: 'qualifications',
-                    label: 'Qualifications',
-                    type: 'select',
-                    required: !shouldHideSomeInputs(selectedDesignation),
-                    placeholder: 'Select Education Qualification',
-                    colSpan: 1,
-                    options: enums.Qualifications?.map(q => ({
-                        value: q.value.toString(),
-                        label: q.displayName || q.name
-                    })) || [],
-                    hidden: shouldHideSomeInputs(selectedDesignation)
-                },
-                {
-                    name: 'nationality',
-                    label: 'Nationality',
-                    type: 'select',
-                    required: true,
-                    placeholder: 'Select Nationality',
-                    colSpan: 1,
-                    options: enums.Nationality?.map(n => ({
-                        value: n.value.toString(),
-                        label: n.displayName || n.name
-                    })) || []
-                },
-                { name: 'startDate', label: 'Start Date', type: 'date', required: true, colSpan: 1, hidden: shouldHideSomeInputs(selectedDesignation), },
-                { name: 'address1', label: 'Home Address', type: 'address', required: true, colSpan: 3 },
-                {
-                    name: 'phone',
-                    label: 'Contact Phone',
-                    type: 'phone',
+                    name: "address1",
+                    label: "Home Address",
+                    type: "address",
                     required: true,
                     colSpan: 3,
-                    errorMessage: 'Please provide a valid phone number',
+                },
+                {
+                    name: "phone",
+                    label: "Contact Phone",
+                    type: "phone",
+                    required: true,
+                    colSpan: 3,
+                    errorMessage: "Please provide a valid phone number",
                     extraProps: {
                         enums: {
                             PhoneType: enums.PhoneType,
-                            Country: enums.Country
-                        }
-                    }
+                            Country: enums.Country,
+                        },
+                    },
                 },
                 {
-                    name: 'notes',
-                    label: 'Additional Notes',
-                    type: 'multiline',
-                    required: false,
-                    rows: 4,
-                    colSpan: 2
-                },
-                {
-                    name: 'profilePicture',
-                    label: 'Profile Picture',
-                    type: 'image',
+                    name: "profilePicture",
+                    label: "Profile Picture",
+                    type: "image",
                     multiple: false,
                     required: false,
-                    colSpan: 2
+                    colSpan: 2,
+                    // ── Auto-upload on select (same as CreateStudent) ──
+                    onChange: (fileData: any) => {
+                        if (fileData && fileData.file) {
+                            handlePhotoSelect(fileData.file);
+                        } else {
+                            // File removed
+                            setSelectedPhotoFile(null);
+                            setUploadedPhotoAssetId(null);
+                        }
+                    },
+                    infoText: isPhotoUploading
+                        ? `Uploading... ${uploadProgress}%`
+                        : uploadedPhotoAssetId
+                            ? "✓ Photo uploaded successfully"
+                            : "Upload a profile picture (max 5MB, JPG/PNG)",
                 },
             ];
 
             setFormFields(fields);
         }
-    }, [enums, isLoading, isLoadingBranches, selectedDesignation, subjects, branches]);
+    }, [
+        enums,
+        isLoading,
+        isLoadingBranches,
+        selectedDesignation,
+        subjects,
+        branches,
+        isPhotoUploading,
+        uploadProgress,
+        uploadedPhotoAssetId,
+    ]);
 
     if (isLoading || isLoadingBranches || formFields.length === 0) {
         return <div>Loading form...</div>;
     }
+
+    // ── Submit disabled while uploading or submitting ──
+    const isSubmitDisabled =
+        isPhotoUploading ||
+        isSubmitting ||
+        (selectedPhotoFile !== null && !uploadedPhotoAssetId);
 
     return (
         <div>
@@ -337,18 +360,68 @@ const CreateStaff = () => {
                 beMessage={alertMessage.beMessage}
                 httpStatus={alertMessage.httpStatus}
             />
+
+            {uploadError && (
+                <MessageDisplay
+                    feMessage="Upload Error"
+                    beMessage={uploadError}
+                    httpStatus={500}
+                />
+            )}
+
             <NavigationButton
                 to="/app/users"
-                sx={{ alignContent: 'flex-end' }}
-                variant='outlined'
+                sx={{ alignContent: "flex-end" }}
+                variant="outlined"
             >
                 Go to User List
             </NavigationButton>
+
+            {/* Upload progress indicator */}
+            {isPhotoUploading && (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        mb: 2,
+                        p: 2,
+                        bgcolor: "background.paper",
+                        borderRadius: 1,
+                    }}
+                >
+                    <CircularProgress size={24} />
+                    <span>Uploading profile picture... {uploadProgress}%</span>
+                </Box>
+            )}
+
+            {/* Upload success indicator */}
+            {uploadedPhotoAssetId && !isPhotoUploading && (
+                <Box
+                    sx={{
+                        mb: 2,
+                        p: 2,
+                        bgcolor: "success.light",
+                        color: "success.contrastText",
+                        borderRadius: 1,
+                    }}
+                >
+                    ✓ Profile picture uploaded successfully!
+                </Box>
+            )}
+
             <DynamicForm
                 title="User Form"
                 fields={formFields}
                 onSubmit={handleSubmit}
-                submitButtonText="Submit"
+                submitButtonText={
+                    isPhotoUploading
+                        ? "Uploading Photo..."
+                        : isSubmitting
+                            ? "Creating User..."
+                            : "Submit"
+                }
+                submitDisabled={isSubmitDisabled}
                 columns={3}
             />
         </div>

@@ -254,7 +254,7 @@ const Index = () => {
             show: true,
         },
         {
-            label: 'Add',
+            label: 'New User',
             icon: <AddIcon />,
             onClick: () => navigate('create-user'),
             color: 'info',
@@ -285,12 +285,12 @@ const Index = () => {
                         {row.firstName?.charAt(0)}{row.lastName?.charAt(0)}
                     </Avatar>
                     <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "1rem", color: 'text.secondary' }}>
                             {row.lastName}, {row.firstName}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.primary' }}>
+                        {/* <Typography variant="caption" sx={{ color: 'text.primary' }}>
                             ID: {row.userId}
-                        </Typography>
+                        </Typography> */}
                     </Box>
                 </Box>
             ),

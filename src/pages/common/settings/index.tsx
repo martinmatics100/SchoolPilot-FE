@@ -4,6 +4,7 @@ import AppTabs from "../../../components/app-tabs/index";
 import GeneralSettings from "./general-settings";
 import AppearanceSettings from "./apperance";
 import CurrentUserProfile from "./profile";
+import MySignaturesSettings from "../../admin/MySignature/index";
 import BillingSettings from "./billing";
 import NotificationsSettings from "./notification";
 
@@ -22,14 +23,18 @@ const Settings = () => {
             label: "Appearance",
             component: <AppearanceSettings />,
         },
-        // {
-        //     label: "Notifications",
-        //     component: <NotificationsSettings />,
-        // },
-        // {
-        //     label: "Billing & Subscription",
-        //     component: <BillingSettings />,
-        // },
+        {
+            label: "My Signatures",
+            component: <MySignaturesSettings />,
+        },
+        {
+            label: "Notifications",
+            component: <NotificationsSettings />,
+        },
+        {
+            label: "Billing & Subscription",
+            component: <BillingSettings />,
+        },
     ];
 
     return (

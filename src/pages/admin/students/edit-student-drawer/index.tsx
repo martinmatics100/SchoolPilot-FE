@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
     Drawer,
     IconButton,
@@ -11,6 +11,12 @@ import {
     alpha,
     Fade,
     Grow,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Stack,
+    TextField,
 } from "@mui/material";
 import { useTheme } from "@mui/material";
 import IconifyIcon from "../../../../components/base/iconifyIcon";
@@ -18,29 +24,44 @@ import DynamicForm, { type FormField } from "../../../../components/my-form";
 import { useEnums } from "../../../../hooks/useEnums";
 import { useAuth } from "../../../../context";
 import MessageDisplay from "../../../../components/message-display";
-import { fetchBranches } from "../../../../api/userService";
+import { fetchBranches, fetchUsers } from "../../../../api/userService";
 import { fetchClasses } from "../../../../api/classServices";
 import {
     getStudentById,
     updateStudent,
 } from "../../../../api/studentService";
 import { type Branch } from "../../../../types/interfaces/i-user";
-import { type StudentDetail, type UpdateStudentPayload } from "../../../../types/interfaces/i-student";
+import {
+    type StudentDetail,
+    type UpdateStudentPayload,
+} from "../../../../types/interfaces/i-student";
 import { useAssetUpload } from "../../../../hooks/useAsset";
 
+/* ─────────────────────────────────────────────────────────────
+   Types
+   ───────────────────────────────────────────────────────────── */
 interface AddressData {
     addressLine1: string;
     addressLine2?: string | null;
-    city?: string | null;
+    country?: string | null;
     state: string;
-    zipCode?: string | null;
-    county?: string | null;
-    country: string;
+    lga?: string | null;
 }
 
 interface StudentDetailWithAddress extends StudentDetail {
     address?: AddressData;
     photoUrl?: string | null;
+    guardianId?: string | null;
+    guardianFirstName?: string | null;
+    guardianLastName?: string | null;
+    guardianRelationship?: string | number | null;
+}
+
+interface GuardianOption {
+    id: string;
+    label: string;
+    firstName: string;
+    lastName: string;
 }
 
 interface EditStudentDrawerProps {
@@ -49,6 +70,8 @@ interface EditStudentDrawerProps {
     studentId: string | null;
     onSuccess: () => void;
 }
+
+const PARENT_ROLE_VALUE = 3;
 
 const EditStudentDrawer = ({
     open,
@@ -62,19 +85,16 @@ const EditStudentDrawer = ({
     });
     const { apiClient, selectedAccount } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    // Ref to track if student data has been loaded to prevent infinite loops
+
     const hasLoadedStudentRef = useRef(false);
-    // Ref to store the current student ID to detect changes
     const currentStudentIdRef = useRef<string | null>(null);
 
-    // Asset upload hook
     const {
         upload,
         isUploading: isPhotoUploading,
         uploadProgress,
         error: uploadError,
-        clearError: clearUploadError
+        clearError: clearUploadError,
     } = useAssetUpload(selectedAccount);
 
     const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -98,14 +118,67 @@ const EditStudentDrawer = ({
         classLevel?: number;
     } | null>(null);
 
-    // State for photo management
-    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
+    /* ── Guardian state ── */
+    const [guardians, setGuardians] = useState<GuardianOption[]>([]);
+    const [isLoadingGuardians, setIsLoadingGuardians] = useState(false);
+    const [selectedGuardianId, setSelectedGuardianId] = useState<string>("");
+    const [guardianRelationship, setGuardianRelationship] =
+        useState<string>("");
+    const [guardianFallback, setGuardianFallback] = useState<{
+        firstName: string;
+        lastName: string;
+    } | null>(null);
+
+    /* ── Photo state ── */
+    const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<
+        string | null
+    >(null);
     const [hasPhotoChanged, setHasPhotoChanged] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [dotCount, setDotCount] = useState(0);
 
-    // Effect for animated dots
+    /* ─────────────────────────────────────────────────────────
+       Derived — guardian currently assigned (list + fallback)
+       ───────────────────────────────────────────────────────── */
+    const selectedGuardian = useMemo<GuardianOption | undefined>(() => {
+        const fromList = guardians.find((g) => g.id === selectedGuardianId);
+        if (fromList) return fromList;
+
+        if (selectedGuardianId && guardianFallback) {
+            return {
+                id: selectedGuardianId,
+                firstName: guardianFallback.firstName,
+                lastName: guardianFallback.lastName,
+                label: `${guardianFallback.firstName} ${guardianFallback.lastName}`.trim(),
+            };
+        }
+        return undefined;
+    }, [guardians, selectedGuardianId, guardianFallback]);
+
+    /** Guardians list for the dropdown, including the fallback if missing */
+    const guardianOptions = useMemo<GuardianOption[]>(() => {
+        if (
+            selectedGuardianId &&
+            !guardians.some((g) => g.id === selectedGuardianId) &&
+            guardianFallback
+        ) {
+            return [
+                {
+                    id: selectedGuardianId,
+                    firstName: guardianFallback.firstName,
+                    lastName: guardianFallback.lastName,
+                    label: `${guardianFallback.firstName} ${guardianFallback.lastName}`.trim(),
+                },
+                ...guardians,
+            ];
+        }
+        return guardians;
+    }, [guardians, selectedGuardianId, guardianFallback]);
+
+    /* ─────────────────────────────────────────────────────────
+       Animated dots
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
 
@@ -122,14 +195,13 @@ const EditStudentDrawer = ({
         };
     }, [open]);
 
-    // Reset dot count when drawer closes
     useEffect(() => {
-        if (!open) {
-            setDotCount(0);
-        }
+        if (!open) setDotCount(0);
     }, [open]);
 
-    // Reset all states when drawer closes - FIXED: Only depend on 'open'
+    /* ─────────────────────────────────────────────────────────
+       Reset state when drawer closes
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
         if (!open) {
             setStudentData(null);
@@ -139,37 +211,44 @@ const EditStudentDrawer = ({
             setFormFields([]);
             setUploadedPhotoAssetId(null);
             setHasPhotoChanged(false);
-            // Reset the loaded ref when drawer closes
+            setSelectedGuardianId("");
+            setGuardianRelationship("");
+            setGuardianFallback(null);
             hasLoadedStudentRef.current = false;
             currentStudentIdRef.current = null;
-            
-            // Call clearUploadError without depending on it
-            if (clearUploadError) {
-                clearUploadError();
-            }
-        }
-    }, [open]); // ✅ Only depend on 'open'
 
-    // Handle file selection and upload
-    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+            if (clearUploadError) clearUploadError();
+        }
+    }, [open]);
+
+    /* ─────────────────────────────────────────────────────────
+       File selection & upload
+       ───────────────────────────────────────────────────────── */
+    const handleFileSelect = async (
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+        const validTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+            "image/webp",
+        ];
         if (!validTypes.includes(file.type)) {
             setAlertMessage({
-                feMessage: "Invalid file type. Please upload JPG, PNG, or WEBP images only.",
-                httpStatus: 400
+                feMessage:
+                    "Invalid file type. Please upload JPG, PNG, or WEBP images only.",
+                httpStatus: 400,
             });
             return;
         }
 
-        // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
             setAlertMessage({
                 feMessage: "File too large. Maximum size is 5MB.",
-                httpStatus: 400
+                httpStatus: 400,
             });
             return;
         }
@@ -177,7 +256,6 @@ const EditStudentDrawer = ({
         setHasPhotoChanged(true);
         clearUploadError();
 
-        // Show preview immediately
         const previewUrl = URL.createObjectURL(file);
         setStudentPhotoUrl(previewUrl);
 
@@ -187,62 +265,60 @@ const EditStudentDrawer = ({
 
         if (result) {
             setUploadedPhotoAssetId(result.fileId);
-            const successMessage = "Profile picture uploaded successfully! Click Update Student to save changes.";
+            const successMessage =
+                "Profile picture uploaded successfully! Click Update Student to save changes.";
             setAlertMessage({ feMessage: successMessage });
-            
-            // Clear success message after 3 seconds using a closure to avoid dependency issues
+
             setTimeout(() => {
                 setAlertMessage((prev) => {
-                    // Only clear if the message hasn't changed
-                    if (prev.feMessage === successMessage) {
-                        return {};
-                    }
+                    if (prev.feMessage === successMessage) return {};
                     return prev;
                 });
             }, 3000);
         } else {
-            // Revert preview on failure
             setStudentPhotoUrl(studentData?.photoUrl || null);
-            setAlertMessage({ feMessage: "Failed to upload profile picture", httpStatus: 500 });
+            setAlertMessage({
+                feMessage: "Failed to upload profile picture",
+                httpStatus: 500,
+            });
         }
 
-        // Clear the file input
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    // Handle photo removal
-    const handleRemovePhoto = async () => {
+    const handleRemovePhoto = () => {
         setHasPhotoChanged(true);
         setUploadedPhotoAssetId(null);
         setStudentPhotoUrl(null);
-        const removalMessage = "Photo will be removed when you update the student";
+        const removalMessage =
+            "Photo will be removed when you update the student";
         setAlertMessage({ feMessage: removalMessage });
         setTimeout(() => {
             setAlertMessage((prev) => {
-                if (prev.feMessage === removalMessage) {
-                    return {};
-                }
+                if (prev.feMessage === removalMessage) return {};
                 return prev;
             });
         }, 2000);
     };
 
-    // Open file picker when clicking the avatar
     const handleAvatarClick = () => {
         if (!isPhotoUploading && !isSubmitting) {
             fileInputRef.current?.click();
         }
     };
 
-    // Load branches
+    /* ─────────────────────────────────────────────────────────
+       Load branches
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
         const loadBranches = async () => {
             if (selectedAccount) {
                 setIsLoadingBranches(true);
                 try {
-                    const fetchedBranches = await fetchBranches(selectedAccount, apiClient);
+                    const fetchedBranches = await fetchBranches(
+                        selectedAccount,
+                        apiClient
+                    );
                     setBranches(fetchedBranches);
                 } catch (err) {
                     console.error("Failed to load branches:", err);
@@ -254,7 +330,9 @@ const EditStudentDrawer = ({
         loadBranches();
     }, [selectedAccount, apiClient]);
 
-    // Load classes
+    /* ─────────────────────────────────────────────────────────
+       Load classes
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
         const loadClasses = async () => {
             if (selectedAccount) {
@@ -278,21 +356,54 @@ const EditStudentDrawer = ({
         loadClasses();
     }, [selectedAccount]);
 
-    // Load student data - FIXED: Removed 'classes' dependency to prevent infinite loop
+    /* ─────────────────────────────────────────────────────────
+       Load guardians (parents only)
+       ───────────────────────────────────────────────────────── */
+    useEffect(() => {
+        const loadGuardians = async () => {
+            if (!selectedAccount || !open) return;
+
+            setIsLoadingGuardians(true);
+            try {
+                const { items } = await fetchUsers(
+                    selectedAccount,
+                    1,
+                    500,
+                    String(PARENT_ROLE_VALUE)
+                );
+
+                const mapped: GuardianOption[] = (items || []).map((u: any) => ({
+                    id: u.id,
+                    firstName: u.firstName || "",
+                    lastName: u.lastName || "",
+                    label: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+                }));
+
+                setGuardians(mapped);
+            } catch (err) {
+                console.error("Failed to load guardians:", err);
+            } finally {
+                setIsLoadingGuardians(false);
+            }
+        };
+
+        loadGuardians();
+    }, [selectedAccount, open]);
+
+    /* ─────────────────────────────────────────────────────────
+       Load student data
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
         const loadStudentData = async () => {
-            // Check if we have all required data and haven't loaded this student yet
-            const shouldLoad = open && 
-                              studentId && 
-                              selectedAccount && 
-                              enums && 
-                              !hasLoadedStudentRef.current;
+            const shouldLoad =
+                open &&
+                studentId &&
+                selectedAccount &&
+                enums &&
+                !hasLoadedStudentRef.current;
 
-            if (!shouldLoad) {
-                return;
-            }
+            if (!shouldLoad) return;
 
-            // If student ID changed, reset the loaded flag
             if (currentStudentIdRef.current !== studentId) {
                 hasLoadedStudentRef.current = false;
                 currentStudentIdRef.current = studentId;
@@ -302,53 +413,107 @@ const EditStudentDrawer = ({
             setAlertMessage({});
 
             try {
-                const student: StudentDetailWithAddress = await getStudentById(selectedAccount, studentId);
+                const student: StudentDetailWithAddress = await getStudentById(
+                    selectedAccount,
+                    studentId
+                );
 
                 setStudentPhotoUrl(student.photoUrl || null);
 
                 const genderEnum = enums?.Gender?.find(
-                    (g: any) => g.displayName === student.gender || g.name === student.gender
+                    (g: any) =>
+                        g.displayName === student.gender ||
+                        g.name === student.gender
                 );
 
                 const statusEnum = enums?.StudentStatus?.find(
-                    (s: any) => s.displayName === student.status || s.name === student.status
+                    (s: any) =>
+                        s.displayName === student.status ||
+                        s.name === student.status
                 );
 
-                const formattedAddress = student.address ? {
-                    addressLine1: student.address.addressLine1 || "",
-                    postalCode: student.address.zipCode || "",
-                    country: student.address.country || "",
-                    state: student.address.state || "",
-                } : {
-                    addressLine1: "",
-                    postalCode: "",
-                    country: "",
-                    state: "",
-                };
+                const formattedAddress = student.address
+                    ? {
+                        addressLine1: student.address.addressLine1 || "",
+                        lga: student.address.lga || "",
+                        country: student.address.country || "",
+                        state: student.address.state || "",
+                    }
+                    : {
+                        addressLine1: "",
+                        lga: "",
+                        country: "",
+                        state: "",
+                    };
+
+                /* ── Resolve the guardian relationship ──
+                   BE may return a number OR a string name ("Mother").
+                   Normalize to a numeric string so the dropdown
+                   preselects correctly. */
+                const relationshipValue = (() => {
+                    if (student.guardianRelationship == null) return "";
+
+                    if (typeof student.guardianRelationship === "number") {
+                        return student.guardianRelationship.toString();
+                    }
+
+                    // Numeric string?
+                    if (/^\d+$/.test(student.guardianRelationship)) {
+                        return student.guardianRelationship;
+                    }
+
+                    // String name — look it up in the enum list
+                    const match = (
+                        enums?.GuardianStudentRelationship || []
+                    ).find(
+                        (r: any) =>
+                            r.name === student.guardianRelationship ||
+                            r.displayName === student.guardianRelationship
+                    );
+
+                    return match ? match.value.toString() : "";
+                })();
 
                 const formattedData = {
                     id: student.id,
                     firstName: student.firstName,
                     lastName: student.lastName,
-                    dateOfBirth: student.dateOfBirth?.split('T')[0] || '',
-                    gender: genderEnum?.value?.toString() || '',
-                    schoolId: student.schoolId || '',
-                    classId: student.classRoomId || '',
-                    status: statusEnum?.value?.toString() || '',
+                    dateOfBirth: student.dateOfBirth?.split("T")[0] || "",
+                    gender: genderEnum?.value?.toString() || "",
+                    schoolId: student.schoolId || "",
+                    classId: student.classRoomId || "",
+                    status: statusEnum?.value?.toString() || "",
                     address: formattedAddress,
                     photoUrl: student.photoUrl,
+                    guardianId: student.guardianId || "",
+                    guardianRelationship: relationshipValue,
                 };
 
                 setStudentData(formattedData);
 
+                // Prefill guardian state
+                setSelectedGuardianId(student.guardianId || "");
+                setGuardianRelationship(relationshipValue);
+
+                // Fallback name from the BE response so the name shows even
+                // if the guardian isn't in the fetched parents list.
+                if (student.guardianFirstName || student.guardianLastName) {
+                    setGuardianFallback({
+                        firstName: student.guardianFirstName || "",
+                        lastName: student.guardianLastName || "",
+                    });
+                } else {
+                    setGuardianFallback(null);
+                }
+
                 if (student.classRoomId) {
-                    const studentClass = classes.find(c => c.id === student.classRoomId);
+                    const studentClass = classes.find(
+                        (c) => c.id === student.classRoomId
+                    );
                     setSelectedClass(studentClass || null);
                 }
 
-                // Mark as loaded to prevent re-fetching
                 hasLoadedStudentRef.current = true;
-
             } catch (error) {
                 console.error("Error loading student data:", error);
                 setAlertMessage({
@@ -361,11 +526,12 @@ const EditStudentDrawer = ({
         };
 
         loadStudentData();
-    }, [open, studentId, selectedAccount, enums]); // ✅ Removed 'classes' from dependencies
+    }, [open, studentId, selectedAccount, enums, classes]);
 
-    // Build form fields
+    /* ─────────────────────────────────────────────────────────
+       Build form fields
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
-        // Only build fields when we have all required data
         if (
             !isEnumsLoading &&
             !isLoadingClasses &&
@@ -422,7 +588,10 @@ const EditStudentDrawer = ({
                     type: "select",
                     required: true,
                     colSpan: 1,
-                    options: classes.map((cls) => ({ value: cls.id, label: cls.name })),
+                    options: classes.map((cls) => ({
+                        value: cls.id,
+                        label: cls.name,
+                    })),
                     onChange: (value: string) => {
                         const selected = classes.find((c) => c.id === value);
                         setSelectedClass(selected || null);
@@ -463,17 +632,8 @@ const EditStudentDrawer = ({
                 name: "address",
                 label: "Address",
                 type: "address",
-                required: false,
+                required: true,
                 colSpan: 2,
-            });
-
-            fields.push({
-                name: "notes",
-                label: "Notes",
-                type: "multiline",
-                required: false,
-                colSpan: 2,
-                rows: 4,
             });
 
             setFormFields(fields);
@@ -487,6 +647,9 @@ const EditStudentDrawer = ({
         selectedClass,
     ]);
 
+    /* ─────────────────────────────────────────────────────────
+       Submit
+       ───────────────────────────────────────────────────────── */
     const handleSubmit = async (data: any) => {
         try {
             setIsSubmitting(true);
@@ -494,14 +657,18 @@ const EditStudentDrawer = ({
 
             const genderValue = data.gender ? parseInt(data.gender) : 0;
             const statusValue = data.status ? parseInt(data.status) : 0;
-            const streamTypeValue = data.streamType ? parseInt(data.streamType) : null;
+            const streamTypeValue = data.streamType
+                ? parseInt(data.streamType)
+                : null;
 
-            const formattedAddress = data.address ? {
-                AddressLine1: data.address.addressLine1 || "",
-                State: data.address.state || "",
-                Country: data.address.country || "",
-                ZipCode: data.address.postalCode || "",
-            } : undefined;
+            const formattedAddress = data.address
+                ? {
+                    AddressLine1: data.address.addressLine1 || "",
+                    State: data.address.state || "",
+                    Country: data.address.country || "",
+                    Lga: data.address.lga || "",
+                }
+                : undefined;
 
             const payload: UpdateStudentPayload = {
                 Id: studentId!,
@@ -515,13 +682,23 @@ const EditStudentDrawer = ({
                 DateOfBirth: data.dateOfBirth,
                 Address: formattedAddress,
                 Notes: data.notes,
-                // Include PhotoAssetId if a new photo was uploaded
+
+                // ── Guardian info ──
+                GuardianId: selectedGuardianId || null,
+                GuardianRelationship: guardianRelationship
+                    ? parseInt(guardianRelationship)
+                    : null,
+
                 ...(hasPhotoChanged && {
-                    PhotoAssetId: uploadedPhotoAssetId || null, // null will remove the photo
+                    PhotoAssetId: uploadedPhotoAssetId || null,
                 }),
             };
 
-            const response = await updateStudent(selectedAccount!, studentId!, payload);
+            const response = await updateStudent(
+                selectedAccount!,
+                studentId!,
+                payload
+            );
 
             if (response.success) {
                 setAlertMessage({
@@ -556,10 +733,10 @@ const EditStudentDrawer = ({
         setFormFields([]);
         setUploadedPhotoAssetId(null);
         setHasPhotoChanged(false);
-        if (clearUploadError) {
-            clearUploadError();
-        }
-        // Reset the loaded ref when closing
+        setSelectedGuardianId("");
+        setGuardianRelationship("");
+        setGuardianFallback(null);
+        if (clearUploadError) clearUploadError();
         hasLoadedStudentRef.current = false;
         currentStudentIdRef.current = null;
         onClose();
@@ -572,7 +749,8 @@ const EditStudentDrawer = ({
         return "?";
     };
 
-    const isReady = !isEnumsLoading &&
+    const isReady =
+        !isEnumsLoading &&
         !isLoadingClasses &&
         !loading &&
         studentData &&
@@ -585,9 +763,11 @@ const EditStudentDrawer = ({
         return `${baseText}${dots}`;
     };
 
-    // Check if submit should be disabled
     const isSubmitDisabled = isPhotoUploading || isSubmitting;
 
+    /* ─────────────────────────────────────────────────────────
+       Render
+       ───────────────────────────────────────────────────────── */
     return (
         <Drawer
             anchor="right"
@@ -596,12 +776,8 @@ const EditStudentDrawer = ({
             PaperProps={{
                 sx: {
                     width: "100%",
-                    "@media (min-width: 1024px)": {
-                        width: "50%",
-                    },
-                    "@media (min-width: 1440px)": {
-                        width: "40%",
-                    },
+                    "@media (min-width: 1024px)": { width: "50%" },
+                    "@media (min-width: 1440px)": { width: "40%" },
                     bgcolor: "background.default",
                     borderRadius: { xs: 0, sm: "16px 0 0 16px" },
                     p: { xs: 2, sm: 3, md: 4 },
@@ -614,13 +790,13 @@ const EditStudentDrawer = ({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/jpg,image/webp"
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
                 onChange={handleFileSelect}
             />
 
             <Fade in={open} timeout={300}>
                 <Box>
-                    {/* Header */}
+                    {/* ═══ Header ═══ */}
                     <Box
                         sx={{
                             display: "flex",
@@ -679,7 +855,7 @@ const EditStudentDrawer = ({
                         </IconButton>
                     </Box>
 
-                    {/* Message Display */}
+                    {/* ═══ Messages ═══ */}
                     {alertMessage.feMessage && (
                         <Box sx={{ mb: 3 }}>
                             <MessageDisplay
@@ -690,7 +866,6 @@ const EditStudentDrawer = ({
                         </Box>
                     )}
 
-                    {/* Upload Error Display */}
                     {uploadError && (
                         <Box sx={{ mb: 3 }}>
                             <MessageDisplay
@@ -701,7 +876,7 @@ const EditStudentDrawer = ({
                         </Box>
                     )}
 
-                    {/* Student Avatar - Clickable */}
+                    {/* ═══ Student Avatar ═══ */}
                     <Grow in={!!studentData} timeout={500}>
                         <Box
                             sx={{
@@ -715,12 +890,11 @@ const EditStudentDrawer = ({
                             <Box
                                 sx={{
                                     position: "relative",
-                                    cursor: isPhotoUploading || isSubmitting ? "not-allowed" : "pointer",
-                                    "&:hover": {
-                                        "& .edit-overlay": {
-                                            opacity: 1,
-                                        },
-                                    },
+                                    cursor:
+                                        isPhotoUploading || isSubmitting
+                                            ? "not-allowed"
+                                            : "pointer",
+                                    "&:hover": { "& .edit-overlay": { opacity: 1 } },
                                 }}
                                 onClick={handleAvatarClick}
                             >
@@ -736,12 +910,14 @@ const EditStudentDrawer = ({
                                 >
                                     <Avatar
                                         src={studentPhotoUrl || undefined}
-                                        alt={`${studentData?.firstName || ''} ${studentData?.lastName || ''}`}
+                                        alt={`${studentData?.firstName || ""} ${studentData?.lastName || ""}`}
                                         sx={{
                                             width: { xs: 100, sm: 120 },
                                             height: { xs: 100, sm: 120 },
                                             fontSize: { xs: "2.5rem", sm: "3rem" },
-                                            bgcolor: studentPhotoUrl ? "transparent" : theme.palette.primary.main,
+                                            bgcolor: studentPhotoUrl
+                                                ? "transparent"
+                                                : theme.palette.primary.main,
                                             color: "white",
                                             fontWeight: 600,
                                             transition: "opacity 0.3s",
@@ -755,10 +931,7 @@ const EditStudentDrawer = ({
                                         className="edit-overlay"
                                         sx={{
                                             position: "absolute",
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            bottom: 0,
+                                            inset: 0,
                                             bgcolor: alpha(theme.palette.common.black, 0.6),
                                             display: "flex",
                                             alignItems: "center",
@@ -788,10 +961,7 @@ const EditStudentDrawer = ({
                                         <Box
                                             sx={{
                                                 position: "absolute",
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
+                                                inset: 0,
                                                 bgcolor: alpha(theme.palette.common.black, 0.7),
                                                 display: "flex",
                                                 alignItems: "center",
@@ -802,17 +972,13 @@ const EditStudentDrawer = ({
                                             }}
                                         >
                                             <CircularProgress size={40} sx={{ color: "white" }} />
-                                            <Typography
-                                                variant="caption"
-                                                sx={{ color: "white" }}
-                                            >
+                                            <Typography variant="caption" sx={{ color: "white" }}>
                                                 {uploadProgress}%
                                             </Typography>
                                         </Box>
                                     )}
                                 </Paper>
 
-                                {/* Remove photo button */}
                                 {studentPhotoUrl && !isPhotoUploading && (
                                     <IconButton
                                         size="small"
@@ -826,14 +992,10 @@ const EditStudentDrawer = ({
                                             right: 0,
                                             bgcolor: theme.palette.error.main,
                                             color: "white",
-                                            "&:hover": {
-                                                bgcolor: theme.palette.error.dark,
-                                            },
+                                            "&:hover": { bgcolor: theme.palette.error.dark },
                                             width: 28,
                                             height: 28,
-                                            "& .MuiSvgIcon-root": {
-                                                fontSize: 16,
-                                            },
+                                            "& .MuiSvgIcon-root": { fontSize: 16 },
                                         }}
                                     >
                                         <IconifyIcon icon="mdi:delete" width={16} />
@@ -843,10 +1005,180 @@ const EditStudentDrawer = ({
                         </Box>
                     </Grow>
 
-                    {/* Divider */}
+                    {/* ═══════════════════════════════════════════
+                        Guardian Information
+                       ═══════════════════════════════════════════ */}
+                    {isReady && (
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: { xs: 2, sm: 2.5 },
+                                mb: 3,
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                bgcolor: alpha(theme.palette.primary.main, 0.02),
+                            }}
+                        >
+                            <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                                <Box
+                                    sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 1.5,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <IconifyIcon
+                                        icon="mdi:account-heart-outline"
+                                        width={18}
+                                        color={theme.palette.primary.main}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography
+                                        variant="subtitle2"
+                                        fontWeight={700}
+                                        sx={{ color: theme.palette.text.primary }}
+                                    >
+                                        Guardian Information
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{ color: theme.palette.text.secondary }}
+                                    >
+                                        Assign a parent or guardian to this student
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Stack spacing={2}>
+                                {/* Guardian dropdown */}
+                                <FormControl fullWidth size="small">
+                                    <InputLabel id="guardian-select-label">Guardian</InputLabel>
+                                    <Select
+                                        labelId="guardian-select-label"
+                                        label="Guardian"
+                                        value={selectedGuardianId}
+                                        onChange={(e) => setSelectedGuardianId(e.target.value)}
+                                        disabled={isLoadingGuardians}
+                                        MenuProps={{
+                                            PaperProps: {
+                                                style: {
+                                                    maxHeight: 320,
+                                                    backgroundColor: theme.palette.background.default,
+                                                },
+                                            },
+                                        }}
+                                        renderValue={(selected) => {
+                                            if (!selected) {
+                                                return (
+                                                    <span
+                                                        style={{
+                                                            color: theme.palette.text.secondary,
+                                                            fontStyle: "italic",
+                                                        }}
+                                                    >
+                                                        {isLoadingGuardians
+                                                            ? "Loading guardians..."
+                                                            : guardianOptions.length === 0
+                                                                ? "No parents available"
+                                                                : "Select a guardian"}
+                                                    </span>
+                                                );
+                                            }
+                                            const g = guardianOptions.find((x) => x.id === selected);
+                                            return g?.label || selected;
+                                        }}
+                                    >
+                                        {guardianOptions.length === 0 ? (
+                                            <MenuItem value="" disabled>
+                                                <em>No parents found</em>
+                                            </MenuItem>
+                                        ) : (
+                                            guardianOptions.map((g) => (
+                                                <MenuItem key={g.id} value={g.id}>
+                                                    {g.label}
+                                                </MenuItem>
+                                            ))
+                                        )}
+                                    </Select>
+                                </FormControl>
+
+                                {/* Relationship dropdown */}
+                                <FormControl fullWidth size="small">
+                                    <InputLabel id="relationship-select-label">
+                                        Relationship
+                                    </InputLabel>
+                                    <Select
+                                        labelId="relationship-select-label"
+                                        label="Relationship"
+                                        value={guardianRelationship}
+                                        onChange={(e) => setGuardianRelationship(e.target.value)}
+                                        renderValue={(selected) => {
+                                            if (!selected) {
+                                                return (
+                                                    <span
+                                                        style={{
+                                                            color: theme.palette.text.secondary,
+                                                            fontStyle: "italic",
+                                                        }}
+                                                    >
+                                                        Select relationship
+                                                    </span>
+                                                );
+                                            }
+                                            const opt = (
+                                                enums?.GuardianStudentRelationship || []
+                                            ).find((r: any) => r.value.toString() === selected);
+                                            return opt?.displayName || opt?.name || selected;
+                                        }}
+                                    >
+                                        {(enums?.GuardianStudentRelationship || []).map((r: any) => (
+                                            <MenuItem key={r.value} value={r.value.toString()}>
+                                                {r.displayName || r.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                {/* Readonly First / Last Name */}
+                                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Guardian First Name"
+                                        value={selectedGuardian?.firstName || ""}
+                                        InputProps={{ readOnly: true }}
+                                        sx={{
+                                            "& .MuiInputBase-input": {
+                                                color: theme.palette.text.secondary,
+                                            },
+                                        }}
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Guardian Last Name"
+                                        value={selectedGuardian?.lastName || ""}
+                                        InputProps={{ readOnly: true }}
+                                        sx={{
+                                            "& .MuiInputBase-input": {
+                                                color: theme.palette.text.secondary,
+                                            },
+                                        }}
+                                    />
+                                </Stack>
+                            </Stack>
+                        </Paper>
+                    )}
+
                     <Divider sx={{ mb: 3 }} />
 
-                    {/* Form or Loading */}
+                    {/* ═══ Form ═══ */}
                     {!isReady ? (
                         <Box
                             display="flex"
@@ -868,7 +1200,13 @@ const EditStudentDrawer = ({
                                         title=""
                                         fields={formFields}
                                         onSubmit={handleSubmit}
-                                        submitButtonText={isPhotoUploading ? "Uploading Photo..." : isSubmitting ? "Updating Student..." : "Update Student"}
+                                        submitButtonText={
+                                            isPhotoUploading
+                                                ? "Uploading Photo..."
+                                                : isSubmitting
+                                                    ? "Updating Student..."
+                                                    : "Update Student"
+                                        }
                                         columns={2}
                                         initialValues={studentData}
                                         submitDisabled={isSubmitDisabled}

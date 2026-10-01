@@ -48,6 +48,39 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 
+    /// /////////////////////////////
+    /// ATTENDANCE 👈 NEW SECTION
+    /// /////////////////////////////
+
+    {
+        id: 20,
+        // path: '/app/attendance/dashboard',
+        path: '/app/dashboard',
+        title: 'Attendance Dashboard',
+        icon: 'mdi:view-dashboard-outline',
+        active: true,
+        group: 'ATTENDANCE',
+        roles: [UserRoles.ADMIN],
+    },
+    {
+        id: 21,
+        path: '/app/attendance',
+        title: 'Attendance Sessions',
+        icon: 'mdi:clipboard-check',
+        active: true,
+        group: 'ATTENDANCE',
+        roles: [UserRoles.ADMIN],
+    },
+    {
+        id: 29,
+        path: '/app/weekly-attendance',
+        title: 'Weekly Attendance',
+        icon: 'mdi:google-classroom',
+        active: true,
+        group: 'ATTENDANCE',
+        roles: [UserRoles.ADMIN],
+    },
+
     // Access Control
 
     {
@@ -81,16 +114,6 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    // {
-    //     id: 8,
-    //     path: '/app/academics/levels',
-    //     title: 'Levels',
-    //     icon: 'mdi:stairs',
-    //     active: true,
-    //     group: 'Academics',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
     {
         id: 9,
         path: '/app/academics/classes',
@@ -111,25 +134,6 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    // {
-    //     id: 11,
-    //     path: '/app/academics/subjects-allocation',
-    //     title: 'Subjects Allocation',
-    //     icon: 'mdi:book-open-blank-variant',
-    //     active: true,
-    //     group: 'Academics',
-    //     roles: [UserRoles.ADMIN],
-    // },
-    // {
-    //     id: 12,
-    //     path: '/app/academics/assessment',
-    //     title: 'Assessments',
-    //     icon: 'mdi:book-open-blank-variant',
-    //     active: true,
-    //     group: 'Academics',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
     // Results
     {
         id: 11,
@@ -141,16 +145,6 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.TEACHER],
     },
 
-    // {
-    //     id: 12,
-    //     path: '#',
-    //     title: 'Result Checker',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Results',
-    //     roles: [UserRoles.ADMIN],
-    // },
-
     {
         id: 13,
         path: '/app/exam-sheet',
@@ -161,18 +155,18 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
+    {
+        id: 72,
+        path: '/app/results-hub',
+        title: 'Result Hub',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Results',
+        roles: [UserRoles.ADMIN],
+    },
+
 
     // Settings
-
-    // {
-    //     id: 16,
-    //     path: '#',
-    //     title: 'Cognitive Skills',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Result Settings',
-    //     roles: [UserRoles.ADMIN],
-    // },
 
 
     {
@@ -184,15 +178,15 @@ const navItems: INavbarItem[] = [
         group: 'Settings',
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
-    // {
-    //     id: 17,
-    //     path: '/app/report-reference',
-    //     title: 'Result Preference',
-    //     icon: 'mdi:cog',
-    //     active: true,
-    //     group: 'Settings',
-    //     roles: [UserRoles.ADMIN],
-    // },
+    {
+        id: 17,
+        path: '/app/affective-skills',
+        title: 'Affective Skills',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN],
+    },
     {
         id: 14,
         path: '/app/grading-system',
@@ -211,6 +205,16 @@ const navItems: INavbarItem[] = [
         active: true,
         group: 'Settings',
         roles: [UserRoles.ADMIN],
+    },
+
+    {
+        id: 34,
+        path: '/app/my-children',
+        title: 'My Children',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'School Portal',
+        roles: [UserRoles.PARENT],
     },
 ]
 

@@ -148,9 +148,8 @@ export const getUserProfile = async (
         address: response.address ? {
             addressLine1: response.address.addressLine1,
             addressLine2: response.address.addressLine2,
-            city: response.address.city,
+            lga: response.address.lga,
             state: response.address.state,
-            zipCode: response.address.zipCode,
             country: response.address.country
         } : null,
         photoUrl: response.photoUrl || null,
@@ -299,4 +298,28 @@ export const changePassword = async (
     const api = createApiClient({ selectedAccount });
     const response = await api.post(`${BASE_URL}/change-password`, payload);
     return response;
+};
+
+
+
+export interface MySignature {
+    signatureFileId: string | null;
+    signatureUrl: string | null;
+}
+
+export const getMySignature = async (
+    selectedAccount: string | null
+): Promise<MySignature> => {
+    if (!selectedAccount) throw new Error("No account selected");
+    const api = createApiClient({ selectedAccount });
+    return api.get("/v1/users/signature/me");
+};
+
+export const saveSignature = async (
+    selectedAccount: string | null,
+    signatureFileId: string
+): Promise<{ signatureFileId: string; signatureUrl: string }> => {
+    if (!selectedAccount) throw new Error("No account selected");
+    const api = createApiClient({ selectedAccount });
+    return api.post("/v1/users/signature", { signatureFileId });
 };

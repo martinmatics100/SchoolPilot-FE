@@ -68,16 +68,22 @@ export const fetchStudentScoresBySubject = async ({
   return response.items ?? [];
 };
 
+export interface BulkCreateStudent {
+  firstName: string;
+  lastName: string;
+  gender: string;             // "Male" | "Female"
+  religiousSubject: string;   // "CRS" | "IRS"
+  languageSubject: string;    // "Hausa" | "Yoruba" | "Igbo"
+}
+
+export interface BulkCreateStudentsPayload {
+  classRoomId: string;
+  students: BulkCreateStudent[];
+}
+
 export const createStudentsBulk = async (
   selectedAccount: string | null,
-  payload: {
-    students: {
-      firstName: string;
-      lastName: string;
-      gender: number;
-      classRoomId: string;
-    }[];
-  }
+  payload: BulkCreateStudentsPayload
 ) => {
   if (!selectedAccount) {
     throw new Error("No account selected");
@@ -87,6 +93,8 @@ export const createStudentsBulk = async (
   const response = await api.post("/v1/students/bulk-create", payload);
   return response;
 };
+
+
 
 export const saveClassStudentScores = async (
   selectedAccount: string | null,
@@ -121,4 +129,70 @@ export const updateStudent = async (
   const api = createApiClient({ selectedAccount });
   const response = await api.put(`${BASE_URL}/${id}`, payload);
   return response;
+};
+
+
+
+// Fetch all students in a given class (returns { studentId, name }[]).
+export const fetchStudentsByClass = async (
+  selectedAccount: string | null,
+  classId: string
+): Promise<{ studentId: string; name: string }[]> => {
+  if (!selectedAccount) throw new Error("No account selected");
+  if (!classId) throw new Error("classId is required");
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.get(
+    `/v1/students/students-by-class?classId=${encodeURIComponent(classId)}`
+  );
+  return response.students ?? [];
+};
+
+// Bulk upsert affective skills (per-student values).
+export const bulkSaveAffectiveSkills = async (
+  selectedAccount: string | null,
+  payload: {
+    students: {
+      studentId: string;
+      conduct: number | null;
+      attitude: number | null;
+      interest: number | null;
+    }[];
+  }
+) => {
+  if (!selectedAccount) throw new Error("No account selected");
+
+  const api = createApiClient({ selectedAccount });
+  return api.post("/v1/students/affective-skills/bulk", payload);
+};
+
+// Fetch affective skills for all students in a class.
+// Returns per-student { studentId, name, conduct, attitude, interest }.
+export const fetchClassAffectiveSkills = async (
+  selectedAccount: string | null,
+  classId: string
+): Promise<
+  {
+    studentId: string;
+    name: string;
+    conduct: number | null;
+    attitude: number | null;
+    interest: number | null;
+  }[]
+> => {
+  if (!selectedAccount) throw new Error("No account selected");
+  if (!classId) throw new Error("classId is required");
+
+  const api = createApiClient({ selectedAccount });
+  const response = await api.get(
+    `/v1/students/affective-skills?classId=${encodeURIComponent(classId)}`
+  );
+
+  return (response.students ?? []).map((s: any) => ({
+    studentId: s.studentId,
+    name: s.name,
+    conduct: s.conduct ?? null,
+    attitude: s.attitude ?? null,
+    interest: s.interest ?? null,
+  }));
 };

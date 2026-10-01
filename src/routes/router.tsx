@@ -56,8 +56,9 @@ const AdminStudentListManagementPage = lazy<() => ReactElement>(
 const AdminCreateStudentPage = lazy(() =>
   import("../pages/admin/students/create-student")
 );
-const AdminBulkCreateStudentPage = lazy<() => ReactElement>(
-  () => import("../pages/admin/students/bulk-create-student/index"),
+
+const ImportStudentsPage = lazy<() => ReactElement>(
+  () => import("../pages/admin/students/CSVImport/index"),
 );
 const AdminDashboardAnalytics = lazy<() => ReactElement>(
   () => import("../pages/admin/dashboard-analytics/index"),
@@ -95,6 +96,18 @@ const ReportPreference = lazy(
 const ExamBroadSheet = lazy(
   () => import("../pages/admin/broad-sheet/examsheet"),
 );
+const ResultHubPage = lazy(
+  () => import("../pages/admin/ResultsHub/index"),
+);
+const ClassResultsViewerPage = lazy(
+  () => import("../pages/admin/ResultsHub/classResultsViewer"),
+);
+const PrintReportCardsPage = lazy(
+  () => import("../pages/admin/ResultsHub/PrintReportCards"),
+);
+const PublishResultsPage = lazy(
+  () => import("../pages/admin/ResultsHub/PublishResults"),
+);
 const SubjectsAllocation = lazy(
   () => import("../pages/admin/academics/subject-allocation/index"),
 );
@@ -104,7 +117,35 @@ const SubjectsAllocation = lazy(
 const SettingsPage = lazy(
   () => import("../pages/common/settings/index"),
 );
-// const UpgradeToPro = lazy<() => ReactElement>(() => import('../../src/pages/common-pages/payments/upgrade-to-pro'));
+
+const AttendanceSessionList = lazy(
+  () => import("../pages/admin/Attendance/Sessions/session-list/index"),
+);
+
+const AttendanceSessionForm = lazy(
+  () => import("../pages/admin/Attendance/Sessions/create-session/index"),
+);
+
+const TakeAttendancePage = lazy(
+  () => import("../pages/admin/Attendance/TakeAttendance/index"),
+);
+
+const AttendanceDashboardPage = lazy(
+  () => import("../pages/admin/Attendance/AttendanceDashboard/index"),
+);
+
+const WeeklyAttendancePage = lazy(
+  () => import("../pages/admin/Attendance/WeeklyAttendancePage/index"),
+);
+
+const AffectiveSkillsPage = lazy(
+  () => import("../pages/admin/affective-skills/index"),
+);
+
+const ParentsPortalPage = lazy(
+  () => import("../pages/Parents/ParentPortal"),
+);
+
 
 const routes: RouteObject[] = [
   {
@@ -199,10 +240,10 @@ const routes: RouteObject[] = [
                 ),
               },
               {
-                path: "bulk-create-student",
+                path: "bulk-import-students",
                 element: (
                   <ErrorBoundary>
-                    <AdminBulkCreateStudentPage />
+                    <ImportStudentsPage />
                   </ErrorBoundary>
                 ),
               },
@@ -256,14 +297,6 @@ const routes: RouteObject[] = [
               </ErrorBoundary>
             ),
           },
-          // {
-          //   path: "academics/assessment",
-          //   element: (
-          //     <ErrorBoundary>
-          //       <Assessment />
-          //     </ErrorBoundary>
-          //   ),
-          // },
           {
             path: "academics/subjects",
             element: <Outlet />,
@@ -276,14 +309,6 @@ const routes: RouteObject[] = [
                   </ErrorBoundary>
                 ),
               },
-              // {
-              //   path: "create-subject",
-              //   element: (
-              //     <ErrorBoundary>
-              //       <CreateSubject />
-              //     </ErrorBoundary>
-              //   ),
-              // },
             ],
           },
           {
@@ -325,6 +350,14 @@ const routes: RouteObject[] = [
             ),
           },
           {
+            path: "affective-skills",
+            element: (
+              <ErrorBoundary>
+                <AffectiveSkillsPage />
+              </ErrorBoundary>
+            ),
+          },
+          {
             path: "comment-bank",
             element: (
               <ErrorBoundary>
@@ -349,10 +382,102 @@ const routes: RouteObject[] = [
             ),
           },
           {
+            path: "results-hub",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <ErrorBoundary>
+                    <ResultHubPage />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "classes",
+                element: (
+                  <ErrorBoundary>
+                    <ClassResultsViewerPage />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "print-report-cards",
+                element: (
+                  <ErrorBoundary>
+                    <PrintReportCardsPage />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "publish-results",
+                element: (
+                  <ErrorBoundary>
+                    <PublishResultsPage />
+                  </ErrorBoundary>
+                ),
+              },
+            ]
+          },
+          {
             path: "settings",
             element: (
               <ErrorBoundary>
                 <SettingsPage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "attendance",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <ErrorBoundary>
+                    <AttendanceSessionList />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "create-session",
+                element: (
+                  <ErrorBoundary>
+                    <AttendanceSessionForm />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: ":sessionId",
+                element: (
+                  <ErrorBoundary>
+                    <TakeAttendancePage />
+                  </ErrorBoundary>
+                ),
+              },
+            ],
+          },
+          {
+            path: "dashboard",
+            element: (
+              <ErrorBoundary>
+                <AttendanceDashboardPage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "weekly-attendance",
+            element: (
+              <ErrorBoundary>
+                <WeeklyAttendancePage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "my-children",
+            element: (
+              <ErrorBoundary>
+                <ParentsPortalPage />
               </ErrorBoundary>
             ),
           },

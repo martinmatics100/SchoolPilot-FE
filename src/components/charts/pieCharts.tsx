@@ -1,3 +1,5 @@
+// components/charts/pieCharts.tsx
+
 import React from "react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, type ChartOptions } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
@@ -12,6 +14,7 @@ interface PieChartProps {
     colors?: string[];
     showLegend?: boolean;
     showDataLabels?: boolean;
+    height?: number | string;
 }
 
 const PieChart: React.FC<PieChartProps> = ({
@@ -20,8 +23,8 @@ const PieChart: React.FC<PieChartProps> = ({
     colors,
     showLegend = true,
     showDataLabels = true,
+    height = "100%",
 }) => {
-
     const filteredData = data.filter(value => value !== 0);
     const filteredLabels = labels.filter((_, index) => data[index] !== 0);
     const filteredColors = colors?.filter((_, index) => data[index] !== 0);
@@ -67,36 +70,40 @@ const PieChart: React.FC<PieChartProps> = ({
                         "#64B5F6", "#FF869A", "#FFE082", "#81C784", "#B39DDB",
                     ],
                 borderWidth: 2,
+                borderColor: "#fff",
             },
         ],
     };
 
     const options: ChartOptions<"pie"> = {
         responsive: true,
-        maintainAspectRatio: false, // Important: allows chart to scale better with larger fonts
+        maintainAspectRatio: true, // Changed to true to prevent overflow
         plugins: {
             legend: {
                 display: showLegend,
-                position: "top",
+                position: "bottom", // Changed to bottom to prevent clipping
                 labels: {
-                    // --- INCREASED LEGEND FONT SIZE ---
                     font: {
-                        size: 16, // Labels like "Males", "Females"
+                        size: 12,
                         family: "'Roboto', 'Helvetica', 'Arial', sans-serif",
                     },
-                    padding: 20,
+                    padding: 12,
                     usePointStyle: true,
+                    pointStyle: "circle",
+                    boxWidth: 12,
                 },
             },
             tooltip: {
-                titleFont: { size: 16 },
-                bodyFont: { size: 14 },
+                titleFont: { size: 13 },
+                bodyFont: { size: 12 },
                 callbacks: {
                     label: (tooltipItem: any) => {
                         const index = tooltipItem.dataIndex;
                         const label = chartData.labels[index];
                         const value = chartData.datasets[0].data[index];
-                        return ` ${label}: ${value}`;
+                        const total = chartData.datasets[0].data.reduce((a: number, b: number) => a + b, 0);
+                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                        return ` ${label}: ${value} (${percentage}%)`;
                     },
                 },
             },
@@ -104,21 +111,22 @@ const PieChart: React.FC<PieChartProps> = ({
                 ? {
                     color: "#fff",
                     formatter: (value: number, context: any) => {
-                        const index = context.dataIndex;
-                        // Using \n to put the number on a new line so it stays inside the slice
-                        return `${chartData.labels[index]}\n${value}`;
+                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                        return `${percentage}%`;
                     },
-                    // --- INCREASED DATALABEL FONT SIZE ---
                     font: {
-                        size: 18, // Text inside the pie slices
-                        weight: "bold",
+                        size: 13,
+                        weight: "bold" as const,
                     },
-                    anchor: "center",
-                    align: "center",
-                    textAlign: "center",
+                    anchor: "center" as const,
+                    align: "center" as const,
+                    textAlign: "center" as const,
                     display: (context: any) => {
-                        // Optional: only show label if the slice is big enough
-                        return context.dataset.data[context.dataIndex] > 0;
+                        const value = context.dataset.data[context.dataIndex];
+                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                        const percentage = total > 0 ? (value / total) * 100 : 0;
+                        return percentage > 5; // Only show if slice is big enough
                     }
                 }
                 : { display: false },
@@ -126,7 +134,16 @@ const PieChart: React.FC<PieChartProps> = ({
     };
 
     return (
-        <Box sx={{ width: "100%", height: { xs: 300, md: 350 }, margin: "0 auto" }}>
+        <Box
+            sx={{
+                width: "100%",
+                height: height,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: 200,
+            }}
+        >
             <Pie data={chartData} options={options} />
         </Box>
     );

@@ -28,9 +28,8 @@ import { useAssetUpload } from "../../../../hooks/useAsset";
 interface AddressData {
     addressLine1: string;
     addressLine2?: string | null;
-    city?: string | null;
+    lga?: string | null;
     state: string;
-    zipCode?: string | null;
     country: string;
 }
 
@@ -69,10 +68,9 @@ interface UpdateUserPayload {
     address?: {
         addressLine1: string;
         addressLine2?: string;
-        city?: string;
         state: string;
-        zipCode?: string;
         country: string;
+        lga?: string;
     };
     dateOfBirth?: string;
     gender?: string;
@@ -321,16 +319,15 @@ const EditUserDrawer = ({
                 const formattedAddress = user.address ? {
                     addressLine1: user.address.addressLine1 || "",
                     addressLine2: user.address.addressLine2 || "",
-                    city: user.address.city || "",
+                    lga: user.address.lga || "",
                     state: user.address.state || "",
-                    zipCode: user.address.zipCode || "",
                     country: user.address.country || "",
                 } : {
                     addressLine1: "",
                     addressLine2: "",
                     city: "",
-                    state: "",
-                    zipCode: "",
+                        lga: "",
+                        state: "",
                     country: "",
                 };
 
@@ -418,13 +415,6 @@ const EditUserDrawer = ({
                     colSpan: 1,
                 },
                 {
-                    name: "dateOfBirth",
-                    label: "Date of Birth",
-                    type: "date",
-                    required: false,
-                    colSpan: 1,
-                },
-                {
                     name: "gender",
                     label: "Gender",
                     type: "select",
@@ -447,7 +437,7 @@ const EditUserDrawer = ({
                             value: r.value.toString(),
                             label: r.displayName || r.name,
                         })) || [],
-                    readOnly: true, // Role should not be editable for existing users
+                    readOnly: true,
                 },
                 {
                     name: "status",
@@ -460,6 +450,7 @@ const EditUserDrawer = ({
                             value: s.value.toString(),
                             label: s.displayName || s.name,
                         })) || [],
+                    readOnly: true,
                 },
                 {
                     name: "address",
@@ -510,10 +501,9 @@ const EditUserDrawer = ({
                 payload.address = {
                     addressLine1: data.address.addressLine1 || "",
                     addressLine2: data.address.addressLine2 || "",
-                    city: data.address.city || "",
                     state: data.address.state || "",
-                    zipCode: data.address.zipCode || "",
                     country: data.address.country || "",
+                    lga: data.address.lga || "",
                 };
             }
 

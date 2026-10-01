@@ -14,6 +14,8 @@ import {
   Box,
   Collapse,
   Divider,
+  Chip,
+  Tooltip,
 } from "@mui/material";
 
 import IconifyIcon from "../../../components/base/iconifyIcon";
@@ -29,6 +31,12 @@ import {
   formatNigeriaDateTime,
   getNigeriaNow,
 } from "../../../helpers/dateTimeHelpers";
+import { useNavigate } from "react-router-dom";
+import {
+  getCurrentBillingState,
+  type CurrentBillingState,
+} from "../../../api/billingService";
+import { UserRoles } from "../../../enums/user-roles";
 
 const Topbar = ({
   open,
@@ -40,20 +48,24 @@ const Topbar = ({
   const { down } = useBreakpoints();
   const isMobileScreen = down("sm");
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
   const {
     selectedAccount,
     accounts,
-    selectedBranches,
-    userEmail,
-    isAuthenticated,
+    role,               // ← same role source the Sidebar uses
     currentUser,
   } = useAuth();
 
   const [now, setNow] = useState<Date>(getNigeriaNow());
+
+  // Billing state — only fetched for admins
+  const [billingState, setBillingState] =
+    useState<CurrentBillingState | null>(null);
 
   const selectedAccountData = accounts.find(
     (account) => account.id === selectedAccount
@@ -71,25 +83,84 @@ const Topbar = ({
     { id: 3, option: "You are an amazing writer!" },
   ];
 
+  /* ─────────────────────────────────────────────────────────
+     ROLE GATE — same pattern as Sidebar
+     ───────────────────────────────────────────────────────── */
+  const isAdmin = role === UserRoles.ADMIN;
+
+  /* ── Clock ── */
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(getNigeriaNow());
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
-  // Close more menu when clicking outside
+  /* ── Fetch billing state ONLY for admins ── */
+  useEffect(() => {
+    if (!selectedAccount || !isAdmin) {
+      setBillingState(null);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const state = await getCurrentBillingState(selectedAccount);
+        if (!cancelled) setBillingState(state);
+      } catch (err) {
+        console.error("Topbar: failed to load billing state:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAccount, isAdmin]);
+
+  /* ── Close more menu when clicking outside ── */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.more-menu-button') && !target.closest('.more-menu-panel')) {
+      if (
+        !target.closest(".more-menu-button") &&
+        !target.closest(".more-menu-panel")
+      ) {
         setShowMoreMenu(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
+
+  /* ─────────────────────────────────────────────────────────
+     PLAN CHIP — gating
+     Show ONLY when:
+       1. The signed-in user is an ADMIN (via UserRoles)
+       2. Billing data is loaded
+       3. Days remaining is between 0 and 7
+       4. Subscription is Trial or Active
+     ───────────────────────────────────────────────────────── */
+  const daysLeft = (() => {
+    if (!billingState) return null;
+    const iso =
+      billingState.status === 1
+        ? billingState.trialEndsOn
+        : billingState.paidUntil;
+    if (!iso) return null;
+    return Math.max(
+      0,
+      Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
+    );
+  })();
+
+  const showPlanChip =
+    isAdmin &&
+    billingState != null &&
+    // daysLeft != null &&
+    // daysLeft <= 7 &&
+    // daysLeft >= 0 &&
+    (billingState.status === 1 || billingState.status === 2);
 
   // Primary items (always visible on mobile)
   const primaryItems = () => (
@@ -105,20 +176,19 @@ const Topbar = ({
       <Box
         className="more-menu-panel"
         sx={{
-          position: 'absolute',
-          top: '100%',
+          position: "absolute",
+          top: "100%",
           right: 0,
           mt: 1,
-          width: '280px',
+          width: "280px",
           bgcolor: theme.palette.background.default,
           borderColor: theme.palette.background.paper,
           borderRadius: 2,
           boxShadow: theme.shadows[3],
           zIndex: 1300,
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
       >
-        {/* User Info Section */}
         {currentUser && (
           <Box sx={{ p: 2, bgcolor: theme.palette.background.default }}>
             <Typography fontWeight="bold" color={theme.palette.text.primary}>
@@ -132,10 +202,9 @@ const Topbar = ({
 
         <Divider />
 
-        {/* Notifications */}
         <ListItem
           component="div"
-          sx={{ cursor: 'pointer' }}
+          sx={{ cursor: "pointer" }}
           onClick={() => {
             setShowMoreMenu(false);
             setNotificationsOpen(true);
@@ -145,10 +214,9 @@ const Topbar = ({
           <Badge color="error" variant="dot" />
         </ListItem>
 
-        {/* Messages */}
         <ListItem
           component="div"
-          sx={{ cursor: 'pointer' }}
+          sx={{ cursor: "pointer" }}
           onClick={() => {
             setShowMoreMenu(false);
             setMessageOpen(true);
@@ -157,7 +225,6 @@ const Topbar = ({
           <ListItemText primary="Messages" />
         </ListItem>
 
-        {/* Account Info (if needed) */}
         {selectedAccountData && (
           <>
             <Divider />
@@ -197,7 +264,7 @@ const Topbar = ({
             borderBottom: "1px solid",
             borderColor: theme.palette.primary.light,
             height: { xs: 70, sm: 116 },
-            position: 'relative',
+            position: "relative",
           }}
         >
           {/* Left side - Menu button */}
@@ -232,11 +299,49 @@ const Topbar = ({
             {!isMobileScreen ? (
               // Desktop view - show everything
               <>
-                {currentUser && (
-                  <Stack
-                    spacing={0}
-                    alignItems="flex-end"
+                {/* ═══ GATED PLAN CHIP — ADMIN ONLY ═══ */}
+                {showPlanChip && billingState && daysLeft !== null && (
+                  <Tooltip
+                    arrow
+                    title={
+                      billingState.status === 1
+                        ? "Trial ending soon — click to upgrade"
+                        : "Subscription expiring soon — click to renew"
+                    }
                   >
+                    <Chip
+                      icon={
+                        <IconifyIcon
+                          icon={
+                            daysLeft <= 3
+                              ? "mdi:alert-circle-outline"
+                              : "mdi:clock-outline"
+                          }
+                          width={16}
+                          color={
+                            daysLeft <= 3
+                              ? theme.palette.error.main
+                              : theme.palette.warning.main
+                          }
+                        />
+                      }
+                      label={`${daysLeft}d left`}
+                      color={daysLeft <= 3 ? "error" : "warning"}
+                      size="small"
+                      onClick={() => navigate("/app/billing")}
+                      sx={{
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: "0.75rem",
+                        height: 26,
+                        "& .MuiChip-icon": { ml: 0.75 },
+                      }}
+                    />
+                  </Tooltip>
+                )}
+
+                {currentUser && (
+                  <Stack spacing={0} alignItems="flex-end">
                     <Typography
                       fontWeight="bold"
                       sx={{ fontSize: "0.95rem", whiteSpace: "nowrap" }}
@@ -278,12 +383,12 @@ const Topbar = ({
                 {primaryItems()}
 
                 {/* More Menu Button */}
-                  <IconButton 
+                  <IconButton
                     className="more-menu-button"
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
                     sx={{ ml: 1 }}
                   >
-                    <IconifyIcon 
+                    <IconifyIcon
                       icon={showMoreMenu ? "mdi:close" : "mdi:dots-vertical"}
                       width={24}
                       height={24}
