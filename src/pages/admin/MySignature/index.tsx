@@ -254,9 +254,10 @@ const MySignature: React.FC = () => {
                         borderRadius: 2,
                         border: "1px solid",
                         borderColor: "divider",
+                        bgcolor: theme.palette.background.default,
                     }}
                 >
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: "text.secondary" }}>
                         Current Signature
                     </Typography>
                     <Box
@@ -265,7 +266,7 @@ const MySignature: React.FC = () => {
                             alignItems: "center",
                             justifyContent: "center",
                             py: 2,
-                            bgcolor: "#fafafa",
+                            bgcolor: theme.palette.background.paper,
                             borderRadius: 1,
                         }}
                     >
@@ -291,15 +292,16 @@ const MySignature: React.FC = () => {
                     borderRadius: 2,
                     border: "1px solid",
                     borderColor: "divider",
+                    bgcolor: theme.palette.background.default,
                 }}
             >
                 <Stack
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 2, }}
                 >
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ color: "text.secondary" }}>
                         Draw Your Signature
                     </Typography>
 
@@ -485,7 +487,7 @@ const MySignature: React.FC = () => {
                     borderRadius: 2,
                     border: "1px solid",
                     borderColor: "divider",
-                    backgroundColor: "#f9fafb",
+                    backgroundColor: theme.palette.background.default,
                 }}
             >
                 <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>

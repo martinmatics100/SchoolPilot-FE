@@ -2,10 +2,10 @@ import { createApiClient } from "../utils/apiClient";
 import { API_BASE_URL } from "../constants/apiConstants";
 
 export interface UploadAssetResponse {
-    fileId: string;      // GUID of the uploaded asset
-    url: string;         // Public URL to access the file
-    fileName: string;    // Original file name
-    contentType: string; // MIME type
+    fileId: string;
+    url: string;
+    fileName: string;
+    contentType: string;
 }
 
 export interface AssetMetadata {
@@ -17,13 +17,7 @@ export interface AssetMetadata {
     createdAt: string;
 }
 
-/**
- * Upload a file using the API client with same headers as other calls
- * @param selectedAccount - Current account ID
- * @param file - The file to upload (File or Blob)
- * @param onProgress - Optional progress callback (0-100)
- * @returns Promise with upload result containing fileId and URL
- */
+
 export const uploadAsset = async (
     selectedAccount: string | null,
     file: File | Blob,
@@ -32,37 +26,20 @@ export const uploadAsset = async (
     if (!selectedAccount) {
         throw new Error("No account selected");
     }
-
-    // Create API client with the same headers as other calls
     const api = createApiClient({ selectedAccount });
-
-    // Create FormData for file upload
     const formData = new FormData();
 
-    // Handle both File and Blob
     if (file instanceof File) {
         formData.append("file", file, file.name);
     } else {
-        // For Blob, we need to generate a filename
         formData.append("file", file, "upload.jpg");
     }
 
-    // Use the upload method from API client
-    // This will automatically include:
-    // - X-Account-Id header
-    // - X-Time-Zone header  
-    // - Authorization Bearer token
-    // - Handle token refresh
     const response = await api.upload<UploadAssetResponse>("/v1/assets/upload", formData, onProgress);
     return response;
 };
 
-/**
- * Get asset by fileId (download the file)
- * @param selectedAccount - Current account ID
- * @param fileId - GUID of the asset
- * @returns Promise with the file blob and metadata
- */
+
 export const getAsset = async (
     selectedAccount: string | null,
     fileId: string
@@ -73,8 +50,6 @@ export const getAsset = async (
 
     const api = createApiClient({ selectedAccount });
 
-    // Use fetch for blob responses (since your API client doesn't support blob yet)
-    // But we still need the token and headers
     const token = localStorage.getItem("access_token");
     const timeZone = localStorage.getItem("time_zone") || "UTC";
     const url = `${API_BASE_URL}/v1/assets/${fileId}`;
@@ -94,7 +69,6 @@ export const getAsset = async (
 
     const blob = await response.blob();
 
-    // Extract filename from Content-Disposition header if available
     let fileName = "download";
     const contentDisposition = response.headers.get("content-disposition");
     if (contentDisposition) {
@@ -113,12 +87,8 @@ export const getAsset = async (
     };
 };
 
-/**
- * Get the public URL for an asset (for direct display in img tags)
- * @param selectedAccount - Current account ID
- * @param fileId - GUID of the asset
- * @returns Promise with the public URL
- */
+
+
 export const getAssetUrl = async (
     selectedAccount: string | null,
     fileId: string
@@ -132,12 +102,8 @@ export const getAssetUrl = async (
     return response.url;
 };
 
-/**
- * Delete an asset from storage
- * @param selectedAccount - Current account ID
- * @param fileId - GUID of the asset to delete
- * @returns Promise indicating success
- */
+
+
 export const deleteAsset = async (
     selectedAccount: string | null,
     fileId: string
@@ -151,12 +117,8 @@ export const deleteAsset = async (
     return true;
 };
 
-/**
- * Get asset metadata (without downloading the file)
- * @param selectedAccount - Current account ID
- * @param fileId - GUID of the asset
- * @returns Promise with asset metadata
- */
+
+
 export const getAssetMetadata = async (
     selectedAccount: string | null,
     fileId: string

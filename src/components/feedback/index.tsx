@@ -23,6 +23,7 @@ import {
 import IconifyIcon from '../base/iconifyIcon';
 import { useTheme } from '@mui/material';
 import { getEnum } from '../../api/enumsApi';
+import { createFeedback } from '../../api/feedbackService';
 
 interface FeedbackModalProps {
     open: boolean;
@@ -113,37 +114,25 @@ export const FeedbackModal = ({ open, onClose }: FeedbackModalProps) => {
         setError(null);
 
         try {
-            const response = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    // ✅ Enum VALUE goes to the backend (as a number)
-                    type: feedbackType,
-                    title: title.trim(),
-                    description: description.trim(),
-                    email: email.trim() || undefined,
-                    userAgent: navigator.userAgent,
-                    url: window.location.href,
-                    timestamp: new Date().toISOString(),
-                }),
+            await createFeedback({
+                type: feedbackType as number,
+                title: title.trim(),
+                description: description.trim(),
+                pageUrl: window.location.href,
+                severity: undefined, // leave null unless you add a field for it
             });
-
-            if (!response.ok) throw new Error('Request failed');
-
             setSubmitted(true);
-            setTimeout(() => {
-                handleClose();
-            }, 2200);
+            setTimeout(() => handleClose(), 2200);
         } catch (err) {
             console.error('Failed to submit feedback:', err);
             setError('Something went wrong. Please try again.');
         } finally {
             setSubmitting(false);
         }
-    };
+    };  // ← THIS CLOSING BRACE WAS MISSING
 
     const isFormValid =
-        feedbackType !== '' && title.trim() && description.trim();
+        feedbackType !== '' && !!title.trim() && !!description.trim();
 
     // ── Selected option for icon display ───────────────────────────────────
     const selectedOption = feedbackOptions.find((o) => o.value === feedbackType);
@@ -167,8 +156,7 @@ export const FeedbackModal = ({ open, onClose }: FeedbackModalProps) => {
                     transform: mounted
                         ? 'translateY(0) scale(1)'
                         : 'translateY(20px) scale(0.98)',
-                    transition:
-                        'opacity 0.3s ease, transform 0.3s ease',
+                    transition: 'opacity 0.3s ease, transform 0.3s ease',
 
                     // Animated top bar
                     '&::before': {

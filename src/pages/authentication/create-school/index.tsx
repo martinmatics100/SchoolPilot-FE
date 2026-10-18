@@ -18,17 +18,17 @@ import {
     StepLabel,
     Paper,
     CircularProgress,
+    FormControlLabel,
+    Checkbox,
 } from '@mui/material';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Dayjs } from 'dayjs';
-import PhoneNumberInput from '../../../components/phoneNumberInput/index';
 import AddressInput from '../../../components/addressInput/index';
 import InfoIcon from '@mui/icons-material/Info';
 import { Tooltip, IconButton } from '@mui/material';
 
-// Enum mappings for backend
 const UserTitleEnum: Record<string, number> = {
     'Mr': 1,
     'Mrs': 2,
@@ -76,14 +76,6 @@ const SchoolSessionsEnum: Record<string, number> = {
     '2029/2030 SESSION': 5,
 };
 
-const PhoneTypeEnum: Record<string, number> = {
-    'Home': 1,
-    'Facility': 2,
-    'Mobile': 3,
-    'Work': 4,
-    'Office': 5,
-};
-
 // Display options
 const schoolCategories = [
     'Nursery',
@@ -122,8 +114,15 @@ const sessionOptions = [
     '2029/2030 SESSION',
 ];
 
+const PhoneTypeEnum: Record<string, number> = {
+    'Home': 1,
+    'Facility': 2,
+    'Mobile': 3,
+    'Work': 4,
+    'Office': 5,
+};
+
 const titles = ['Mr', 'Mrs', 'Miss', 'Dr', 'Prof', 'Rev', 'Other'];
-const phoneTypes = ['Home', 'Facility', 'Mobile', 'Work', 'Office'];
 
 /* ─────────────────────────────────────────────────────────────
    Address shape — aligned with the new BE entity
@@ -163,19 +162,13 @@ interface CreateSchoolFormData {
     termStartDate: Dayjs | null;
     termEndDate: Dayjs | null;
 
-    // Contact person
-    principal: string;
-    email: string;
-
-    // School address & phone
+    // School address
     address: AddressShape;
-    phone: PhoneShape;
 
     // Admin user
     adminFirstName: string;
     adminLastName: string;
     adminEmail: string;
-    adminUserName: string;
     adminPassword: string;
 
     // Admin address & phone
@@ -197,7 +190,9 @@ const initialFormData: CreateSchoolFormData = {
     ownersFirstName: '',
     ownersLastName: '',
     ownersTitle: '',
-    isTestingAgency: true,
+    // Default is false — a testing agency is the exception, not the norm.
+    // Flip to `true` if you want the checkbox checked by default.
+    isTestingAgency: false,
     name: '',
     schoolEmail: '',
     category: '',
@@ -207,19 +202,10 @@ const initialFormData: CreateSchoolFormData = {
     currentSession: '',
     termStartDate: null,
     termEndDate: null,
-    principal: '',
-    email: '',
     address: { ...emptyAddress },
-    phone: {
-        phoneType: 'Mobile',
-        country: '566', // Nigeria ISO numeric code
-        number: '',
-        extension: '',
-    },
     adminFirstName: '',
     adminLastName: '',
     adminEmail: '',
-    adminUserName: '',
     adminPassword: '',
     adminAddress: { ...emptyAddress },
     adminContactPhone: {
@@ -296,6 +282,21 @@ export default function CreateSchoolPage() {
     const steps = ['SCHOOL INFO', 'CURRENT TERM', 'ADMIN INFO'];
 
     /* ─────────────────────────────────────────────────────────
+       Resolve phoneType to a numeric value for the payload.
+       Accepts either a numeric value (from the child component)
+       or a string key (from the form state).
+       ───────────────────────────────────────────────────────── */
+    const resolvePhoneTypeValue = (phoneType: string | number): number => {
+        if (typeof phoneType === 'number') return phoneType;
+
+        const numeric = Number(phoneType);
+        if (!Number.isNaN(numeric) && numeric !== 0) return numeric;
+
+        const mapped = PhoneTypeEnum[phoneType];
+        return mapped ?? 3; // 3 = Mobile fallback
+    };
+
+    /* ─────────────────────────────────────────────────────────
        Transform form data to backend payload
        ───────────────────────────────────────────────────────── */
     const transformToPayload = (data: CreateSchoolFormData) => {
@@ -303,7 +304,6 @@ export default function CreateSchoolPage() {
         const termValue = SchoolTermsEnum[data.currentTerm] || 1;
         const sessionValue = SchoolSessionsEnum[selectedSession] || 1;
 
-        // Term dates → ISO date strings (yyyy-MM-dd)
         const termStartDate = data.termStartDate
             ? data.termStartDate.format('YYYY-MM-DD')
             : null;
@@ -316,6 +316,7 @@ export default function CreateSchoolPage() {
             ownersFirstName: data.ownersFirstName,
             ownersLastName: data.ownersLastName,
             ownersTitle: UserTitleEnum[data.ownersTitle] || 0,
+            isTestingAgency: data.isTestingAgency,
             schools: [
                 {
                     name: data.name,
@@ -327,16 +328,8 @@ export default function CreateSchoolPage() {
                     schoolOwnership: SchoolOwnershipEnum[data.ownership] || 1,
                     currentTerm: termValue,
                     currentSessions: sessionValue,
-                    // ── Term start/end dates ──
                     currentTermStartDate: termStartDate,
                     currentTermEndDate: termEndDate,
-                    contactPersonEmail: data.email || data.schoolEmail,
-                    contactPersonPhone: {
-                        number: data.phone.number?.replace(/\D/g, ''),
-                        extension: data.phone.extension || '',
-                        type: PhoneTypeEnum[data.phone.phoneType] || 2,
-                        country: 'NGA',
-                    },
                     schoolLocation: [
                         {
                             name: `${data.name}`,
@@ -346,12 +339,6 @@ export default function CreateSchoolPage() {
                                 city: data.address.city || data.address.state,
                                 lga: data.address.lga || '',
                                 state: data.address.state,
-                                country: 'NGA',
-                            },
-                            primaryPhone: {
-                                number: data.phone.number?.replace(/\D/g, ''),
-                                extension: data.phone.extension || '',
-                                type: PhoneTypeEnum[data.phone.phoneType] || 2,
                                 country: 'NGA',
                             },
                             timeZone: 1,
@@ -366,7 +353,6 @@ export default function CreateSchoolPage() {
                 lastName: data.adminLastName,
                 password: data.adminPassword,
             },
-            isTestingAgency: true,
             initialUserTimeZone: 1,
         };
     };
@@ -407,8 +393,6 @@ export default function CreateSchoolPage() {
                 ) {
                     newErrors.lga = 'Local Government Area is required';
                 }
-                if (!formData.phone?.number)
-                    newErrors.phoneNumber = 'Phone number is required';
                 break;
 
             case 1:
@@ -429,8 +413,6 @@ export default function CreateSchoolPage() {
                     newErrors.adminLastName = 'Last name is required';
                 if (!formData.adminEmail)
                     newErrors.adminEmail = 'Email is required';
-                if (!formData.adminUserName)
-                    newErrors.adminUserName = 'Username is required';
                 if (!formData.adminPassword)
                     newErrors.adminPassword = 'Password is required';
                 break;
@@ -453,6 +435,19 @@ export default function CreateSchoolPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+        if (errors[name]) {
+            setErrors((prev) => {
+                const newErrors = { ...prev };
+                delete newErrors[name];
+                return newErrors;
+            });
+        }
+    };
+
+    /* ── Checkboxes: boolean fields ── */
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: checked }));
         if (errors[name]) {
             setErrors((prev) => {
                 const newErrors = { ...prev };
@@ -517,21 +512,6 @@ export default function CreateSchoolPage() {
         });
     };
 
-    /* ── School phone ── */
-    const handlePhoneChange = (newPhone: PhoneShape) => {
-        setFormData((prev) => ({
-            ...prev,
-            phone: newPhone,
-        }));
-        if (errors.phoneNumber) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors.phoneNumber;
-                return newErrors;
-            });
-        }
-    };
-
     /* ── Admin address ── */
     const handleAdminAddressChange = (newAddress: {
         addressLine1: string;
@@ -568,21 +548,6 @@ export default function CreateSchoolPage() {
                 });
             }
         });
-    };
-
-    /* ── Admin phone ── */
-    const handleAdminPhoneChange = (newPhone: PhoneShape) => {
-        setFormData((prev) => ({
-            ...prev,
-            adminContactPhone: newPhone,
-        }));
-        if (errors.adminPhoneNumber) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors.adminPhoneNumber;
-                return newErrors;
-            });
-        }
     };
 
     const handleSubmit = async () => {
@@ -833,6 +798,38 @@ export default function CreateSchoolPage() {
                             </FormControl>
                         </Box>
 
+                        {/* Testing Agency Checkbox */}
+                        <Box sx={{ mb: 2 }}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        name="isTestingAgency"
+                                        checked={formData.isTestingAgency}
+                                        onChange={handleCheckboxChange}
+                                    />
+                                }
+                                label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="body2">
+                                            Mark as testing account
+                                        </Typography>
+                                        <Tooltip
+                                            title="Testing accounts are flagged in the backend and excluded from billing/reporting. Check only if this is a test or demo account."
+                                            arrow
+                                            placement="top"
+                                        >
+                                            <IconButton size="small" sx={{ ml: 0.5, p: 0.5 }}>
+                                                <InfoIcon
+                                                    fontSize="small"
+                                                    sx={{ color: 'action.active', fontSize: 18 }}
+                                                />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
+                                }
+                            />
+                        </Box>
+
                         {/* School Address */}
                         <Box sx={{ mb: 2 }}>
                             <Typography
@@ -852,36 +849,6 @@ export default function CreateSchoolPage() {
                                     country: errors.country,
                                     lga: errors.lga,
                                     state: errors.state,
-                                }}
-                            />
-                        </Box>
-
-                        {/* School Contact Phone */}
-                        <Box sx={{ mb: 2 }}>
-                            <Typography
-                                variant="subtitle2"
-                                sx={{ mb: 1, fontWeight: 'bold' }}
-                            >
-                                School Contact Person Phone Number *
-                            </Typography>
-                            <PhoneNumberInput
-                                phoneType={formData.phone.phoneType || 'Mobile'}
-                                country={formData.phone.country || '566'}
-                                number={formData.phone.number || ''}
-                                extension={formData.phone.extension || ''}
-                                onChange={handlePhoneChange}
-                                errors={{
-                                    phoneType: errors.phoneType,
-                                    country: errors.country,
-                                    number: errors.number,
-                                    extension: errors.extension,
-                                }}
-                                enums={{
-                                    PhoneType: phoneTypes.map((type, index) => ({
-                                        value: index + 1,
-                                        name: type,
-                                        displayName: type,
-                                    })),
                                 }}
                             />
                         </Box>
@@ -999,42 +966,6 @@ export default function CreateSchoolPage() {
                                     />
                                 </Box>
                             </Box>
-
-                            <Box sx={{ mt: 4 }}>
-                                <Typography
-                                    variant="subtitle2"
-                                    sx={{ mb: 2, fontWeight: 'bold' }}
-                                >
-                                    School Contact Person
-                                </Typography>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        gap: 2,
-                                        flexDirection: isMobile ? 'column' : 'row',
-                                    }}
-                                >
-                                    <TextField
-                                        fullWidth
-                                        label="Principal/Head Teacher Name"
-                                        name="principal"
-                                        value={formData.principal || ''}
-                                        onChange={handleChange}
-                                        error={!!errors.principal}
-                                        helperText={errors.principal}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        label="Contact Email"
-                                        name="email"
-                                        type="email"
-                                        value={formData.email || ''}
-                                        onChange={handleChange}
-                                        error={!!errors.email}
-                                        helperText={errors.email}
-                                    />
-                                </Box>
-                            </Box>
                         </Box>
                     </LocalizationProvider>
                 );
@@ -1108,18 +1039,6 @@ export default function CreateSchoolPage() {
                             />
                             <TextField
                                 fullWidth
-                                label="Username *"
-                                name="adminUserName"
-                                value={formData.adminUserName || ''}
-                                onChange={handleChange}
-                                error={!!errors.adminUserName}
-                                helperText={errors.adminUserName}
-                            />
-                        </Box>
-
-                        <Box sx={{ mb: 4 }}>
-                            <TextField
-                                fullWidth
                                 label="Password *"
                                 name="adminPassword"
                                 type="password"
@@ -1127,7 +1046,6 @@ export default function CreateSchoolPage() {
                                 onChange={handleChange}
                                 error={!!errors.adminPassword}
                                 helperText={errors.adminPassword}
-                                sx={{ maxWidth: isMobile ? '100%' : '50%' }}
                             />
                         </Box>
 
@@ -1150,36 +1068,6 @@ export default function CreateSchoolPage() {
                                     country: errors.adminCountry,
                                     lga: errors.adminLga,
                                     state: errors.adminState,
-                                }}
-                            />
-                        </Box>
-
-                        {/* Admin Contact Phone */}
-                        <Box sx={{ mb: 2 }}>
-                            <Typography
-                                variant="subtitle2"
-                                sx={{ mb: 1, fontWeight: 'bold' }}
-                            >
-                                Admin Phone Number
-                            </Typography>
-                            <PhoneNumberInput
-                                phoneType={formData.adminContactPhone.phoneType || 'Mobile'}
-                                country={formData.adminContactPhone.country || '566'}
-                                number={formData.adminContactPhone.number || ''}
-                                extension={formData.adminContactPhone.extension || ''}
-                                onChange={handleAdminPhoneChange}
-                                errors={{
-                                    phoneType: errors.adminPhoneType,
-                                    country: errors.adminCountry,
-                                    number: errors.adminNumber,
-                                    extension: errors.adminExtension,
-                                }}
-                                enums={{
-                                    PhoneType: phoneTypes.map((type, index) => ({
-                                        value: index + 1,
-                                        name: type,
-                                        displayName: type,
-                                    })),
                                 }}
                             />
                         </Box>

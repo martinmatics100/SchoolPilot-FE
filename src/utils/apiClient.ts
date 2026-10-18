@@ -1,5 +1,5 @@
 import { decryptData } from "./encryption";
-import { UserRoles } from "../enums/user-roles";
+import { UserRoles, isUserRole } from "../enums/user-roles";
 import {jwtDecode} from 'jwt-decode';
 
 import {
@@ -33,9 +33,10 @@ export const getNumericRoleValue = (role: UserRoles): string => {
     case UserRoles.ADMIN: return '1';
     case UserRoles.TEACHER: return '2';
     case UserRoles.PARENT: return '3';
-    case UserRoles.ACCOUNTANT: return '4';
-    case UserRoles.NONACADEMICSTAFF: return '5';
-    case UserRoles.PRINCIPAL: return '6';
+    // case UserRoles.ACCOUNTANT: return '4';
+    // case UserRoles.NONACADEMICSTAFF: return '5';
+    // case UserRoles.PRINCIPAL: return '6';
+    case UserRoles.SUPER_ADMIN: return '';
     default: return '0';
   }
 };
@@ -102,13 +103,28 @@ export const getCurrentUser = (): CurrentUserFromToken | null => {
 
   try {
     const decodedToken: DecodedToken = jwtDecode(accessToken);
-    const role = localStorage.getItem(STORAGE_KEYS.SELECTED_ROLE) as UserRoles | null;
+    const roleFromStorage = localStorage.getItem(STORAGE_KEYS.SELECTED_ROLE) as UserRoles | null;
+
+    // Role precedence:
+    //   1. Whatever the user picked in account selection (school roles)
+    //   2. The role baked into the JWT (needed for SuperAdmin, who never
+    //      picks a role in the account selection flow)
+    const roleFromToken = extractRoleFromToken(decodedToken);
+
+    const NAME_ID_CLAIM =
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+
+    const chatUserId: string | null =
+      decodedToken[NAME_ID_CLAIM] ??
+      decodedToken.nameid ??
+      null;
 
     return {
       email: decodedToken.email,
-      roles: role ? [role] : [],
+      roles: [roleFromStorage ?? roleFromToken].filter(Boolean) as UserRoles[],
       accountId: decodedToken.accountId || null,
       userId: decodedToken.sub,
+      chatUserId,
     };
   } catch (error) {
     console.error("Error decoding JWT token or token invalid:", error);
@@ -117,6 +133,16 @@ export const getCurrentUser = (): CurrentUserFromToken | null => {
   }
 };
 
+export function extractRoleFromToken(decoded: any): UserRoles | null {
+  // .NET's ClaimTypes.Role is:
+  //   http://schemas.microsoft.com/ws/2008/06/identity/claims/role
+  const roleKey = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+  const raw = decoded[roleKey] ?? decoded.role ?? decoded.roles;
+
+  if (!raw) return null;
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  return isUserRole(first) ? first : null;
+}
 // --- Token Refresh ---
 let refreshPromise: Promise<string | null> | null = null;
 export const refreshAccessToken = async (): Promise<string | null> => {

@@ -1,31 +1,23 @@
 import { Box, Typography } from "@mui/material";
 import AppTabs from "../../../components/app-tabs/index";
 
-import GeneralSettings from "./general-settings";
+import SchoolInfoSettings from "./SchoolInfoSettings";
 import AppearanceSettings from "./apperance";
-import CurrentUserProfile from "./profile";
-import MySignaturesSettings from "../../admin/MySignature/index";
 import BillingSettings from "./billing";
 import NotificationsSettings from "./notification";
+import AcademicSessionSettings from "./AcademicSessionSettings";
 
 const Settings = () => {
 
     const tabs = [
         {
-            label: "Profile",
-            component: <CurrentUserProfile />,
+            label: "School Info",
+            component: <SchoolInfoSettings />,
         },
-        {
-            label: "System Settings",
-            component: <GeneralSettings />,
-        },
+        { label: "Academic Session", component: <AcademicSessionSettings /> },
         {
             label: "Appearance",
             component: <AppearanceSettings />,
-        },
-        {
-            label: "My Signatures",
-            component: <MySignaturesSettings />,
         },
         {
             label: "Notifications",

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ReusableTable, type Column, type TableActionButton } from "../../../../components/table";
 import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -9,15 +8,15 @@ import SchoolIcon from "@mui/icons-material/School";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
-import { useTheme, alpha, Box, Typography, Chip, Avatar, Tooltip, Paper } from "@mui/material";
+import { useTheme, alpha, Box, Typography, Chip, Avatar, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { NavigationButton } from "../../../../components/navigation-button";
 import { getInitialAuthData } from "../../../../utils/apiClient";
 import { useEnums } from "../../../../hooks/useEnums";
 import CircularProgress from "@mui/material/CircularProgress";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PeopleIcon from "@mui/icons-material/People";
 import { fetchStudents } from "../../../../api/studentService";
+import { fetchClasses } from "../../../../api/classServices";
 import { type Student } from "../../../../types/interfaces/i-student";
 import { type StatusConfig } from "../../../../types/interfaces/i-user";
 import EditStudentDrawer from "../edit-student-drawer";
@@ -84,6 +83,10 @@ const StudentList = () => {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // ── Filter state ──
+  const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
+  const [classFilter, setClassFilter] = useState<string>("");
+
   const theme = useTheme();
   const { selectedAccount } = getInitialAuthData();
   const { enums, isLoading: isEnumsLoading } = useEnums({
@@ -128,10 +131,36 @@ const StudentList = () => {
     );
   };
 
+  // ── Load classes once ──
+  useEffect(() => {
+    const loadClasses = async () => {
+      if (selectedAccount) {
+        try {
+          const fetchedClasses = await fetchClasses(selectedAccount);
+          setClasses(
+            fetchedClasses.map((c: any) => ({
+              id: c.id,
+              name: c.className,
+            }))
+          );
+        } catch (err) {
+          console.error("Failed to load classes:", err);
+        }
+      }
+    };
+    loadClasses();
+  }, [selectedAccount]);
+
+  // ── Fetch students (with filter) ──
   useEffect(() => {
     if (selectedAccount) {
       setLoading(true);
-      fetchStudents(selectedAccount, page, rowsPerPage)
+      fetchStudents(
+        selectedAccount,
+        page,
+        rowsPerPage,
+        classFilter || undefined
+      )
         .then(({ items, itemCount }) => {
           setRawStudents(items || []);
           setTotalCount(itemCount || 0);
@@ -147,7 +176,7 @@ const StudentList = () => {
       setData([]);
       setTotalCount(0);
     }
-  }, [page, rowsPerPage, sortBy, order, selectedAccount]);
+  }, [page, rowsPerPage, sortBy, order, selectedAccount, classFilter]);
 
   useEffect(() => {
     if (rawStudents.length > 0 && !isEnumsLoading) {
@@ -177,8 +206,8 @@ const StudentList = () => {
 
   const getGenderColor = (gender: string) => {
     const genderColors: Record<string, string> = {
-      male: theme.palette.primary.main,
-      female: theme.palette.secondary.main,
+      male: theme.palette.text.secondary,
+      female: theme.palette.text.secondary,
     };
     return genderColors[gender.toLowerCase()] || theme.palette.info.main;
   };
@@ -206,7 +235,6 @@ const StudentList = () => {
               {row.firstName?.charAt(0)}{row.lastName?.charAt(0)}
             </Avatar>
             <Box>
-              {/* Name: bigger and bolder */}
               <Typography
                 variant="body1"
                 sx={{
@@ -219,7 +247,6 @@ const StudentList = () => {
                 {row.lastName}, {row.firstName}
               </Typography>
 
-              {/* Student ID: colored if assigned, italic muted if pending */}
               <Typography
                 variant="caption"
                 sx={{
@@ -314,8 +341,8 @@ const StudentList = () => {
           label={value || "Not available"}
           size="small"
           sx={{
-            bgcolor: alpha(theme.palette.warning.main, 0.1),
-            color: theme.palette.warning.main,
+            bgcolor: alpha(theme.palette.background.default, 0.1),
+            color: theme.palette.text.secondary,
             fontWeight: 500,
             borderRadius: 1.5,
             height: 24,
@@ -362,6 +389,27 @@ const StudentList = () => {
     ),
   };
 
+  // ── Filter config ──
+  const tableFilters = useMemo(
+    () => [
+      {
+        name: "classId",
+        label: "Class",
+        type: "select" as const,
+        defaultValue: "",
+        minWidth: 200,
+        options: classes.map((c) => ({ value: c.id, label: c.name })),
+      },
+    ],
+    [classes]
+  );
+
+  const handleFilterChange = (values: Record<string, string | number | "">) => {
+    const newClassId = (values.classId as string) || "";
+    setClassFilter(newClassId);
+    setPage(1); // reset to first page when filter changes
+  };
+
   const handleEdit = (id: string) => {
     setSelectedStudentId(id);
     setEditDrawerOpen(true);
@@ -369,7 +417,12 @@ const StudentList = () => {
 
   const refreshStudents = () => {
     if (selectedAccount) {
-      fetchStudents(selectedAccount, page, rowsPerPage)
+      fetchStudents(
+        selectedAccount,
+        page,
+        rowsPerPage,
+        classFilter || undefined
+      )
         .then(({ items, itemCount }) => {
           setRawStudents(items || []);
           setTotalCount(itemCount || 0);
@@ -399,34 +452,7 @@ const StudentList = () => {
     setPage(1);
   };
 
-  const handleAssignSelected = async () => {
-    if (selectedRows.length === 0) return;
-    setIsAssigning(true);
-    try {
-      // Your assign logic here
-      console.log("Assigning students:", selectedRows);
-      // await api.assignStudents(selectedRows);
-      setSelectedRows([]);
-    } catch (error) {
-      console.error("Error assigning students:", error);
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  // Define table action buttons
   const tableActionButtons: TableActionButton[] = [
-    {
-      label: "Assign",
-      icon: <AssignmentIndIcon />,
-      onClick: handleAssignSelected,
-      color: "error",
-      variant: "outlined",
-      disabled: selectedRows.length === 0 || isAssigning,
-      loading: isAssigning,
-      tooltip: selectedRows.length > 0 ? `Assign ${selectedRows.length} selected students` : "Select students to assign",
-      show: true,
-    },
     {
       label: "New Student",
       icon: <AddIcon />,
@@ -440,7 +466,7 @@ const StudentList = () => {
       label: "Import",
       icon: <PeopleIcon />,
       onClick: () => navigate("bulk-import-students"),
-      color: "secondary",
+      color: "primary",
       variant: "outlined",
       tooltip: "Bulk import students",
       show: true,
@@ -469,7 +495,6 @@ const StudentList = () => {
         minHeight: "85%",
       }}
     >
-      {/* Table with action buttons in title bar */}
       <ReusableTable
         title="Students List"
         columns={columns}
@@ -489,9 +514,13 @@ const StudentList = () => {
         totalCount={totalCount}
         loading={loading || isEnumsLoading}
         actionButtons={tableActionButtons}
+
+        // ── Filter props ──
+        showFilters={true}
+        filters={tableFilters}
+        onFilterChange={handleFilterChange}
       />
 
-      {/* Edit Drawer */}
       <EditStudentDrawer
         open={editDrawerOpen}
         onClose={() => {

@@ -19,14 +19,6 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions,
-    TextField,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    CircularProgress,
-    Divider,
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -38,20 +30,31 @@ import {
     Female as FemaleIcon,
     Male as MaleIcon,
     Transgender as TransgenderIcon,
-    Badge as BadgeIcon,
     Star as StarIcon,
     Verified as VerifiedIcon,
     Close as CloseIcon,
-    Save as SaveIcon,
     Work as WorkIcon,
     Person as PersonIcon,
-    Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../context';
-import { getUserProfile, updateUserProfile } from '../../../api/userService';
+import { getUserProfile, updateMyProfile, type UpdateUserPayload } from '../../../api/userService';
 import { useEnums } from '../../../hooks/useEnums';
 import DynamicForm, { type FormField } from '../../../components/my-form';
 import MessageDisplay from '../../../components/message-display';
+import {
+    findCountryByNumericCode,
+    getPhonePrefixByNumericCode,
+} from '../../../utils/iso3166Countries';
+
+interface AddressShape {
+    addressLine1: string;
+    addressLine2?: string;
+    city?: string;
+    lga?: string;
+    state: string;
+    zipCode?: string;
+    country: string;
+}
 
 interface UserProfileData {
     id: string;
@@ -64,14 +67,7 @@ interface UserProfileData {
         phoneType: number;
         country: string;
     };
-    address?: {
-        addressLine1: string;
-        addressLine2?: string;
-        city?: string;
-        state: string;
-        zipCode?: string;
-        country: string;
-    };
+    address?: AddressShape;
     photoUrl?: string;
     role: number;
     status: number;
@@ -96,7 +92,7 @@ const CurrentUserProfile: React.FC = () => {
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [initialValues, setInitialValues] = useState<Record<string, any>>({});
 
-    // Map enums
+    // ── Enum maps ──
     const genderMap = useMemo(() => {
         return (
             enums?.Gender?.reduce(
@@ -158,6 +154,7 @@ const CurrentUserProfile: React.FC = () => {
         );
     }, [enums]);
 
+    // ── Fetch profile ──
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -177,35 +174,17 @@ const CurrentUserProfile: React.FC = () => {
         }
     }, [selectedAccount, currentUser]);
 
-    // Build form fields when enums and profile are available
+    // ── Build form fields ──
     useEffect(() => {
         if (!isEnumsLoading && enums && profile) {
             const fields: FormField[] = [
+                { name: 'firstName', label: 'First Name', type: 'text', required: true, colSpan: 1 },
+                { name: 'lastName', label: 'Last Name', type: 'text', required: true, colSpan: 1 },
+                { name: 'email', label: 'Email Address', type: 'email', required: true, colSpan: 2 },
                 {
-                    name: "firstName",
-                    label: "First Name",
-                    type: "text",
-                    required: true,
-                    colSpan: 1,
-                },
-                {
-                    name: "lastName",
-                    label: "Last Name",
-                    type: "text",
-                    required: true,
-                    colSpan: 1,
-                },
-                {
-                    name: "email",
-                    label: "Email Address",
-                    type: "email",
-                    required: true,
-                    colSpan: 2,
-                },
-                {
-                    name: "gender",
-                    label: "Gender",
-                    type: "select",
+                    name: 'gender',
+                    label: 'Gender',
+                    type: 'select',
                     required: true,
                     colSpan: 1,
                     options:
@@ -214,38 +193,25 @@ const CurrentUserProfile: React.FC = () => {
                             label: g.displayName || g.name,
                         })) || [],
                 },
+                { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: false, colSpan: 1 },
                 {
-                    name: "dateOfBirth",
-                    label: "Date of Birth",
-                    type: "date",
-                    required: false,
-                    colSpan: 1,
-                },
-                {
-                    name: "phoneNumber",
-                    label: "Phone Number",
-                    type: "phone",
+                    name: 'phoneNumber',
+                    label: 'Phone Number',
+                    type: 'phone',
                     required: false,
                     colSpan: 2,
                     extraProps: {
                         enums: {
                             PhoneType: enums?.PhoneType || [],
-                            Country: enums?.Country || []
-                        }
-                    }
+                            Country: enums?.Country || [],
+                        },
+                    },
                 },
-                {
-                    name: "address",
-                    label: "Address",
-                    type: "address",
-                    required: false,
-                    colSpan: 2,
-                },
+                { name: 'address', label: 'Address', type: 'address', required: false, colSpan: 2 },
             ];
 
             setFormFields(fields);
 
-            // Set initial values
             setInitialValues({
                 firstName: profile.firstName || '',
                 lastName: profile.lastName || '',
@@ -261,6 +227,7 @@ const CurrentUserProfile: React.FC = () => {
                 address: {
                     addressLine1: profile.address?.addressLine1 || '',
                     addressLine2: profile.address?.addressLine2 || '',
+                    lga: profile.address?.lga || '',
                     city: profile.address?.city || '',
                     state: profile.address?.state || '',
                     zipCode: profile.address?.zipCode || '',
@@ -270,7 +237,10 @@ const CurrentUserProfile: React.FC = () => {
         }
     }, [enums, isEnumsLoading, profile]);
 
-    // Helper functions with "Not available" handling
+    // ─────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────
+
     const getGenderLabel = (genderValue?: number): string => {
         if (genderValue === undefined || genderValue === null) return 'Not available';
         return genderMap[genderValue.toString()] || 'Not available';
@@ -301,9 +271,27 @@ const CurrentUserProfile: React.FC = () => {
         return phoneTypeMap[typeValue.toString()] || 'Not available';
     };
 
+    /**
+     * Resolve a country code to a display name.
+     *
+     * Priority:
+     *   1. BE enum (respects the backend's naming)
+     *   2. Local ISO 3166 list (numeric codes always resolve here)
+     *   3. Empty string — this helper is used as a *building block* inside
+     *      composed strings, so it must NOT return "Not available".
+     */
     const getCountryLabel = (countryValue?: string | number): string => {
-        if (!countryValue) return 'Not available';
-        return countryMap[countryValue.toString()] || 'Not available';
+        if (countryValue == null || countryValue === '') return '';
+
+        const code = String(countryValue);
+
+        const fromEnum = countryMap[code];
+        if (fromEnum) return fromEnum;
+
+        const fromIso = findCountryByNumericCode(code);
+        if (fromIso) return fromIso.Name;
+
+        return '';
     };
 
     const getGenderIcon = (genderValue?: number) => {
@@ -331,6 +319,48 @@ const CurrentUserProfile: React.FC = () => {
         return String(value);
     };
 
+    /**
+     * Builds a display string from an address.
+     * Only includes parts that have a value; falls back to "Not available"
+     * only when the whole address is missing or every field is empty.
+     */
+    const formatAddress = (address?: AddressShape): string => {
+        if (!address) return 'Not available';
+
+        const parts = [
+            address.addressLine1,
+            address.addressLine2,
+            address.city,
+            address.lga,
+            address.state,
+            getCountryLabel(address.country),
+        ].filter((part) => part != null && String(part).trim() !== '');
+
+        return parts.length > 0 ? parts.join(', ') : 'Not available';
+    };
+
+    /**
+     * Formats a phone number with the correct E.164 country prefix.
+     * e.g. country="566" + number="09131518262"  ->  "+234 09131518262"
+     * Falls back to the raw number when the prefix can't be resolved.
+     */
+    const formatPhoneNumber = (phone?: {
+        number?: string;
+        country?: string | number;
+    }): string => {
+        if (!phone || !phone.number) return 'Not available';
+
+        const prefix = phone.country
+            ? getPhonePrefixByNumericCode(String(phone.country))
+            : '';
+
+        return prefix ? `+${prefix} ${phone.number}` : phone.number;
+    };
+
+    // ─────────────────────────────────────────────
+    // Handlers
+    // ─────────────────────────────────────────────
+
     const handleOpenEditModal = () => {
         setEditError(null);
         setEditSuccess(false);
@@ -348,8 +378,7 @@ const CurrentUserProfile: React.FC = () => {
         setEditError(null);
 
         try {
-            // Build the payload from form data
-            const payload: any = {
+            const payload: UpdateUserPayload = {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 email: data.email,
@@ -357,7 +386,6 @@ const CurrentUserProfile: React.FC = () => {
                 dateOfBirth: data.dateOfBirth || undefined,
             };
 
-            // Add phone number if provided
             if (data.phoneNumber && data.phoneNumber.number) {
                 payload.phoneNumber = {
                     number: data.phoneNumber.number,
@@ -367,11 +395,11 @@ const CurrentUserProfile: React.FC = () => {
                 };
             }
 
-            // Add address if provided
             if (data.address && data.address.addressLine1) {
                 payload.address = {
                     addressLine1: data.address.addressLine1,
                     addressLine2: data.address.addressLine2 || '',
+                    lga: data.address.lga || '',
                     city: data.address.city || '',
                     state: data.address.state || '',
                     zipCode: data.address.zipCode || '',
@@ -379,7 +407,7 @@ const CurrentUserProfile: React.FC = () => {
                 };
             }
 
-            await updateUserProfile(selectedAccount!, currentUser?.id!, payload);
+            await updateMyProfile(selectedAccount!, payload);
 
             const updatedProfile = await getUserProfile(selectedAccount!, currentUser?.id!);
             setProfile(updatedProfile);
@@ -395,6 +423,10 @@ const CurrentUserProfile: React.FC = () => {
             setEditLoading(false);
         }
     };
+
+    // ─────────────────────────────────────────────
+    // Render guards
+    // ─────────────────────────────────────────────
 
     if (loading || isEnumsLoading) {
         return (
@@ -455,7 +487,7 @@ const CurrentUserProfile: React.FC = () => {
                         borderRadius: 4,
                         overflow: 'hidden',
                         mb: 3,
-                        background: `linear-gradient(120deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                        background: theme.palette.background.default,
                         color: 'white',
                     }}
                 >
@@ -568,6 +600,7 @@ const CurrentUserProfile: React.FC = () => {
                                     Contact Information
                                 </Typography>
                                 <Stack spacing={2.5}>
+                                    {/* Email */}
                                     <Box display="flex" alignItems="center" gap={2}>
                                         <Box
                                             sx={{
@@ -593,6 +626,7 @@ const CurrentUserProfile: React.FC = () => {
                                         </Box>
                                     </Box>
 
+                                    {/* Phone */}
                                     <Box display="flex" alignItems="center" gap={2}>
                                         <Box
                                             sx={{
@@ -613,15 +647,12 @@ const CurrentUserProfile: React.FC = () => {
                                                 Phone Number ({getPhoneTypeLabel(profile.phoneNumber?.phoneType)})
                                             </Typography>
                                             <Typography variant="body1">
-                                                {profile.phoneNumber ? (
-                                                    `+${profile.phoneNumber.country || ''} ${profile.phoneNumber.number || ''}`
-                                                ) : (
-                                                    'Not available'
-                                                )}
+                                                {formatPhoneNumber(profile.phoneNumber)}
                                             </Typography>
                                         </Box>
                                     </Box>
 
+                                    {/* Address */}
                                     <Box display="flex" alignItems="flex-start" gap={2}>
                                         <Box
                                             sx={{
@@ -643,18 +674,7 @@ const CurrentUserProfile: React.FC = () => {
                                                 Address
                                             </Typography>
                                             <Typography variant="body1" sx={{ wordWrap: 'break-word' }}>
-                                                {profile.address ? (
-                                                    <>
-                                                        {getDisplayValue(profile.address.addressLine1)}
-                                                        {profile.address.addressLine2 && `, ${profile.address.addressLine2}`}
-                                                        {profile.address.city && `, ${profile.address.city}`}
-                                                        {profile.address.state && `, ${profile.address.state}`}
-                                                        {profile.address.country && `, ${getCountryLabel(profile.address.country)}`}
-                                                        {profile.address.zipCode && `, ${profile.address.zipCode}`}
-                                                    </>
-                                                ) : (
-                                                    'Not available'
-                                                )}
+                                                {formatAddress(profile.address)}
                                             </Typography>
                                         </Box>
                                     </Box>
@@ -664,7 +684,7 @@ const CurrentUserProfile: React.FC = () => {
                     </Box>
 
                     {/* Personal Information */}
-                    <Box sx={{ flex: '1 1 calc(50% - 12px)', minWidth: '300px' }}>
+                    {/* <Box sx={{ flex: '1 1 calc(50% - 12px)', minWidth: '300px' }}>
                         <Card
                             elevation={0}
                             sx={{
@@ -758,11 +778,11 @@ const CurrentUserProfile: React.FC = () => {
                                 </Stack>
                             </CardContent>
                         </Card>
-                    </Box>
+                    </Box> */}
                 </Box>
             </Container>
 
-            {/* Edit Profile Modal - Using DynamicForm */}
+            {/* Edit Profile Modal */}
             <Dialog
                 open={editModalOpen}
                 onClose={handleEditClose}

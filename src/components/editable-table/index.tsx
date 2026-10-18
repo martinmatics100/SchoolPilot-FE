@@ -9,19 +9,17 @@ import {
   TableRow,
   Paper,
   TextField,
-  IconButton,
-  Button,
+  Typography,
 } from "@mui/material";
-
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
 import { useTheme } from "@mui/material";
 
 export interface Column {
   key: string;
   label: string;
   type?: "text" | "number";
-  width?: string | number; // 👈 NEW: width support
+  width?: string | number;
+  /** When true, the cell is rendered as read-only text instead of an input. */
+  readOnly?: boolean;
 }
 
 export interface EditableTableProps {
@@ -38,19 +36,9 @@ const EditableTable: React.FC<EditableTableProps> = ({
   const theme = useTheme();
 
   const handleCellChange = (index: number, key: string, value: string) => {
-    const updated = [...rows];
-    updated[index][key] = value;
-    onChange(updated);
-  };
-
-  const handleAddRow = () => {
-    const newRow: any = {};
-    columns.forEach((col) => (newRow[col.key] = ""));
-    onChange([...rows, newRow]);
-  };
-
-  const handleDeleteRow = (index: number) => {
-    const updated = rows.filter((_, i) => i !== index);
+    const updated = rows.map((row, i) =>
+      i === index ? { ...row, [key]: value } : row
+    );
     onChange(updated);
   };
 
@@ -69,18 +57,18 @@ const EditableTable: React.FC<EditableTableProps> = ({
                   sx={{
                     width: col.width || "auto",
                     minWidth: col.width || "auto",
+                    fontWeight: 700,
                   }}
                 >
                   {col.label}
                 </TableCell>
               ))}
-              <TableCell sx={{ width: 100 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
             {rows.map((row, index) => (
-              <TableRow key={index}>
+              <TableRow key={row.id ?? index}>
                 {columns.map((col) => (
                   <TableCell
                     key={col.key}
@@ -89,40 +77,32 @@ const EditableTable: React.FC<EditableTableProps> = ({
                       minWidth: col.width || "auto",
                     }}
                   >
-                    <TextField
-                      fullWidth
-                      type={col.type || "text"}
-                      value={row[col.key]}
-                      onChange={(e) =>
-                        handleCellChange(index, col.key, e.target.value)
-                      }
-                      size="small"
-                    />
+                    {col.readOnly ? (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          px: 0.5,
+                          py: 0.75,
+                        }}
+                      >
+                        {row[col.key] ?? "—"}
+                      </Typography>
+                    ) : (
+                        <TextField
+                          fullWidth
+                          type={col.type || "text"}
+                          value={row[col.key] ?? ""}
+                          onChange={(e) =>
+                            handleCellChange(index, col.key, e.target.value)
+                          }
+                          size="small"
+                        />
+                    )}
                   </TableCell>
                 ))}
-
-                <TableCell sx={{ width: 100 }}>
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDeleteRow(index)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
               </TableRow>
             ))}
-
-            {/* <TableRow>
-              <TableCell colSpan={columns.length + 1} align="center">
-                <Button
-                  startIcon={<AddIcon />}
-                  variant="contained"
-                  onClick={handleAddRow}
-                >
-                  Add Row
-                </Button>
-              </TableCell>
-            </TableRow> */}
           </TableBody>
         </Table>
       </TableContainer>

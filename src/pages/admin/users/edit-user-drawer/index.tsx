@@ -18,7 +18,7 @@ import DynamicForm, { type FormField } from "../../../../components/my-form";
 import { useEnums } from "../../../../hooks/useEnums";
 import { useAuth } from "../../../../context";
 import MessageDisplay from "../../../../components/message-display";
-import { getUserProfile, updateUserProfile } from "../../../../api/userService";
+import { getUserProfile, updateUserProfile, type UpdateUserPayload } from "../../../../api/userService";
 import { useAssetUpload } from "../../../../hooks/useAsset";
 
 // =========================================================================
@@ -37,6 +37,7 @@ interface PhoneNumberData {
     number: string;
     phoneType?: number;
     extension?: string | null;
+    lga?: string | null;
     country?: string | null;
 }
 
@@ -54,27 +55,6 @@ interface UserDetail {
     address?: AddressData | null;
     phoneNumber?: PhoneNumberData | null;
     photoUrl?: string | null;
-}
-
-interface UpdateUserPayload {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    phoneNumber?: {
-        number: string;
-        extension?: string;
-        country: string;
-    };
-    address?: {
-        addressLine1: string;
-        addressLine2?: string;
-        state: string;
-        country: string;
-        lga?: string;
-    };
-    dateOfBirth?: string;
-    gender?: string;
-    photoAssetId?: string | null;
 }
 
 interface EditUserDrawerProps {

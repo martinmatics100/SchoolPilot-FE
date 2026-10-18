@@ -26,6 +26,18 @@ const AuthLayout = lazy<({ children }: PropsWithChildren) => ReactElement>(
   () => import("../../src/layouts/auth-layout"),
 );
 
+const SuperAdminDashboard = lazy<() => ReactElement>(
+  () => import("../pages/super-admin/dashboard/index"),
+);
+
+const SuperAdminFeedback = lazy<() => ReactElement>(
+  () => import("../pages/super-admin/feedback/index"),
+);
+
+const MyFeedbackPage = lazy<() => ReactElement>(
+  () => import("../pages/my-feedback/index"),
+);
+
 const LoginPage = lazy<() => ReactElement>(
   () => import("../pages/authentication/login/index"),
 );
@@ -116,6 +128,14 @@ const SubjectsAllocation = lazy(
 // );
 const SettingsPage = lazy(
   () => import("../pages/common/settings/index"),
+);
+
+const MyProfilePage = lazy(
+  () => import("../pages/common/settings/profile"),
+);
+
+const MySignaturePage = lazy(
+  () => import("../pages/admin/MySignature/index"),
 );
 
 const AttendanceSessionList = lazy(
@@ -428,6 +448,22 @@ const routes: RouteObject[] = [
             ),
           },
           {
+            path: "my-profile",
+            element: (
+              <ErrorBoundary>
+                <MyProfilePage />
+              </ErrorBoundary>
+            ),
+          },
+          {
+            path: "my-signature",
+            element: (
+              <ErrorBoundary>
+                <MySignaturePage />
+              </ErrorBoundary>
+            ),
+          },
+          {
             path: "attendance",
             element: <Outlet />,
             children: [
@@ -481,6 +517,48 @@ const routes: RouteObject[] = [
               </ErrorBoundary>
             ),
           },
+          {
+            path: "my-feedback",
+            element: (
+              <ErrorBoundary>
+                <MyFeedbackPage />
+              </ErrorBoundary>
+            ),
+          },
+
+          // ── Super Admin routes ─────────────────────────────
+          {
+            path: "super-admin",
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <ErrorBoundary>
+                    <SuperAdminDashboard />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "dashboard",
+                element: (
+                  <ErrorBoundary>
+                    <SuperAdminDashboard />
+                  </ErrorBoundary>
+                ),
+              },
+              {
+                path: "feedback",
+                element: (
+                  <ErrorBoundary>
+                    <SuperAdminFeedback />
+                  </ErrorBoundary>
+                ),
+              },
+            ],
+          },
+
+
         ],
       },
 

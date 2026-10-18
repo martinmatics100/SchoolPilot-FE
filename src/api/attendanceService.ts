@@ -3,7 +3,7 @@
 import { createApiClient } from "../utils/apiClient";
 import { type AttendanceSessionPayload, type StudentAttendance, type AttendanceSessionDetails } from "../types/interfaces/i-attendance";
 
-const BASE_URL = '/v1/attendance'; // Adjust this based on your actual API endpoint
+const BASE_URL = '/v1/attendance';
 
 export const createAttendanceSession = async (
     selectedAccount: string | null,
@@ -15,13 +15,11 @@ export const createAttendanceSession = async (
 
     const api = createApiClient({ selectedAccount });
 
-    // Use the appropriate endpoint based on your backend API
     const response = await api.post(`${BASE_URL}/session`, payload);
 
     return response;
 };
 
-// You might also want to add these additional functions for attendance management:
 
 export const fetchAttendanceSessions = async (
     selectedAccount: string | null,
@@ -94,13 +92,13 @@ export const deleteAttendanceSession = async (
     return response;
 };
 
-// For marking individual student attendance
+
 export const markStudentAttendance = async (
     selectedAccount: string | null,
     payload: {
         sessionId: string;
         studentId: string;
-        status: number; // Present, Absent, Late, Excused, etc.
+        status: number; 
         remarks?: string;
     }
 ) => {
@@ -114,7 +112,7 @@ export const markStudentAttendance = async (
     return response;
 };
 
-// For bulk attendance marking
+
 export const markBulkAttendance = async (
     selectedAccount: string | null,
     payload: {
@@ -136,7 +134,7 @@ export const markBulkAttendance = async (
     return response;
 };
 
-// Get attendance for a specific session
+
 export const fetchSessionAttendance = async (
     selectedAccount: string | null,
     sessionId: string
@@ -169,14 +167,14 @@ export const fetchAttendanceSessionDetails = async (
 };
 
 
-// Bulk mark attendance - matches the BE endpoint
+
 export const bulkMarkAttendance = async (
     selectedAccount: string | null,
     payload: {
         sessionId: string;
         attendances: Array<{
             studentId: string;
-            status: number; // 1 = Present, 2 = Absent
+            status: number; 
         }>;
         autoCompleteSession?: boolean;
     }
@@ -191,7 +189,7 @@ export const bulkMarkAttendance = async (
 };
 
 
-// Get Dashboard Stats
+
 export const fetchAttendanceDashboardStats = async (
     selectedAccount: string | null,
     params: {
@@ -216,7 +214,6 @@ export const fetchAttendanceDashboardStats = async (
     queryParams.append('month', params.month.toString());
     queryParams.append('year', params.year.toString());
 
-    // Only add classId if it's not "all" or empty
     if (params.classId && params.classId !== 'all') {
         queryParams.append('classId', params.classId);
     }
@@ -240,7 +237,6 @@ export interface WeeklyAttendanceStudent {
     firstName: string;
     lastName: string;
     studentUniqueId: string;
-    /** key = "yyyy-MM-dd"; value = enum name/num or null */
     days: Record<string, WeeklyAttendanceStatus | number | null>;
 }
 

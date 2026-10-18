@@ -109,7 +109,7 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                   width: columnWidths?.sn || 50,
                   fontWeight: 700,
                   fontSize: "0.75rem",
-                  color: theme.palette.text.primary,
+                  color: theme.palette.text.secondary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
                   borderBottom: lineStyles.headerBottom,
                   borderRight: lineStyles.nameSeparator,
@@ -126,10 +126,11 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                   width: columnWidths?.name || 200,
                   fontWeight: 700,
                   fontSize: "0.75rem",
-                  color: theme.palette.text.primary,
+                  color: theme.palette.text.secondary,
                   bgcolor: alpha(theme.palette.primary.main, 0.04),
                   borderBottom: lineStyles.headerBottom,
                   borderRight: lineStyles.nameSeparator,
+                  textTransform: "uppercase",
                   py: 2,
                 }}
               >
@@ -344,7 +345,8 @@ const BroadsheetTable: React.FC<BroadsheetTableProps> = ({
                   <TableCell
                     sx={{
                       fontWeight: 500,
-                      color: theme.palette.text.primary,
+                      color: theme.palette.text.secondary,
+                      textTransform: "UPPERCASE",
                       borderBottom: isLastRow ? lineStyles.headerBottom : lineStyles.rowSeparator,
                       borderRight: lineStyles.nameSeparator,
                       py: 1.5,

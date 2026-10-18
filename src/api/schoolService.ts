@@ -155,6 +155,7 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
         currentTerm?: number | null;
         currentTermStartDate: string | null;
         currentTermEndDate: string | null; 
+        nextTermBegins?: string | null; 
         currentSessions?: number | null;
         schoolCategory?: number | null;
         schoolType?: number | null;
@@ -193,6 +194,7 @@ static async updateAssessmentTypesBatch(configs: { assessmentType: number; maxSc
             if (updateData.currentTerm !== undefined) payload.currentTerm = updateData.currentTerm;
             if (updateData.currentTermStartDate !== undefined) payload.currentTermStartDate = updateData.currentTermStartDate;
             if (updateData.currentTermEndDate !== undefined) payload.currentTermEndDate = updateData.currentTermEndDate;
+            if (updateData.nextTermBegins !== undefined) payload.nextTermBegins = updateData.nextTermBegins;
             if (updateData.currentSessions !== undefined) payload.currentSessions = updateData.currentSessions;
             if (updateData.schoolCategory !== undefined) payload.schoolCategory = updateData.schoolCategory;
             if (updateData.schoolType !== undefined) payload.schoolType = updateData.schoolType;

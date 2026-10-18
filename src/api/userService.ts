@@ -2,6 +2,37 @@ import { createApiClient } from '../utils/apiClient';
 
 const BASE_URL = '/v1/users';
 
+/**
+ * Payload for updating a user profile.
+ *
+ * All fields are optional. The backend treats missing/null fields as
+ * "do not change" — so send only the fields the caller wants to update.
+ */
+export interface UpdateUserPayload {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    gender?: number;
+    dateOfBirth?: string;
+    phoneNumber?: {
+        number?: string;
+        extension?: string;
+        phoneType?: number;
+        country?: string;
+    };
+    address?: {
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        lga?: string;
+        state?: string;
+        zipCode?: string;
+        country?: string;
+    };
+    /** Set the profile picture; null clears it. */
+    photoAssetId?: string | null;
+}
+
 export const fetchUsers = async (
     selectedAccount: string | null,
     page: number,
@@ -209,38 +240,26 @@ export const getCurrentUserProfile = async (selectedAccount: string | null) => {
 };
 
 // Update user profile
+// For the "self profile" flow — the user updates their own data.
+export const updateMyProfile = async (
+    selectedAccount: string | null,
+    payload: UpdateUserPayload
+) => {
+    if (!selectedAccount) throw new Error("No account selected");
+    const api = createApiClient({ selectedAccount });
+    return api.put(`${BASE_URL}/me`, { user: payload });
+};
+
+// For the "admin edits another user" flow.
 export const updateUserProfile = async (
     selectedAccount: string | null,
     userId: string,
-    payload: {
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        phoneNumber?: {
-            number: string;
-            extension?: string;
-            country: string;
-        };
-        address?: {
-            addressLine1: string;
-            addressLine2?: string;
-            city?: string;
-            state: string;
-            zipCode?: string;
-            country: string;
-        };
-        dateOfBirth?: string;
-        gender?: string;
-        photoAssetId?: string | null;
-    }
+    payload: UpdateUserPayload
 ) => {
-    if (!selectedAccount) {
-        throw new Error('No account selected');
-    }
-
+    if (!selectedAccount) throw new Error("No account selected");
+    if (!userId) throw new Error("userId is required");
     const api = createApiClient({ selectedAccount });
-    const response = await api.put(`${BASE_URL}/${userId}`, payload);
-    return response;
+    return api.put(`${BASE_URL}/${userId}`, { user: payload });
 };
 
 // // Upload profile picture

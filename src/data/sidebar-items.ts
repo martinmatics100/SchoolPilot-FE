@@ -45,7 +45,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:school',
         active: true,
         group: 'MANAGMENT',
-        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+        roles: [UserRoles.ADMIN],
     },
 
     /// /////////////////////////////
@@ -69,7 +69,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:clipboard-check',
         active: true,
         group: 'ATTENDANCE',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
     {
         id: 29,
@@ -78,7 +78,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:google-classroom',
         active: true,
         group: 'ATTENDANCE',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 
     // Access Control
@@ -168,7 +168,33 @@ const navItems: INavbarItem[] = [
 
     // Settings
 
-
+    {
+        id: 48,
+        path: '/app/my-profile',
+        title: 'My Profile',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER, UserRoles.PARENT],
+    },
+    {
+        id: 49,
+        path: '/app/my-signature',
+        title: 'My Signature',
+        icon: 'mdi:cog',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+    },
+    {
+        id: 101,
+        path: '/app/my-feedback',
+        title: 'Feedback & Support',
+        icon: 'mdi:school',
+        active: true,
+        group: 'Settings',
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+    },
     {
         id: 18,
         path: '/app/settings',
@@ -176,7 +202,7 @@ const navItems: INavbarItem[] = [
         icon: 'mdi:cog',
         active: true,
         group: 'Settings',
-        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
+        roles: [UserRoles.ADMIN],
     },
     {
         id: 17,

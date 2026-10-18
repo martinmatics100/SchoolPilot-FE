@@ -8,22 +8,38 @@ export const createStudent = async (apiClient: any, payload: any) => {
     return response;
 };
 
+/**
+ * Fetch a paginated list of students, optionally filtered by class.
+ *
+ * @param selectedAccount  Currently selected account id.
+ * @param page             1-based page number.
+ * @param pageLength       Page size.
+ * @param classId          Optional class GUID to filter by. Omit or pass
+ *                         undefined / empty string for "all classes".
+ */
 export const fetchStudents = async (
     selectedAccount: string | null,
     page: number,
-    pageLength: number
+  pageLength: number,
+  classId?: string
 ) => {
     if (!selectedAccount) {
         throw new Error('No account selected');
     }
 
     const api = createApiClient({ selectedAccount });
+
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('pageLength', pageLength.toString());
 
+  if (classId) {
+    params.append('classId', classId);
+  }
+
     const url = `${BASE_URL}?${params.toString()}`;
     const response = await api.get(url);
+
     return {
         items: response.items || [],
         itemCount: response.itemCount || 0
@@ -94,8 +110,6 @@ export const createStudentsBulk = async (
   return response;
 };
 
-
-
 export const saveClassStudentScores = async (
   selectedAccount: string | null,
   payload: any
@@ -130,8 +144,6 @@ export const updateStudent = async (
   const response = await api.put(`${BASE_URL}/${id}`, payload);
   return response;
 };
-
-
 
 // Fetch all students in a given class (returns { studentId, name }[]).
 export const fetchStudentsByClass = async (

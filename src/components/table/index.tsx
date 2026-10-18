@@ -19,7 +19,12 @@ import {
   Stack,
   Tooltip,
   Button,
-  IconButton
+  IconButton,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
 import IconifyIcon from "../../components/base/iconifyIcon";
 
@@ -46,7 +51,35 @@ export interface TableActionButton {
   disabled?: boolean;
   loading?: boolean;
   tooltip?: string;
-  show?: boolean; // Conditionally show/hide
+  show?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────
+// FILTER SUPPORT
+// ─────────────────────────────────────────────────────────────
+
+export type FilterType = "select" | "text" | "date" | "number";
+
+export interface FilterOption {
+  value: string | number;
+  label: string;
+}
+
+export interface FilterConfig {
+  /** Key used to report the filter value back to the parent. */
+  name: string;
+  label: string;
+  type: FilterType;
+  /** Required for `select`. */
+  options?: FilterOption[];
+  /** Initial value. */
+  defaultValue?: string | number | "";
+  /** Column span within the filter row. Default 1. */
+  colSpan?: number;
+  /** Min width of the filter control. Default 180px. */
+  minWidth?: number;
+  /** Placeholder text (for text/number inputs). */
+  placeholder?: string;
 }
 
 interface ReusableTableProps {
@@ -77,7 +110,17 @@ interface ReusableTableProps {
   showCheckboxes?: boolean;
   showRowsPerPage?: boolean;
   showPagination?: boolean;
-  actionButtons?: TableActionButton[]; // New prop for title bar action buttons
+  actionButtons?: TableActionButton[];
+
+  // ── Filter support ──
+  /** Toggle for showing a filter bar. Default false. */
+  showFilters?: boolean;
+  /** Definitions of the filters. At least one is required when showFilters is true. */
+  filters?: FilterConfig[];
+  /** Called whenever a filter value changes. Receives the full map of filter values. */
+  onFilterChange?: (values: Record<string, string | number | "">) => void;
+  /** Optional: clears all filters and re-fires onFilterChange with defaults. */
+  showClearFilters?: boolean;
 }
 
 export const ReusableTable: React.FC<ReusableTableProps> = ({
@@ -103,12 +146,39 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
   showCheckboxes = true,
   showRowsPerPage = true,
   showPagination = true,
-  actionButtons = [], // Default empty array
+  actionButtons = [],
+
+  // Filter props
+  showFilters = false,
+  filters = [],
+  onFilterChange,
+  showClearFilters = true,
 }) => {
   const [internalPage, setInternalPage] = React.useState(0);
   const [internalRowsPerPage, setInternalRowsPerPage] =
     React.useState(defaultRowsPerPage);
   const [selectedRows, setSelectedRows] = React.useState<any[]>([]);
+
+  // Internal filter state, keyed by filter.name
+  const [filterValues, setFilterValues] = React.useState<
+    Record<string, string | number | "">
+  >(() => {
+    const initial: Record<string, string | number | ""> = {};
+    filters.forEach((f) => {
+      initial[f.name] = f.defaultValue ?? "";
+    });
+    return initial;
+  });
+
+  // If the parent supplies a different set of filters, re-seed state
+  React.useEffect(() => {
+    const initial: Record<string, string | number | ""> = {};
+    filters.forEach((f) => {
+      initial[f.name] = filterValues[f.name] ?? f.defaultValue ?? "";
+    });
+    setFilterValues(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.map((f) => f.name).join(",")]);
 
   const theme = useTheme();
 
@@ -121,8 +191,33 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
 
   const isServerSide = totalCount !== undefined;
 
-  // Filter visible buttons
-  const visibleButtons = actionButtons.filter(btn => btn.show !== false);
+  const visibleButtons = actionButtons.filter((btn) => btn.show !== false);
+
+  // ── Filter handlers ──
+  const handleFilterChange = (
+    name: string,
+    value: string | number | ""
+  ) => {
+    const next = { ...filterValues, [name]: value };
+    setFilterValues(next);
+    onFilterChange?.(next);
+  };
+
+  const handleClearFilters = () => {
+    const cleared: Record<string, string | number | ""> = {};
+    filters.forEach((f) => {
+      cleared[f.name] = f.defaultValue ?? "";
+    });
+    setFilterValues(cleared);
+    onFilterChange?.(cleared);
+  };
+
+  const hasActiveFilters = Object.entries(filterValues).some(
+    ([key, value]) =>
+      value !== "" &&
+      value !== undefined &&
+      value !== filters.find((f) => f.name === key)?.defaultValue
+  );
 
   const handleChangePage = (event: unknown, newPage: number) => {
     if (onPageChange) {
@@ -204,7 +299,6 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
       : []),
   ];
 
-  // Loading skeleton rows
   const LoadingSkeleton = () => (
     <>
       {[1, 2, 3, 4, 5].map((_, idx) => (
@@ -224,7 +318,6 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     </>
   );
 
-  // Empty state component
   const EmptyState = () => (
     <TableRow>
       <TableCell
@@ -268,6 +361,9 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     </TableRow>
   );
 
+  // ── Filter bar renderer ──
+  const shouldRenderFilters = showFilters && filters.length > 0;
+
   return (
     <Paper
       elevation={0}
@@ -308,7 +404,6 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
             {title}
           </Typography>
 
-          {/* Action Buttons */}
           {visibleButtons.length > 0 && (
             <Stack
               direction="row"
@@ -330,7 +425,13 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                           size={button.size || "small"}
                           onClick={button.onClick}
                           disabled={button.disabled || button.loading}
-                          startIcon={button.loading ? <CircularProgress size={16} /> : button.icon}
+                          startIcon={
+                            button.loading ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              button.icon
+                            )
+                          }
                           sx={{
                             minWidth: "auto",
                             px: 1.5,
@@ -350,7 +451,13 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                       size={button.size || "small"}
                       onClick={button.onClick}
                       disabled={button.disabled || button.loading}
-                      startIcon={button.loading ? <CircularProgress size={16} /> : button.icon}
+                        startIcon={
+                          button.loading ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            button.icon
+                          )
+                        }
                       sx={{
                         minWidth: "auto",
                         px: 1.5,
@@ -366,6 +473,135 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
               ))}
             </Stack>
           )}
+        </Box>
+      )}
+
+      {/* ── Filter bar ── */}
+      {shouldRenderFilters && (
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            bgcolor: alpha(theme.palette.background.default, 0.6),
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              alignItems: "center",
+            }}
+          >
+            {filters.map((filter) => {
+              const value = filterValues[filter.name] ?? "";
+              const minWidth = filter.minWidth ?? 180;
+
+              if (filter.type === "select") {
+                return (
+                  <FormControl
+                    key={filter.name}
+                    size="small"
+                    sx={{ minWidth }}
+                  >
+                    <InputLabel id={`filter-${filter.name}-label`}>
+                      {filter.label}
+                    </InputLabel>
+                    <Select
+                      labelId={`filter-${filter.name}-label`}
+                      id={`filter-${filter.name}`}
+                      value={value === "" ? "" : value}
+                      label={filter.label}
+                      onChange={(e) =>
+                        handleFilterChange(
+                          filter.name,
+                          e.target.value as string | number
+                        )
+                      }
+                    >
+                      <MenuItem value="">
+                        <em>All</em>
+                      </MenuItem>
+                      {filter.options?.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }
+
+              if (filter.type === "text") {
+                return (
+                  <TextField
+                    key={filter.name}
+                    size="small"
+                    label={filter.label}
+                    placeholder={filter.placeholder}
+                    value={value}
+                    onChange={(e) =>
+                      handleFilterChange(filter.name, e.target.value)
+                    }
+                    sx={{ minWidth }}
+                  />
+                );
+              }
+
+              if (filter.type === "number") {
+                return (
+                  <TextField
+                    key={filter.name}
+                    size="small"
+                    type="number"
+                    label={filter.label}
+                    placeholder={filter.placeholder}
+                    value={value}
+                    onChange={(e) =>
+                      handleFilterChange(filter.name, e.target.value)
+                    }
+                    sx={{ minWidth }}
+                  />
+                );
+              }
+
+              if (filter.type === "date") {
+                return (
+                  <TextField
+                    key={filter.name}
+                    size="small"
+                    type="date"
+                    label={filter.label}
+                    InputLabelProps={{ shrink: true }}
+                    value={value}
+                    onChange={(e) =>
+                      handleFilterChange(filter.name, e.target.value)
+                    }
+                    sx={{ minWidth }}
+                  />
+                );
+              }
+
+              return null;
+            })}
+
+            {showClearFilters && hasActiveFilters && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleClearFilters}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  height: 40,
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </Box>
         </Box>
       )}
 

@@ -7,11 +7,12 @@ import {
     getFirstRouteForRole,
     roleHasAccessToPath,
 } from '../utils/roleNavigation';
+import { UserRoles } from "../enums/user-roles";
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
     requireAccountSelection?: boolean;
-    /** Optional: restrict this route to specific roles (e.g. ['ADMIN']) */
+    /** Optional: restrict this route to specific roles (e.g. ['Admin']) */
     allowedRoles?: string[];
 }
 
@@ -23,41 +24,69 @@ export const ProtectedRoute = ({
     const { isAuthenticated, selectedAccount, role } = useAuth();
     const location = useLocation();
 
-    // ── Special-case routes (no checks needed) ─────────────────────
+    const isSuperAdminUser = role === UserRoles.SUPER_ADMIN;
     const isLogoutPage = location.pathname === paths.logout;
     const isLoginPage = location.pathname === paths.login;
     const isLoginSuccessPage = location.pathname === '/authentication/welcome';
     const isAccountSelectionRoute = location.pathname === paths.home;
+    const isSuperAdminRoute = location.pathname.startsWith('/app/super-admin');
 
-    // Allow logout page always
+    // ── Always allow logout ─────────────────────────────────
     if (isLogoutPage) return <>{children}</>;
 
-    // If on login page and already authenticated → go to welcome
+    // ── Login page: bounce to welcome if already authenticated ──
     if (isLoginPage && isAuthenticated) {
         return <Navigate to="/authentication/welcome" replace />;
     }
 
-    // Not authenticated → login
+    // ── Unauthenticated → login ─────────────────────────────
     if (!isAuthenticated && !isLoginPage && !isLoginSuccessPage) {
-        return (
-            <Navigate to={paths.login} state={{ from: location }} replace />
-        );
+        return <Navigate to={paths.login} state={{ from: location }} replace />;
     }
 
+    // ── Super admin: bypass account-selection entirely ───────
+    // They have no school to pick. If they land on the account
+    // selection page or a school-only page, send them straight
+    // to their dashboard.
+    if (isAuthenticated && isSuperAdminUser) {
+        // If they're on the account-selection route (paths.home),
+        // redirect to the super admin dashboard.
+        if (isAccountSelectionRoute) {
+            return <Navigate to="/app/super-admin/dashboard" replace />;
+        }
+
+        // If they somehow land on a non-super-admin route inside /app,
+        // redirect to their dashboard.
+        if (
+            location.pathname.startsWith('/app') &&
+            !isSuperAdminRoute &&
+            !isLoginSuccessPage
+        ) {
+            return <Navigate to="/app/super-admin/dashboard" replace />;
+        }
+
+        // Otherwise let them through (their own routes, welcome page, etc.)
+        return <>{children}</>;
+    }
+
+    // ── Non-super-admin flows (unchanged) ────────────────────
+
     // Authenticated but no account selected → account selection page
-    if (
-        isAuthenticated &&
-        requireAccountSelection &&
-        !selectedAccount &&
-        !isAccountSelectionRoute &&
-        !isLoginSuccessPage
-    ) {
+    if (requireAccountSelection && !selectedAccount) {
         return <Navigate to={paths.home} replace />;
     }
 
-    // ✅ NEW: Role-based access check
-    // Only runs for pages that require an account selection
-    // (skip for login / welcome / logout pages)
+    // Authenticated with account, but on the account-selection page →
+    // they don't need to be there, send them to their home.
+    if (
+        isAuthenticated &&
+        selectedAccount &&
+        isAccountSelectionRoute
+    ) {
+        return <Navigate to={getFirstRouteForRole(role)} replace />;
+    }
+
+    // ── Role-based access check ─────────────────────────────
     if (
         isAuthenticated &&
         selectedAccount &&
@@ -65,19 +94,13 @@ export const ProtectedRoute = ({
         !isLoginSuccessPage &&
         !isAccountSelectionRoute
     ) {
-        // 1) If this route declares specific allowed roles, enforce them
         if (allowedRoles && allowedRoles.length > 0) {
             if (!role || !allowedRoles.includes(role)) {
-                return (
-                    <Navigate to={getFirstRouteForRole(role)} replace />
-                );
+                return <Navigate to={getFirstRouteForRole(role)} replace />;
             }
         } else {
-            // 2) Otherwise, use the global sidebar-based check
             if (!roleHasAccessToPath(role, location.pathname)) {
-                return (
-                    <Navigate to={getFirstRouteForRole(role)} replace />
-                );
+                return <Navigate to={getFirstRouteForRole(role)} replace />;
             }
         }
     }

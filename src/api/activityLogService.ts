@@ -1,6 +1,5 @@
 import { createApiClient, getInitialAuthData } from '../utils/apiClient';
 import {
-    type ActivityLog,
     type ActivityLogDetail,
     type ActivityLogResponse,
     type ActivityLogParams

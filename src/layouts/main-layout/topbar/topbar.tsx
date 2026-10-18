@@ -4,9 +4,7 @@ import {
   AppBar,
   Toolbar,
   Drawer,
-  TextField,
   IconButton,
-  InputAdornment,
   List,
   ListItem,
   ListItemText,
@@ -24,7 +22,6 @@ import UserDropdown from "./userDropdown";
 import { useBreakpoints } from "../../../providers/breakPointsProvider";
 import { drawerOpenWidth, drawerCloseWidth } from "..";
 import { useTheme } from "@mui/material/styles";
-import ThemeToggle from "../../../theme/theme-toggle";
 import { useAuth } from "../../../context";
 import {
   getGreeting,
@@ -37,6 +34,7 @@ import {
   type CurrentBillingState,
 } from "../../../api/billingService";
 import { UserRoles } from "../../../enums/user-roles";
+import ChatDrawer from "../../../components/chat/ChatDrawer";
 
 const Topbar = ({
   open,
@@ -51,13 +49,13 @@ const Topbar = ({
   const navigate = useNavigate();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [messageOpen, setMessageOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const {
     selectedAccount,
     accounts,
-    role,               // ← same role source the Sidebar uses
+    role,
     currentUser,
   } = useAuth();
 
@@ -75,12 +73,6 @@ const Topbar = ({
     { id: 1, message: "New comment on your post" },
     { id: 2, message: "Your order has been shipped" },
     { id: 3, message: "You have a new follower" },
-  ];
-
-  const messagesOptions = [
-    { id: 1, option: "This is some awesome thinking!" },
-    { id: 2, option: "What terrific math skills you are showing!" },
-    { id: 3, option: "You are an amazing writer!" },
   ];
 
   /* ─────────────────────────────────────────────────────────
@@ -135,11 +127,6 @@ const Topbar = ({
 
   /* ─────────────────────────────────────────────────────────
      PLAN CHIP — gating
-     Show ONLY when:
-       1. The signed-in user is an ADMIN (via UserRoles)
-       2. Billing data is loaded
-       3. Days remaining is between 0 and 7
-       4. Subscription is Trial or Active
      ───────────────────────────────────────────────────────── */
   const daysLeft = (() => {
     if (!billingState) return null;
@@ -157,9 +144,6 @@ const Topbar = ({
   const showPlanChip =
     isAdmin &&
     billingState != null &&
-    // daysLeft != null &&
-    // daysLeft <= 7 &&
-    // daysLeft >= 0 &&
     (billingState.status === 1 || billingState.status === 2);
 
   // Primary items (always visible on mobile)
@@ -219,10 +203,10 @@ const Topbar = ({
           sx={{ cursor: "pointer" }}
           onClick={() => {
             setShowMoreMenu(false);
-            setMessageOpen(true);
+            setChatOpen(true);
           }}
         >
-          <ListItemText primary="Messages" />
+          <ListItemText primary="Chat" />
         </ListItem>
 
         {selectedAccountData && (
@@ -370,15 +354,15 @@ const Topbar = ({
                   <IconButton onClick={() => setNotificationsOpen(true)}>
                     <IconifyIcon icon="ph:bell-bold" width={29} height={32} />
                   </IconButton>
-                  <IconButton onClick={() => setMessageOpen(true)}>
-                    <IconifyIcon icon="mdi:message" width={29} height={32} />
+                  <IconButton onClick={() => setChatOpen(true)}>
+                    <IconifyIcon icon="mdi:message-text" width={29} height={32} />
                   </IconButton>
                 </Badge>
                 {/* <ThemeToggle /> */}
                 <UserDropdown />
               </>
             ) : (
-              // Mobile view - show only theme toggle, user dropdown, and more button
+                // Mobile view - show only user dropdown and more button
               <>
                 {primaryItems()}
 
@@ -432,44 +416,8 @@ const Topbar = ({
         </List>
       </Drawer>
 
-      {/* Drawer for Messages */}
-      <Drawer
-        anchor="right"
-        open={messageOpen}
-        onClose={() => setMessageOpen(false)}
-        PaperProps={{
-          sx: {
-            width: "300px",
-            "@media (min-width: 1024px)": {
-              width: "30%",
-            },
-          },
-        }}
-      >
-        <IconButton
-          onClick={() => setMessageOpen(false)}
-          sx={{ alignSelf: "flex-start", margin: 2 }}
-        >
-          <IconifyIcon icon="ic:round-close" width={24} height={24} />
-        </IconButton>
-        <Typography
-          variant="h6"
-          sx={{
-            textAlign: "center",
-            margin: 2,
-            fontWeight: "bold",
-          }}
-        >
-          Messages
-        </Typography>
-        <List>
-          {messagesOptions.map((message) => (
-            <ListItem key={message.id}>
-              <ListItemText primary={message.option} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+      {/* Chat drawer — replaces the old Messages drawer */}
+      <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 };

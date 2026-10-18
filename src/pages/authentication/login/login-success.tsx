@@ -13,12 +13,13 @@ import paths from '../../../routes/paths';
 import { useEffect, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../../context';
+import { UserRoles } from '../../../enums/user-roles';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 
 const LoginSuccess = () => {
     const theme = useTheme();
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { logout, role } = useAuth();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [mounted, setMounted] = useState(false);
@@ -46,8 +47,11 @@ const LoginSuccess = () => {
     const [isCancelling, setIsCancelling] = useState(false);
 
     const handleOk = () => {
-        window.history.replaceState(null, '', paths.home);
-        navigate(paths.home, { replace: true });
+        const target = role === UserRoles.SUPER_ADMIN
+            ? '/app/super-admin/dashboard'
+            : paths.home;
+        window.history.replaceState(null, '', target);
+        navigate(target, { replace: true });
     };
 
     const handleCancel = async () => {

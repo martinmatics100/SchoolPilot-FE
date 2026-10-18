@@ -30,6 +30,7 @@ export interface DecodedToken {
     iss: string;
     aud: string;
     accountId?: string;
+    nameid?: string;
 }
 
 export interface LocationModel {
@@ -94,4 +95,5 @@ export interface CurrentUserFromToken {
     roles: UserRoles[];
     accountId: string | null;
     userId: string;
+    chatUserId: string | null;
 }

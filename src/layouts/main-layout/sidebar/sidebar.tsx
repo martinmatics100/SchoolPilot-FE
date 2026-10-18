@@ -22,6 +22,8 @@ import { drawerCloseWidth, drawerOpenWidth } from '..';
 import { useTheme } from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
 import { useAuth } from '../../../context';
+import superAdminNavItems from '../../../data/super-admin-nav-items';
+import { UserRoles } from '../../../enums/user-roles';
 import { Logo, SimpleLogo } from '../../../components/Logo';
 import { FeedbackModal } from '../../../components/feedback';
 
@@ -42,6 +44,9 @@ const groupIcons: GroupIcons = {
     Profile: 'solar:user-circle-bold-duotone',
     Handbook: 'solar:book-bold-duotone',
     Bookings: 'solar:calendar-bold-duotone',
+    PLATFORM: 'solar:server-bold-duotone',
+    COMMUNICATION: 'solar:chat-round-like-bold-duotone',
+    SYSTEM: 'solar:settings-bold-duotone',
 };
 
 // Bottom action types
@@ -72,10 +77,10 @@ const Sidebar = ({ open }: { open: boolean }): ReactElement => {
         };
     }, []);
 
-    // Filter navigation items based on role
     const filteredNavItems = useMemo(() => {
         if (!role) return [];
-        return navItems.filter((item) => item.roles.includes(role));
+        const source = role === UserRoles.SUPER_ADMIN ? superAdminNavItems : navItems;
+        return source.filter((item) => item.roles.includes(role));
     }, [role, forceUpdate]);
 
     // Group items

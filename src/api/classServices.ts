@@ -132,16 +132,21 @@ export const fetchClassBroadsheet = async (
   return response;
 };
 
-export const printClassBroadsheet = async (
+export const downloadClassBroadsheet = async (
   apiClient: any,
   payload: { classId: string; schoolSession: number; schoolTerm: number }
-) => {
+): Promise<Blob> => {
   const queryParams = new URLSearchParams({
     ClassId: payload.classId,
     SchoolSession: String(payload.schoolSession),
     SchoolTerm: String(payload.schoolTerm),
   }).toString();
 
-  // Passing 'true' at the end for the isBlob parameter
-  return await apiClient.post(`/v1/class/class-broadsheet/print?${queryParams}`, null, true);
+  // apiClient.post with isBlob=true returns a Blob
+  const blob = await apiClient.post(
+    `/v1/class/class-broadsheet/print?${queryParams}`,
+    null,
+    true
+  );
+  return blob;
 };

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   FormControl,
-  InputLabel,
   MenuItem,
   Select,
   Typography,
@@ -11,10 +10,6 @@ import {
   useTheme,
   Fade,
   Chip,
-  Stack,
-  IconButton,
-  Tooltip,
-  Badge,
 } from "@mui/material";
 import BroadsheetTable from "../../../components/broad-sheetTable";
 import { useEnums } from "../../../hooks/useEnums";
@@ -22,11 +17,10 @@ import { useAuth } from "../../../context";
 import {
   fetchClasses,
   fetchClassBroadsheet,
-  printClassBroadsheet,
+  downloadClassBroadsheet,
 } from "../../../api/classServices";
 import { ActionButton } from "../../../components/action-button";
 import IconifyIcon from "../../../components/base/iconifyIcon";
-import { Grow } from "@mui/material"; // Change import
 
 const ExampleBroadsheetPage = () => {
   const theme = useTheme();
@@ -45,7 +39,7 @@ const ExampleBroadsheetPage = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [showBroadsheet, setShowBroadsheet] = useState(false);
   const [loadingSheet, setLoadingSheet] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!selectedAccount) return;
@@ -102,69 +96,55 @@ const ExampleBroadsheetPage = () => {
     }
   };
 
-  const handleDownload = () => {
-    const header = [
-      "S/N", "Student Name", ...subjects,
-      "Total Subjects", "Total Obtainable", "Total Score",
-      "Average", "Percentage", "PositionText", "Result Status",
-    ].join(",");
-    const rows = students.map((s, i) => {
-      const scores = (s.subjects || []).map((sub: any) => sub.totalScore ?? "-");
-      return [i + 1, s.studentName, ...scores, s.totalSubjects, s.totalObtainable, s.totalScore, s.average, s.percentage, s.position, s.resultStatus].join(",");
-    });
-    const csvContent = [header, ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "broadsheet.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
+  const handleDownloadPdf = async () => {
+    if (!selectedClass || !selectedSession || !selectedTerm) return;
 
-  const handlePrint = async () => {
     try {
-      setIsPrinting(true);
-      const blob = await printClassBroadsheet(apiClient, {
+      setIsDownloading(true);
+
+      const blob = await downloadClassBroadsheet(apiClient, {
         classId: selectedClass,
         schoolSession: Number(selectedSession),
         schoolTerm: Number(selectedTerm),
       });
-      const url = window.URL.createObjectURL(blob);
-      const iframe = document.createElement("iframe");
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = url;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setIsPrinting(false);
-          const focusHandler = () => {
-            window.removeEventListener('focus', focusHandler);
-            setTimeout(() => {
-              window.URL.revokeObjectURL(url);
-              document.body.removeChild(iframe);
-            }, 500);
-          };
-          window.addEventListener('focus', focusHandler);
-        }, 500);
-      };
+
+      // Build a friendly filename
+      const className =
+        classes.find((c) => c.value === selectedClass)?.label || "Class";
+      const sessionLabel =
+        sessions.find((s) => s.value === selectedSession)?.label || "";
+      const termLabel =
+        terms.find((t) => t.value === selectedTerm)?.label || "";
+
+      const safeName = `${className}_${sessionLabel}_${termLabel}_Broadsheet`
+        .replace(/[^\w\-]+/g, "_")
+        .replace(/_+/g, "_");
+
+      // Trigger browser download
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/pdf" })
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cleanup
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
-      console.error("Failed to print broadsheet", err);
-      setIsPrinting(false);
+      console.error("Failed to download broadsheet", err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
   if (isLoading) return null;
 
-  const selectedClassLabel = classes.find(c => c.value === selectedClass)?.label;
-  const selectedSessionLabel = sessions.find(s => s.value === selectedSession)?.label;
-  const selectedTermLabel = terms.find(t => t.value === selectedTerm)?.label;
+  const selectedClassLabel = classes.find((c) => c.value === selectedClass)?.label;
+  const selectedSessionLabel = sessions.find((s) => s.value === selectedSession)?.label;
+  const selectedTermLabel = terms.find((t) => t.value === selectedTerm)?.label;
 
   const hasSelections = selectedClass || selectedSession || selectedTerm;
 
@@ -191,15 +171,22 @@ const ExampleBroadsheetPage = () => {
                 gap: 1,
               }}
             >
-              <IconifyIcon icon="mdi:table-document" width={28} color={theme.palette.primary.main} />
+              <IconifyIcon
+                icon="mdi:table-document"
+                width={28}
+                color={theme.palette.primary.main}
+              />
               Class Broadsheet
             </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "text.secondary", mt: 0.5 }}
+            >
               Generate and export student performance reports
             </Typography>
           </Box>
 
-          {/* Filter Bar - Horizontal on ALL devices */}
+          {/* Filter Bar */}
           <Paper
             elevation={0}
             sx={{
@@ -221,7 +208,10 @@ const ExampleBroadsheetPage = () => {
               }}
             >
               {/* Class Select */}
-              <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}
+              >
                 <Select
                   value={selectedClass}
                   onChange={(e) => {
@@ -232,23 +222,48 @@ const ExampleBroadsheetPage = () => {
                   renderValue={(selected) => {
                     if (!selected) {
                       return (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <IconifyIcon icon="mdi:school-outline" width={16} color={theme.palette.text.secondary} />
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>Class</Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconifyIcon
+                            icon="mdi:school-outline"
+                            width={16}
+                            color={theme.palette.text.secondary}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            Class
+                          </Typography>
                         </Box>
                       );
                     }
-                    const item = classes.find(c => c.value === selected);
+                    const item = classes.find((c) => c.value === selected);
                     return (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <IconifyIcon icon="mdi:school-outline" width={16} color={theme.palette.primary.main} />
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{item?.label}</Typography>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        <IconifyIcon
+                          icon="mdi:school-outline"
+                          width={16}
+                          color={theme.palette.primary.main}
+                        />
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {item?.label}
+                        </Typography>
                       </Box>
                     );
                   }}
                   sx={{
                     "& .MuiSelect-select": { py: 1, pr: 4 },
-                    "& fieldset": { borderColor: alpha(theme.palette.divider, 0.5) },
+                    "& fieldset": {
+                      borderColor: alpha(theme.palette.divider, 0.5),
+                    },
                   }}
                 >
                   {classes.map((cls) => (
@@ -259,11 +274,17 @@ const ExampleBroadsheetPage = () => {
                 </Select>
               </FormControl>
 
-              {/* Arrow Icon */}
-              <IconifyIcon icon="mdi:chevron-right" width={16} color={theme.palette.text.disabled} />
+              <IconifyIcon
+                icon="mdi:chevron-right"
+                width={16}
+                color={theme.palette.text.disabled}
+              />
 
               {/* Session Select */}
-              <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}
+              >
                 <Select
                   value={selectedSession}
                   disabled={!selectedClass}
@@ -276,36 +297,69 @@ const ExampleBroadsheetPage = () => {
                   renderValue={(selected) => {
                     if (!selected) {
                       return (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <IconifyIcon icon="mdi:calendar-outline" width={16} color={theme.palette.text.secondary} />
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>Session</Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconifyIcon
+                            icon="mdi:calendar-outline"
+                            width={16}
+                            color={theme.palette.text.secondary}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            Session
+                          </Typography>
                         </Box>
                       );
                     }
-                    const item = sessions.find(s => s.value === selected);
+                    const item = sessions.find((s) => s.value === selected);
                     return (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <IconifyIcon icon="mdi:calendar-outline" width={16} color={theme.palette.primary.main} />
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{item?.label}</Typography>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        <IconifyIcon
+                          icon="mdi:calendar-outline"
+                          width={16}
+                          color={theme.palette.primary.main}
+                        />
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {item?.label}
+                        </Typography>
                       </Box>
                     );
                   }}
                   sx={{
                     "& .MuiSelect-select": { py: 1, pr: 4 },
-                    "& fieldset": { borderColor: alpha(theme.palette.divider, 0.5) },
+                    "& fieldset": {
+                      borderColor: alpha(theme.palette.divider, 0.5),
+                    },
                   }}
                 >
                   {sessions.map((s) => (
-                    <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+                    <MenuItem key={s.value} value={s.value}>
+                      {s.label}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              {/* Arrow Icon */}
-              <IconifyIcon icon="mdi:chevron-right" width={16} color={theme.palette.text.disabled} />
+              <IconifyIcon
+                icon="mdi:chevron-right"
+                width={16}
+                color={theme.palette.text.disabled}
+              />
 
               {/* Term Select */}
-              <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: 140, sm: 160 }, width: "auto" }}
+              >
                 <Select
                   value={selectedTerm}
                   disabled={!selectedSession}
@@ -317,27 +371,54 @@ const ExampleBroadsheetPage = () => {
                   renderValue={(selected) => {
                     if (!selected) {
                       return (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <IconifyIcon icon="mdi:flag-outline" width={16} color={theme.palette.text.secondary} />
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>Term</Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconifyIcon
+                            icon="mdi:flag-outline"
+                            width={16}
+                            color={theme.palette.text.secondary}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            Term
+                          </Typography>
                         </Box>
                       );
                     }
-                    const item = terms.find(t => t.value === selected);
+                    const item = terms.find((t) => t.value === selected);
                     return (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <IconifyIcon icon="mdi:flag-outline" width={16} color={theme.palette.primary.main} />
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{item?.label}</Typography>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        <IconifyIcon
+                          icon="mdi:flag-outline"
+                          width={16}
+                          color={theme.palette.primary.main}
+                        />
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {item?.label}
+                        </Typography>
                       </Box>
                     );
                   }}
                   sx={{
                     "& .MuiSelect-select": { py: 1, pr: 4 },
-                    "& fieldset": { borderColor: alpha(theme.palette.divider, 0.5) },
+                    "& fieldset": {
+                      borderColor: alpha(theme.palette.divider, 0.5),
+                    },
                   }}
                 >
                   {terms.map((t) => (
-                    <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
+                    <MenuItem key={t.value} value={t.value}>
+                      {t.label}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -358,7 +439,7 @@ const ExampleBroadsheetPage = () => {
             </Box>
           </Paper>
 
-          {/* Selection Chips - Shows what's selected */}
+          {/* Selection Chips */}
           {hasSelections && (
             <Box
               sx={{
@@ -424,7 +505,7 @@ const ExampleBroadsheetPage = () => {
             </Box>
           )}
 
-          {/* Action Buttons for Print/Download */}
+          {/* Action Buttons: Download PDF */}
           {showBroadsheet && (
             <Fade in timeout={300}>
               <Box
@@ -433,27 +514,28 @@ const ExampleBroadsheetPage = () => {
                   justifyContent: "flex-end",
                   gap: 1.5,
                   mb: 2.5,
+                  flexWrap: "wrap",
                 }}
               >
                 <ActionButton
-                  onClick={handlePrint}
-                  disabled={isPrinting}
-                  loading={isPrinting}
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  loading={isDownloading}
                   variant="outlined"
                   color="primary"
                   size="small"
-                  startIcon={<IconifyIcon icon="mdi:printer-outline" width={16} />}
+                  startIcon={
+                    <IconifyIcon icon="mdi:file-pdf-box" width={16} />
+                  }
+                  sx={{
+                    minWidth: "auto",
+                    px: 2,
+                    whiteSpace: "nowrap",
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                    background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.default} 100%)`,
+                  }}
                 >
-                  Print
-                </ActionButton>
-                <ActionButton
-                  onClick={handleDownload}
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  startIcon={<IconifyIcon icon="mdi:download-outline" width={16} />}
-                >
-                  Export CSV
+                  {isDownloading ? "Downloading..." : "Download PDF"}
                 </ActionButton>
               </Box>
             </Fade>
@@ -462,7 +544,7 @@ const ExampleBroadsheetPage = () => {
           {/* Broadsheet Table */}
           {showBroadsheet && (
             <Fade in timeout={400}>
-              <div> {/* Add this wrapper div */}
+              <div>
                 <BroadsheetTable
                   students={students}
                   subjects={subjects}
@@ -497,7 +579,11 @@ const ExampleBroadsheetPage = () => {
                   justifyContent: "center",
                 }}
               >
-                <IconifyIcon icon="mdi:table-search" width={32} color={theme.palette.primary.main} />
+                <IconifyIcon
+                  icon="mdi:table-search"
+                  width={32}
+                  color={theme.palette.primary.main}
+                />
               </Box>
               <Typography variant="body1" sx={{ color: "text.secondary" }}>
                 {!selectedClass

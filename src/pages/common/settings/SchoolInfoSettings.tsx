@@ -9,7 +9,7 @@ import {
     ISO3166Countries,
 } from "../../../utils/iso3166Countries";
 
-const GeneralSettings = () => {
+const SchoolInfoSettings = () => {
     const { enums, isLoading: isEnumLoading } = useEnums({
         fetchPermissionData: false,
     });
@@ -74,22 +74,6 @@ const GeneralSettings = () => {
 
     const mapSchoolDataToFormValues = useCallback(
         (schoolData: any) => {
-            // Phone
-            const phoneData = schoolData.contactPersonPhone
-                ? {
-                    id: schoolData.contactPersonPhone.id,
-                    phoneType:
-                        schoolData.contactPersonPhone.phoneType?.toString() ||
-                        "",
-                    country: mapCountryCode(
-                        schoolData.contactPersonPhone.country || "NG"
-                    ),
-                    number: schoolData.contactPersonPhone.number || "",
-                    extension:
-                        schoolData.contactPersonPhone.extension || "",
-                }
-                : null;
-
             // Address — matches the new entity (addressLine2, city, lga)
             const addressData = schoolData.schoolAddress
                 ? {
@@ -110,9 +94,8 @@ const GeneralSettings = () => {
             return {
                 id: schoolData.id,
                 schoolName: schoolData.schoolName || "",
-                shortCode: schoolData.shortCode || "",           // ← renamed
+                shortCode: schoolData.shortCode || "",
                 schoolEmail: schoolData.schoolEmail || "",
-                principalName: schoolData.principalName || "",
                 establishedYear:
                     schoolData.yearofEstablishment?.toString() || "",
                 schoolSession: schoolData.currentSession?.toString() || "",
@@ -123,12 +106,14 @@ const GeneralSettings = () => {
                 currentTermEndDate: formatDateForInput(
                     schoolData.currentTermEndDate
                 ),
+                nextTermBegins: formatDateForInput(
+                    schoolData.nextTermBegins
+                ),
                 schoolCategory: schoolData.schoolCategory?.toString() || "",
                 schoolType: schoolData.schoolType?.toString() || "",
                 schoolStatus: schoolData.schoolStatus?.toString() || "",
                 motto: schoolData.schoolMotto || "",
                 address: addressData,
-                phoneNumber: phoneData,
             };
         },
         [mapCountryCode, formatDateForInput]
@@ -211,12 +196,6 @@ const GeneralSettings = () => {
                     readOnly: true,
                 },
                 {
-                    name: "principalName",
-                    label: "Principal / Head Teacher",
-                    type: "text",
-                    colSpan: 1,
-                },
-                {
                     name: "establishedYear",
                     label: "Established Year",
                     type: "text",
@@ -230,7 +209,7 @@ const GeneralSettings = () => {
                     required: true,
                     colSpan: 1,
                     options: getEnumOptions(enums.SchoolSessions),
-                    readOnly: false,
+                    readOnly: true,
                 },
                 {
                     name: "schoolTerm",
@@ -256,6 +235,15 @@ const GeneralSettings = () => {
                     required: true,
                     colSpan: 1,
                     readOnly: false,
+                },
+                {
+                    name: "nextTermBegins",
+                    label: "Next Term Begins",
+                    type: "date",
+                    required: false,
+                    colSpan: 1,
+                    readOnly: false,
+                    infoText: "The date the next term will resume. Shown on printed terminal reports.",
                 },
                 {
                     name: "schoolCategory",
@@ -304,14 +292,6 @@ const GeneralSettings = () => {
                     colSpan: 3,
                     readOnly: true,
                 },
-                {
-                    name: "phoneNumber",
-                    label: "School Contact Number",
-                    type: "phone",
-                    colSpan: 3,
-                    extraProps: { enums },
-                    readOnly: true,
-                },
             ];
 
             setFormFields(fields);
@@ -351,6 +331,19 @@ const GeneralSettings = () => {
             }
         }
 
+        if (data.currentTermEndDate && data.nextTermBegins) {
+            const endDate = new Date(data.currentTermEndDate);
+            const nextStartDate = new Date(data.nextTermBegins);
+            if (nextStartDate <= endDate) {
+                setAlertMessage({
+                    feMessage:
+                        "Next term start date must be after the current term end date.",
+                    httpStatus: 400,
+                });
+                return;
+            }
+        }
+
         // Short code format validation (only when editable)
         if (!hasEnrolledStudents && data.shortCode) {
             const codeRegex = /^[A-Z]{2,5}$/;
@@ -375,8 +368,7 @@ const GeneralSettings = () => {
                 // Only include shortCode when it's editable
                 ...(hasEnrolledStudents
                     ? {}
-                    : { shortCode: data.shortCode || null }),   // ← fixed typo
-                principalName: data.principalName || null,
+                    : { shortCode: data.shortCode || null }),
                 yearofEstablishment: data.establishedYear
                     ? parseInt(data.establishedYear)
                     : null,
@@ -388,6 +380,7 @@ const GeneralSettings = () => {
                     : null,
                 currentTermStartDate: data.currentTermStartDate || null,
                 currentTermEndDate: data.currentTermEndDate || null,
+                nextTermBegins: data.nextTermBegins || null,
                 schoolCategory: data.schoolCategory
                     ? parseInt(data.schoolCategory)
                     : null,
@@ -396,7 +389,6 @@ const GeneralSettings = () => {
                     : null,
                 schoolMotto: data.motto || null,
                 contactPersonEmail: data.schoolEmail,
-                contactPersonPhoneId: data.phoneNumber?.id || null,
                 logoAssetId: null,
                 schoolAddress: data.address
                     ? {
@@ -495,7 +487,7 @@ const GeneralSettings = () => {
     return (
         <Box>
             <Typography variant="body1" sx={{ mt: 3, mb: 2 }}>
-                Manage general configuration of the system.
+                Manage general configuration of your school.
             </Typography>
 
             <MessageDisplay
@@ -505,7 +497,7 @@ const GeneralSettings = () => {
             />
 
             <DynamicForm
-                title="School Information"
+                title=""
                 fields={formFields}
                 onSubmit={handleSubmit}
                 submitButtonText={updating ? "Saving..." : "Save Changes"}
@@ -517,4 +509,4 @@ const GeneralSettings = () => {
     );
 };
 
-export default GeneralSettings;
+export default SchoolInfoSettings;

@@ -17,8 +17,8 @@ import {
   clearAuthData as clearApiAuthData,
   getCurrentUser,
   getInitialAuthData,
+  extractRoleFromToken,
   parseJwt,
-  type AccountModel,
   type LocationModel,
   type LoginResult,
 } from "../utils/apiClient";
@@ -26,7 +26,7 @@ import {
 import { STORAGE_KEYS } from "../constants/apiConstants";
 import type { CurrentUser } from "../types/apiTypes/apiTypes";
 import { logoutUser } from "../api/userService";
-import { useNavigate } from "react-router-dom";
+import { stopChatConnection } from "../api/signalRService";
 
 interface ContextAccount {
   id: string;
@@ -50,20 +50,18 @@ interface AuthContextType {
   apiClient: ReturnType<typeof createApiClient>;
   accessToken: string | null;
   userId: string | null;
+  chatUserId: string | null;
   updateRole: (newRole: UserRoles) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // const navigate = useNavigate();
   const initialApiAuthData = getInitialAuthData();
   const initialUser = getCurrentUser();
   const initialRole = localStorage.getItem("selectedRole") as UserRoles | null;
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    !!initialUser
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!initialUser);
   const [role, setRole] = useState<UserRoles | null>(
     initialRole || initialUser?.roles?.[0] || null
   );
@@ -82,15 +80,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setUserId] = useState<string | null>(
     initialUser?.userId || null
   );
+  const [chatUserId, setChatUserId] = useState<string | null>(
+    initialUser?.chatUserId || null
+  );
 
   const authClient = useMemo(() => createAuthClient(), []);
-  // apiClient needs to react to changes in selectedAccount and accessToken for headers
   const apiClient = useMemo(
     () => createApiClient({ selectedAccount, accessToken }),
     [selectedAccount, accessToken]
   );
 
-  // Effect to handle initial population of selectedBranches from localStorage
+  // Restore branches from localStorage
   useEffect(() => {
     if (selectedAccount) {
       const storedBranches = localStorage.getItem(
@@ -120,14 +120,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [selectedAccount, accounts, selectedBranches]);
 
-  // Update the fetchAccounts function in the useEffect
   const fetchAccounts = async () => {
+    if (role === UserRoles.SUPER_ADMIN) return;
+
     if (userId && accessToken && role && accounts.length === 0) {
-      // Added role check
       try {
         const response = await apiClient.getAccounts({
           userId,
-          role: role.toString(), // Pass the current role
+          role: role.toString(),
           page: 1,
           pageLength: 100,
         });
@@ -139,7 +139,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         setAccounts(fetchedAccounts);
 
-        // Also restore selectedBranches if none exist in memory
         const selected = fetchedAccounts.find(
           (acc) => acc.id === selectedAccount
         );
@@ -152,12 +151,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Update the dependencies array to include role
   useEffect(() => {
     fetchAccounts();
-  }, [userId, accessToken, selectedAccount, accounts.length, role]); // Added role
+  }, [userId, accessToken, selectedAccount, accounts.length, role]);
 
-  // Add this inside the AuthProvider component
+  // Cross-tab role sync
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.SELECTED_ROLE) {
@@ -166,17 +164,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ) as UserRoles | null;
         if (newRole !== role) {
           setRole(newRole);
-          // Update persisted auth data
           const authData = localStorage.getItem(STORAGE_KEYS.AUTH_DATA);
           if (authData) {
             try {
               const parsedAuthData = JSON.parse(decryptData(authData));
               localStorage.setItem(
                 STORAGE_KEYS.AUTH_DATA,
-                encryptData({
-                  ...parsedAuthData,
-                  role: newRole,
-                })
+                encryptData({ ...parsedAuthData, role: newRole })
               );
             } catch (error) {
               console.error("Error updating auth data:", error);
@@ -186,10 +180,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Listen for storage changes from other tabs
     window.addEventListener("storage", handleStorageChange);
 
-    // Also check for changes in the current tab
     const checkRole = () => {
       const currentRole = localStorage.getItem(
         STORAGE_KEYS.SELECTED_ROLE
@@ -199,44 +191,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Check periodically (every second) for role changes
     const interval = setInterval(checkRole, 1000);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, [role]); // Dependency on role to prevent unnecessary updates
+  }, [role]);
 
-  // This effect ensures core authentication details are consistent with the current token
+  // Keep auth state in sync with the token
   useEffect(() => {
     if (accessToken) {
-      const currentUserDetails = getCurrentUser(); // Re-parse the token if accessToken changes
+      const currentUserDetails = getCurrentUser();
 
       if (currentUserDetails) {
-        // Update states only if they've changed to avoid unnecessary re-renders
         if (userEmail !== currentUserDetails.email)
           setUserEmail(currentUserDetails.email);
         if (role !== (currentUserDetails.roles?.[0] || null))
           setRole(currentUserDetails.roles?.[0] || null);
         if (userId !== currentUserDetails.userId)
-          setUserId(currentUserDetails.userId); // Ensure userId is always up-to-date
-        if (isAuthenticated !== true) setIsAuthenticated(true); // Ensure isAuthenticated is true if token is valid
+          setUserId(currentUserDetails.userId);
+        if (chatUserId !== currentUserDetails.chatUserId)
+          setChatUserId(currentUserDetails.chatUserId);
+        if (isAuthenticated !== true) setIsAuthenticated(true);
       } else {
-        // If token is invalid or expired, clear auth data
         if (isAuthenticated) setIsAuthenticated(false);
         clearApiAuthData();
       }
 
-      // Persist auth data, potentially including selectedAccount/Branches if logic needs it
       const authDataToPersist = {
-        isAuthenticated: isAuthenticated, // Use the current state value
-        role: role,
-        selectedAccount: selectedAccount,
-        selectedBranches: selectedBranches,
-        userEmail: userEmail,
-        accessToken: accessToken,
-        userId: userId,
+        isAuthenticated,
+        role,
+        selectedAccount,
+        selectedBranches,
+        userEmail,
+        accessToken,
+        userId,
         timestamp: Date.now(),
       };
       localStorage.setItem(
@@ -250,7 +240,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         true
       );
     } else {
-      // If no accessToken, ensure all states are cleared
+      // Token gone — tear down the SignalR socket too.
+      stopChatConnection().catch(() => { });
+
       if (
         isAuthenticated ||
         selectedAccount ||
@@ -266,16 +258,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSelectedBranches([]);
         setUserEmail(null);
         setUserId(null);
+        setChatUserId(null);
         setAccounts([]);
         clearApiAuthData();
       }
     }
-  }, [accessToken]); // ONLY depend on accessToken here. Other states will derive from it.
-  // Removed other states as dependencies to prevent infinite loops and ensure
-  // this effect is primarily driven by token presence/change.
+  }, [accessToken]);
 
-  // src/context/index.tsx (updated login function)
-  // src/context/index.tsx (updated login function)
   const login = async (
     email: string,
     password: string
@@ -283,23 +272,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await authClient.login(email, password);
       if (response && response.success !== false && response.accessToken) {
-        // Parse the token first
         const decodedToken = parseJwt(response.accessToken);
 
-        // Prepare all the new state values
         const newUserId = decodedToken?.sub || null;
         const newUserEmail = decodedToken?.email || null;
 
-        const newRole = localStorage.getItem(
+        const roleFromStorage = localStorage.getItem(
           STORAGE_KEYS.SELECTED_ROLE
         ) as UserRoles | null;
+        const roleFromToken = extractRoleFromToken(decodedToken);
+        const newRole = roleFromStorage ?? roleFromToken;
 
-        // Update state
         setRole(newRole);
 
         const newSelectedAccount = decodedToken?.accountId || null;
 
-        // Update all states synchronously
         setAccessToken(response.accessToken);
         setUserId(newUserId);
         setUserEmail(newUserEmail);
@@ -307,12 +294,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSelectedAccount(newSelectedAccount);
         setIsAuthenticated(true);
 
-        // Update localStorage synchronously
         const authDataToPersist = {
           isAuthenticated: true,
           role: newRole,
           selectedAccount: newSelectedAccount,
-          selectedBranches: [], // Will be updated later if needed
+          selectedBranches: [],
           userEmail: newUserEmail,
           accessToken: response.accessToken,
           userId: newUserId,
@@ -328,10 +314,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           true
         );
 
-        return response; // Return the original response without overriding message
+        return response;
       }
 
-      // If login failed but returned a response (like 401), return it as-is
       return response;
     } catch (error) {
       console.error("Login failed:", error);
@@ -348,12 +333,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshCurrentUser = async () => {
     if (!accessToken) return;
-
     try {
       const user = await apiClient.getCurrentUser();
       setCurrentUser(user);
-
-      // Optional: cache it
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, encryptData(user));
     } catch (error) {
       console.error("Failed to fetch current user", error);
@@ -366,7 +348,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // 1️⃣ Try localStorage first
     const cachedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     if (cachedUser) {
       try {
@@ -376,15 +357,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // 2️⃣ Always refresh from API (authoritative)
     refreshCurrentUser();
   }, [accessToken]);
 
-  // Inside the AuthProvider component
   const updateRole = (newRole: UserRoles) => {
     localStorage.setItem(STORAGE_KEYS.SELECTED_ROLE, newRole);
     setRole(newRole);
-    // Trigger a custom event to notify other hooks in the same tab
     window.dispatchEvent(new Event("localStorageRoleUpdated"));
   };
 
@@ -395,7 +373,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const accountToSelect = accounts.find((acc) => acc.id === accountId);
 
     setSelectedAccount(accountId);
-    // Only set branches if they are derived from the account data, otherwise use provided
     setSelectedBranches(accountToSelect ? accountToSelect.branches : branches);
 
     localStorage.setItem(STORAGE_KEYS.SELECTED_ACCOUNT, accountId);
@@ -407,10 +384,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(async () => {
     try {
-      await logoutUser(apiClient); // <-- Pass apiClient here
+      await logoutUser(apiClient);
     } catch (err) {
       console.error("Logout failed", err);
     } finally {
+      // ── Close the SignalR socket first ──
+      try {
+        await stopChatConnection();
+      } catch (err) {
+        console.error("Failed to stop SignalR connection", err);
+      }
+
       // Clear local auth state
       setIsAuthenticated(false);
       setRole(null);
@@ -418,6 +402,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSelectedBranches([]);
       setUserEmail(null);
       setUserId(null);
+      setChatUserId(null);
       setAccounts([]);
       setAccessToken(null);
       setCurrentUser(null);
@@ -430,7 +415,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCHES);
       localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
 
-      // navigate("/authentication/login");
+      // Chat-specific UI state, so next login starts fresh.
+      localStorage.removeItem("chat.activeRoomId");
+      localStorage.removeItem("chat.drafts");
     }
   }, [apiClient]);
 
@@ -452,6 +439,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         apiClient,
         accessToken,
         userId,
+        chatUserId,
         updateRole,
       }}
     >
