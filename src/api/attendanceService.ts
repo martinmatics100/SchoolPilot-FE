@@ -15,7 +15,7 @@ export const createAttendanceSession = async (
 
     const api = createApiClient({ selectedAccount });
 
-    const response = await api.post(`${BASE_URL}/session`, payload);
+    const response = await api.postWithStatus(`${BASE_URL}/session`, payload);
 
     return response;
 };
@@ -174,18 +174,17 @@ export const bulkMarkAttendance = async (
         sessionId: string;
         attendances: Array<{
             studentId: string;
-            status: number; 
+            status: number;
         }>;
         autoCompleteSession?: boolean;
     }
-) => {
+): Promise<{ status: number; ok: boolean; data: any | null }> => {
     if (!selectedAccount) {
         throw new Error("No account selected");
     }
 
     const api = createApiClient({ selectedAccount });
-    const response = await api.post(`${BASE_URL}/bulk-mark-attendance`, payload);
-    return response;
+    return api.postWithStatus(`${BASE_URL}/bulk-mark-attendance`, payload);
 };
 
 

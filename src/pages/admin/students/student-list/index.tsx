@@ -10,13 +10,13 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import { useTheme, alpha, Box, Typography, Chip, Avatar, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { getInitialAuthData } from "../../../../utils/apiClient";
+import { getInitialAuthData, getCurrentUser } from "../../../../utils/apiClient";
+import { UserRoles } from "../../../../enums/user-roles";
 import { useEnums } from "../../../../hooks/useEnums";
 import CircularProgress from "@mui/material/CircularProgress";
-import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PeopleIcon from "@mui/icons-material/People";
 import { fetchStudents } from "../../../../api/studentService";
-import { fetchClasses } from "../../../../api/classServices";
+import { fetchMyFormTeacherClasses } from "../../../../api/classServices";
 import { type Student } from "../../../../types/interfaces/i-student";
 import { type StatusConfig } from "../../../../types/interfaces/i-user";
 import EditStudentDrawer from "../edit-student-drawer";
@@ -86,12 +86,20 @@ const StudentList = () => {
   // ── Filter state ──
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
   const [classFilter, setClassFilter] = useState<string>("");
+  const [classesLoaded, setClassesLoaded] = useState(false);
+  const [initialFilterApplied, setInitialFilterApplied] = useState(false);
 
   const theme = useTheme();
   const { selectedAccount } = getInitialAuthData();
   const { enums, isLoading: isEnumsLoading } = useEnums({
     fetchPermissionData: false,
   });
+
+  // ── Role detection (admin vs teacher) ──
+  const currentUser = getCurrentUser();
+  const isAdmin = !!currentUser?.roles?.some(
+    (r) => r === UserRoles.ADMIN || r === UserRoles.SUPER_ADMIN
+  );
 
   const studentStatusMap = useMemo(() => {
     return (
@@ -131,52 +139,91 @@ const StudentList = () => {
     );
   };
 
-  // ── Load classes once ──
+  // ── Load classes (admin → all, teacher → form-teacher classes) ──
   useEffect(() => {
     const loadClasses = async () => {
-      if (selectedAccount) {
-        try {
-          const fetchedClasses = await fetchClasses(selectedAccount);
+      if (!selectedAccount) {
+        setClassesLoaded(true);
+        return;
+      }
+      try {
+        const { ok, data } = await fetchMyFormTeacherClasses(selectedAccount);
+
+        if (ok && Array.isArray(data?.classes)) {
           setClasses(
-            fetchedClasses.map((c: any) => ({
-              id: c.id,
+            data.classes.map((c: any) => ({
+              id: c.classId,
               name: c.className,
             }))
           );
-        } catch (err) {
-          console.error("Failed to load classes:", err);
+        } else {
+          console.error("Failed to load classes:", data?.message);
+          setClasses([]);
         }
+      } catch (err) {
+        console.error("Failed to load classes:", err);
+        setClasses([]);
+      } finally {
+        setClassesLoaded(true);
       }
     };
     loadClasses();
   }, [selectedAccount]);
 
+  // ── Auto-select first class once classes are loaded ──
+  useEffect(() => {
+    if (!classesLoaded) return;
+    if (initialFilterApplied) return;
+
+    if (classes.length > 0) {
+      setClassFilter(classes[0].id);
+    }
+    setInitialFilterApplied(true);
+  }, [classesLoaded, classes, initialFilterApplied]);
+
   // ── Fetch students (with filter) ──
   useEffect(() => {
-    if (selectedAccount) {
-      setLoading(true);
-      fetchStudents(
-        selectedAccount,
-        page,
-        rowsPerPage,
-        classFilter || undefined
-      )
-        .then(({ items, itemCount }) => {
-          setRawStudents(items || []);
-          setTotalCount(itemCount || 0);
-        })
-        .catch((error) => {
-          console.error("Error fetching students:", error);
-          setData([]);
-          setTotalCount(0);
-        })
-        .finally(() => setLoading(false));
-    } else {
+    if (!selectedAccount) {
       console.error("No account selected");
       setData([]);
       setTotalCount(0);
+      return;
     }
-  }, [page, rowsPerPage, sortBy, order, selectedAccount, classFilter]);
+
+    // Wait until classes have resolved AND (either auto-select finished
+    // or there are no classes to select).
+    if (!classesLoaded) return;
+    if (!initialFilterApplied && classes.length > 0) return;
+
+    setLoading(true);
+    fetchStudents(
+      selectedAccount,
+      page,
+      rowsPerPage,
+      classFilter || undefined
+    )
+      .then(({ items, itemCount }) => {
+        setRawStudents(items || []);
+        setTotalCount(itemCount || 0);
+      })
+      .catch((error) => {
+        console.error("Error fetching students:", error);
+        setData([]);
+        setTotalCount(0);
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    page,
+    rowsPerPage,
+    sortBy,
+    order,
+    selectedAccount,
+    classFilter,
+    classesLoaded,
+    initialFilterApplied,
+    classes.length,
+  ]);
 
   useEffect(() => {
     if (rawStudents.length > 0 && !isEnumsLoading) {
@@ -390,24 +437,31 @@ const StudentList = () => {
   };
 
   // ── Filter config ──
-  const tableFilters = useMemo(
-    () => [
+  // - Admin: "All Classes" + every class (default = first class)
+  // - Teacher: only their classes, no "All" option
+  const tableFilters = useMemo(() => {
+    const classOptions = classes.map((c) => ({ value: c.id, label: c.name }));
+
+    const options = isAdmin
+      ? [{ value: "", label: "All Classes" }, ...classOptions]
+      : classOptions;
+
+    return [
       {
         name: "classId",
         label: "Class",
         type: "select" as const,
-        defaultValue: "",
+        defaultValue: classes.length > 0 ? classes[0].id : "",
         minWidth: 200,
-        options: classes.map((c) => ({ value: c.id, label: c.name })),
+        options,
       },
-    ],
-    [classes]
-  );
+    ];
+  }, [classes, isAdmin]);
 
   const handleFilterChange = (values: Record<string, string | number | "">) => {
     const newClassId = (values.classId as string) || "";
     setClassFilter(newClassId);
-    setPage(1); // reset to first page when filter changes
+    setPage(1);
   };
 
   const handleEdit = (id: string) => {
@@ -514,8 +568,6 @@ const StudentList = () => {
         totalCount={totalCount}
         loading={loading || isEnumsLoading}
         actionButtons={tableActionButtons}
-
-        // ── Filter props ──
         showFilters={true}
         filters={tableFilters}
         onFilterChange={handleFilterChange}

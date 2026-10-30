@@ -15,7 +15,7 @@ import BroadsheetTable from "../../../components/broad-sheetTable";
 import { useEnums } from "../../../hooks/useEnums";
 import { useAuth } from "../../../context";
 import {
-  fetchClasses,
+  fetchMyFormTeacherClasses,
   fetchClassBroadsheet,
   downloadClassBroadsheet,
 } from "../../../api/classServices";
@@ -41,18 +41,61 @@ const ExampleBroadsheetPage = () => {
   const [loadingSheet, setLoadingSheet] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Class loading
+  const [classesLoaded, setClassesLoaded] = useState(false);
+  const [initialClassApplied, setInitialClassApplied] = useState(false);
+
+  /* ── 1. Load classes (admin → all, teacher → form-teacher classes) ── */
   useEffect(() => {
-    if (!selectedAccount) return;
-    fetchClasses(selectedAccount).then((res) => {
-      setClasses(
-        (res || []).map((c: any) => ({
-          value: c.id,
-          label: c.className,
-        }))
-      );
-    });
+    if (!selectedAccount) {
+      setClassesLoaded(true);
+      return;
+    }
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const { ok, data } = await fetchMyFormTeacherClasses(selectedAccount);
+        if (cancelled) return;
+
+        if (ok && Array.isArray(data?.classes)) {
+          setClasses(
+            data.classes.map((c: any) => ({
+              value: c.classId,
+              label: c.className,
+            }))
+          );
+        } else {
+          console.error("Failed to load classes:", data?.message);
+          setClasses([]);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load classes:", err);
+          setClasses([]);
+        }
+      } finally {
+        if (!cancelled) setClassesLoaded(true);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedAccount]);
 
+  /* ── 1b. Auto-select first class once loaded ── */
+  useEffect(() => {
+    if (!classesLoaded) return;
+    if (initialClassApplied) return;
+
+    if (classes.length > 0) {
+      setSelectedClass(classes[0].value);
+    }
+    setInitialClassApplied(true);
+  }, [classesLoaded, classes, initialClassApplied]);
+
+  /* ── 2. Load session/term options from enums ── */
   useEffect(() => {
     if (isLoading || !enums) return;
     setSessions(
@@ -108,7 +151,6 @@ const ExampleBroadsheetPage = () => {
         schoolTerm: Number(selectedTerm),
       });
 
-      // Build a friendly filename
       const className =
         classes.find((c) => c.value === selectedClass)?.label || "Class";
       const sessionLabel =
@@ -120,7 +162,6 @@ const ExampleBroadsheetPage = () => {
         .replace(/[^\w\-]+/g, "_")
         .replace(/_+/g, "_");
 
-      // Trigger browser download
       const url = window.URL.createObjectURL(
         new Blob([blob], { type: "application/pdf" })
       );
@@ -131,7 +172,6 @@ const ExampleBroadsheetPage = () => {
       link.click();
       document.body.removeChild(link);
 
-      // Cleanup
       setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error("Failed to download broadsheet", err);

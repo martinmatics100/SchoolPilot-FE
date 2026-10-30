@@ -135,7 +135,7 @@ export const fetchBranches = async (selectedAccount: string | null, apiClient: a
 };
 
 export const createStaff = async (apiClient: any, payload: any) => {
-    const response = await apiClient.post(`${BASE_URL}/create-invite`, payload);
+    const response = await apiClient.postWithStatus(`${BASE_URL}/create-invite`, payload);
     return response;
 };
 

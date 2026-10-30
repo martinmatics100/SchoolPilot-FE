@@ -99,7 +99,7 @@ const ScoreSheetInput = lazy(
   () => import("../pages/staffs/result-scores/index"),
 );
 const GradingSystems = lazy(
-  () => import("../pages/admin/grading-systems/index"),
+  () => import("../pages/admin/remark/index"),
 );
 const CommentBank = lazy(() => import("../pages/admin/comments-bank/index"));
 const ReportPreference = lazy(
@@ -140,10 +140,6 @@ const MySignaturePage = lazy(
 
 const AttendanceSessionList = lazy(
   () => import("../pages/admin/Attendance/Sessions/session-list/index"),
-);
-
-const AttendanceSessionForm = lazy(
-  () => import("../pages/admin/Attendance/Sessions/create-session/index"),
 );
 
 const TakeAttendancePage = lazy(
@@ -362,7 +358,7 @@ const routes: RouteObject[] = [
             ),
           },
           {
-            path: "grading-system",
+            path: "remarks",
             element: (
               <ErrorBoundary>
                 <GradingSystems />
@@ -472,14 +468,6 @@ const routes: RouteObject[] = [
                 element: (
                   <ErrorBoundary>
                     <AttendanceSessionList />
-                  </ErrorBoundary>
-                ),
-              },
-              {
-                path: "create-session",
-                element: (
-                  <ErrorBoundary>
-                    <AttendanceSessionForm />
                   </ErrorBoundary>
                 ),
               },

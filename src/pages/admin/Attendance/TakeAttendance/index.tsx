@@ -11,7 +11,6 @@ import {
     Alert,
     CircularProgress,
     Button,
-    Snackbar,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -25,11 +24,15 @@ import {
 import AttendanceTable, {
     type AttendanceRecord,
     type AttendanceSessionData,
-    type Student
+    type Student,
 } from "../../../../components/AttendanceTable/index";
 import { getInitialAuthData } from "../../../../utils/apiClient";
-import { fetchAttendanceSessionDetails, bulkMarkAttendance } from "../../../../api/attendanceService";
+import {
+    fetchAttendanceSessionDetails,
+    bulkMarkAttendance,
+} from "../../../../api/attendanceService";
 import { useEnums } from "../../../../hooks/useEnums";
+import MessageDisplay from "../../../../components/message-display";
 
 // Map status string to enum value
 const getAttendanceStatusValue = (status: string, enums: any): number | null => {
@@ -46,8 +49,12 @@ const TakeAttendance = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [sessionData, setSessionData] = useState<AttendanceSessionData | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [alertMessage, setAlertMessage] = useState<{
+        feMessage?: string;
+        beMessage?: string;
+        httpStatus?: number;
+    }>({});
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
         records: AttendanceRecord[] | null;
@@ -61,7 +68,6 @@ const TakeAttendance = () => {
         fetchPermissionData: false,
     });
 
-    // Create maps for enum values
     const termMap = React.useMemo(() => {
         return enums?.SchoolTerms?.reduce(
             (acc: Record<number, string>, item: { value: number; displayName: string; name: string }) => {
@@ -112,7 +118,6 @@ const TakeAttendance = () => {
         ) || {};
     }, [enums]);
 
-    // Fetch session details
     useEffect(() => {
         const fetchSessionData = async () => {
             if (!selectedAccount || !sessionId) return;
@@ -121,7 +126,6 @@ const TakeAttendance = () => {
             try {
                 const response = await fetchAttendanceSessionDetails(selectedAccount, sessionId);
 
-                // Map the response to the component's expected format
                 const students: Student[] = response.students.map((s: any) => ({
                     id: s.studentId,
                     firstName: s.firstName,
@@ -131,12 +135,11 @@ const TakeAttendance = () => {
                     photoUrl: s.photoUrl,
                 }));
 
-                // Map existing records - status is already a number from BE
                 const existingRecords: AttendanceRecord[] = response.students
                     .filter((s: any) => s.attendanceRecord)
                     .map((s: any) => ({
                         studentId: s.studentId,
-                        status: s.attendanceRecord.status, // Keep as number
+                        status: s.attendanceRecord.status,
                         checkInTime: s.attendanceRecord.checkInTime,
                         checkOutTime: s.attendanceRecord.checkOutTime,
                         remarks: s.attendanceRecord.remarks,
@@ -148,13 +151,11 @@ const TakeAttendance = () => {
                     date: response.session.attendanceDate,
                     term: termMap[response.session.term] || `Term ${response.session.term}`,
                     session: sessionMap[response.session.session] || `Session ${response.session.session}`,
-                    // type: attendanceTypeMap[response.session.type] || "Unknown",
-                    // status: statusMap[response.session.status] || "Unknown",
                     students,
                     existingRecords,
                 });
             } catch (err: any) {
-                setError(err.message || "Failed to load session data");
+                setLoadError(err.message || "Failed to load session data");
             } finally {
                 setLoading(false);
             }
@@ -164,11 +165,7 @@ const TakeAttendance = () => {
     }, [sessionId, selectedAccount, termMap, sessionMap, attendanceTypeMap, statusMap, genderMap]);
 
     const handleSave = (records: AttendanceRecord[]) => {
-        // Show confirmation dialog
-        setConfirmDialog({
-            open: true,
-            records,
-        });
+        setConfirmDialog({ open: true, records });
     };
 
     const confirmSave = async () => {
@@ -178,35 +175,55 @@ const TakeAttendance = () => {
         setConfirmDialog({ open: false, records: null });
 
         try {
-            // Convert records to the format expected by the BE
             const attendances = confirmDialog.records
-                .filter(r => r.status !== null) // Only include marked students
+                .filter((r) => r.status !== null)
                 .map((r) => ({
                     studentId: r.studentId,
-                    status: r.status as number, // Already a number from the component
+                    status: r.status as number,
                 }));
 
-            // Prepare payload for bulk mark
             const payload = {
                 sessionId: sessionData.id,
-                attendances: attendances,
-                autoCompleteSession: false, // Set to true if you want to auto-complete
+                attendances,
+                autoCompleteSession: false,
             };
 
-            const response = await bulkMarkAttendance(selectedAccount, payload);
+            const { status, ok, data } = await bulkMarkAttendance(selectedAccount, payload);
 
-            if (response.successCount > 0) {
-                setSuccessMessage(`Successfully marked ${response.successCount} students. ${response.errors?.length || 0} errors.`);
+            const beMessage: string | undefined =
+                typeof data?.message === "string" && data.message.trim()
+                    ? data.message.trim()
+                    : undefined;
 
-                // Navigate back after a delay
+            const successCount: number =
+                typeof data?.successCount === "number" ? data.successCount : 0;
+
+            if (ok) {
+                setAlertMessage({
+                    feMessage:
+                        successCount > 0
+                            ? `Successfully marked ${successCount} student${successCount === 1 ? "" : "s"}.`
+                            : "Attendance saved.",
+                    beMessage,
+                    httpStatus: status,
+                });
+
                 setTimeout(() => {
                     navigate("/app/attendance");
                 }, 2000);
             } else {
-                setError(response.message || "Failed to save attendance");
+                setAlertMessage({
+                    feMessage: "Failed to save attendance.",
+                    beMessage,
+                    httpStatus: status,
+                });
             }
         } catch (err: any) {
-            setError(err.message || "Failed to save attendance");
+            setAlertMessage({
+                feMessage: "Failed to save attendance.",
+                beMessage: err?.message,
+                httpStatus: 500,
+            });
         } finally {
             setSaving(false);
         }
@@ -218,11 +235,6 @@ const TakeAttendance = () => {
         }
     };
 
-    const handleCloseSnackbar = () => {
-        setSuccessMessage(null);
-        setError(null);
-    };
-
     if (loading || isEnumsLoading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -231,11 +243,11 @@ const TakeAttendance = () => {
         );
     }
 
-    if (error && !loading) {
+    if (loadError && !loading) {
         return (
             <Container maxWidth="lg" sx={{ py: 4 }}>
                 <Alert severity="error" sx={{ borderRadius: 2 }}>
-                    {error}
+                    {loadError}
                 </Alert>
                 <Button
                     variant="outlined"
@@ -269,6 +281,12 @@ const TakeAttendance = () => {
 
     return (
         <Box sx={{ bgcolor: "background.default", minHeight: "100vh", py: { xs: 2, sm: 3, md: 4 } }}>
+            <MessageDisplay
+                feMessage={alertMessage.feMessage}
+                beMessage={alertMessage.beMessage}
+                httpStatus={alertMessage.httpStatus}
+            />
+
             <Container maxWidth="xl">
                 <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
                     <Link
@@ -313,27 +331,29 @@ const TakeAttendance = () => {
                 />
             </Container>
 
-            {/* Confirmation Dialog */}
             <Dialog
                 open={confirmDialog.open}
                 onClose={() => setConfirmDialog({ open: false, records: null })}
-
             >
-                <DialogTitle sx={{ bgcolor: theme => theme.palette.background.default }}>Confirm Attendance</DialogTitle>
-                <DialogContent sx={{ bgcolor: theme => theme.palette.background.default }}>
+                <DialogTitle sx={{ bgcolor: (theme) => theme.palette.background.default }}>
+                    Confirm Attendance
+                </DialogTitle>
+                <DialogContent sx={{ bgcolor: (theme) => theme.palette.background.default }}>
                     <DialogContentText>
                         Are you sure you want to save attendance for this session?
                         {confirmDialog.records && (
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="body2">
-                                    Students to mark: {confirmDialog.records.filter(r => r.status !== null).length} / {confirmDialog.records.length}
+                                    Students to mark:{" "}
+                                    {confirmDialog.records.filter((r) => r.status !== null).length} /{" "}
+                                    {confirmDialog.records.length}
                                 </Typography>
                             </Box>
                         )}
                         This action will update the attendance records and summary.
                     </DialogContentText>
                 </DialogContent>
-                <DialogActions sx={{ bgcolor: theme => theme.palette.background.default }}>
+                <DialogActions sx={{ bgcolor: (theme) => theme.palette.background.default }}>
                     <Button onClick={() => setConfirmDialog({ open: false, records: null })}>
                         Cancel
                     </Button>
@@ -342,23 +362,6 @@ const TakeAttendance = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Success/Error Snackbar */}
-            <Snackbar
-                open={!!successMessage || !!error}
-                autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            >
-                <Alert
-                    onClose={handleCloseSnackbar}
-                    severity={successMessage ? "success" : "error"}
-                    variant="filled"
-                    sx={{ borderRadius: 2 }}
-                >
-                    {successMessage || error}
-                </Alert>
-            </Snackbar>
         </Box>
     );
 };

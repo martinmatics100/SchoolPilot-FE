@@ -16,7 +16,6 @@ import { type FilterConfig } from '../../../../components/filters';
 import { fetchUsers, deleteUsers } from '../../../../api/userService';
 import { type UserModel, type StatusConfig } from '../../../../types/interfaces/i-user';
 import PageError from '../../../../components/states/pageError';
-import PeopleIcon from '@mui/icons-material/People';
 import { useNavigate } from 'react-router-dom';
 import EditUserDrawer from "../edit-user-drawer";
 
@@ -200,31 +199,6 @@ const Index = () => {
         loadUsers();
     };
 
-    const handleDeleteSelected = async () => {
-        if (selectedRows.length === 0) return;
-        setIsDeleting(true);
-        try {
-            await deleteUsers(selectedRows);
-            setData((prev) =>
-                prev.filter((user) => !selectedRows.includes(user.id))
-            );
-            setSelectedRows([]);
-            setSnackbar({
-                open: true,
-                message: `Deleted ${selectedRows.length} user${selectedRows.length > 1 ? 's' : ''}`,
-                severity: 'success',
-            });
-        } catch {
-            setSnackbar({
-                open: true,
-                message: 'Failed to delete users',
-                severity: 'error',
-            });
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
     const getStatusConfig = (status: string) => {
         const normalizedStatus = status.toLowerCase();
         return statusConfig[normalizedStatus as keyof StatusConfig] || statusConfig.default;
@@ -240,17 +214,6 @@ const Index = () => {
     };
 
     const tableActionButtons: TableActionButton[] = [
-        {
-            label: selectedRows.length > 0 ? `Delete Selected [${selectedRows.length}]` : 'Delete Selected',
-            icon: <DeleteIcon />,
-            onClick: handleDeleteSelected,
-            color: 'error',
-            variant: 'outlined',
-            disabled: selectedRows.length === 0 || isDeleting,
-            loading: isDeleting,
-            tooltip: selectedRows.length > 0 ? `Delete ${selectedRows.length} selected user${selectedRows.length > 1 ? 's' : ''}` : 'Select users to delete',
-            show: true,
-        },
         {
             label: 'New User',
             icon: <AddIcon />,
@@ -395,20 +358,6 @@ const Index = () => {
                         }}
                     >
                         <EditIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete User" arrow>
-                    <IconButton
-                        onClick={() => console.log('Delete', row.id)}
-                        size="small"
-                        sx={{
-                            color: theme.palette.error.main,
-                            '&:hover': {
-                                bgcolor: alpha(theme.palette.error.main, 0.1),
-                            },
-                        }}
-                    >
-                        <DeleteIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
             </Box>

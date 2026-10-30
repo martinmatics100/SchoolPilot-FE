@@ -150,3 +150,13 @@ export const downloadClassBroadsheet = async (
   );
   return blob;
 };
+
+
+// classServices.ts (or wherever fetchClasses lives)
+export const fetchMyFormTeacherClasses = async (
+  selectedAccount: string | null,
+): Promise<{ status: number; ok: boolean; data: any | null }> => {
+  if (!selectedAccount) throw new Error("No account selected");
+  const api = createApiClient({ selectedAccount });
+  return api.getWithStatus("/v1/class/my-form-teacher-classes");
+};

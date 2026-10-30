@@ -14,7 +14,6 @@ const CreateStaff = () => {
     const { enums, isLoading } = useEnums({ fetchPermissionData: false });
     const { apiClient, selectedAccount } = useAuth();
 
-    // ── Asset upload hook (same as CreateStudent) ──
     const {
         upload,
         isUploading: isPhotoUploading,
@@ -39,7 +38,6 @@ const CreateStaff = () => {
         lastName: string;
     } | null>(null);
 
-    // ── Photo upload state (same as CreateStudent) ──
     const [uploadedPhotoAssetId, setUploadedPhotoAssetId] = useState<string | null>(null);
     const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +63,6 @@ const CreateStaff = () => {
         loadBranches();
     }, [apiClient, selectedAccount]);
 
-    // ── Handle photo file selection (auto-uploads, same as CreateStudent) ──
     const handlePhotoSelect = async (file: File) => {
         setSelectedPhotoFile(file);
         setUploadedPhotoAssetId(null);
@@ -93,7 +90,6 @@ const CreateStaff = () => {
             setIsSubmitting(true);
             setAlertMessage({ feMessage: "Submitting staff data..." });
 
-            // If the user picked a photo but it hasn't finished uploading, wait
             if (selectedPhotoFile && !uploadedPhotoAssetId) {
                 setAlertMessage({
                     feMessage: "Please wait for photo upload to complete...",
@@ -132,7 +128,7 @@ const CreateStaff = () => {
                 };
             }
 
-            let userLocations = [];
+            let userLocations: any[] = [];
             if (data.userLocations && Array.isArray(data.userLocations)) {
                 userLocations = data.userLocations.map((location: any) => ({
                     Id: location.id,
@@ -160,34 +156,43 @@ const CreateStaff = () => {
                     Address: addressData,
                     Phone: phoneData,
                     Notes: data.notes || "",
-                    // ── Use the uploaded Cloudinary asset ID ──
                     ProfilePictureId: uploadedPhotoAssetId || null,
                     UserLocations: userLocations,
                 },
             };
 
-            const response = await createStaff(apiClient, payload);
+            // 👇 New contract: { status, ok, data }
+            const { status, ok, data: body } = await createStaff(apiClient, payload);
 
-            if (response.userId) {
+            const beMessage: string | undefined =
+                typeof body?.message === "string" && body.message.trim()
+                    ? body.message.trim()
+                    : undefined;
+
+            if (ok) {
                 setAlertMessage({
                     feMessage: `User ${data.lastName}, ${data.firstName} has been created successfully!`,
-                    httpStatus: 200,
+                    beMessage,
+                    httpStatus: status,
                 });
 
-                // Reset photo state after success
                 setTimeout(() => {
                     setSelectedPhotoFile(null);
                     setUploadedPhotoAssetId(null);
                 }, 2000);
             } else {
-                throw new Error("Unexpected response from server");
+                setAlertMessage({
+                    feMessage: "Failed to create staff. Please try again.",
+                    beMessage,
+                    httpStatus: status,
+                });
             }
         } catch (error: any) {
             console.error("Error submitting form:", error);
             setAlertMessage({
                 feMessage: "Failed to create staff. Please try again.",
-                beMessage: error.message || "Unknown error occurred",
-                httpStatus: error.status || 500,
+                beMessage: error?.message,
+                httpStatus: 500,
             });
         } finally {
             setIsSubmitting(false);
@@ -311,12 +316,10 @@ const CreateStaff = () => {
                     multiple: false,
                     required: false,
                     colSpan: 2,
-                    // ── Auto-upload on select (same as CreateStudent) ──
                     onChange: (fileData: any) => {
                         if (fileData && fileData.file) {
                             handlePhotoSelect(fileData.file);
                         } else {
-                            // File removed
                             setSelectedPhotoFile(null);
                             setUploadedPhotoAssetId(null);
                         }
@@ -347,7 +350,6 @@ const CreateStaff = () => {
         return <div>Loading form...</div>;
     }
 
-    // ── Submit disabled while uploading or submitting ──
     const isSubmitDisabled =
         isPhotoUploading ||
         isSubmitting ||
@@ -377,7 +379,6 @@ const CreateStaff = () => {
                 Go to User List
             </NavigationButton>
 
-            {/* Upload progress indicator */}
             {isPhotoUploading && (
                 <Box
                     sx={{
@@ -395,7 +396,6 @@ const CreateStaff = () => {
                 </Box>
             )}
 
-            {/* Upload success indicator */}
             {uploadedPhotoAssetId && !isPhotoUploading && (
                 <Box
                     sx={{

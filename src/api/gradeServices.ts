@@ -17,11 +17,11 @@ export const fetchGradingSystemByClass = async (
 
   const api = createApiClient({ selectedAccount });
   const response = await api.get(
-    `${BASE_URL}/grades-systems?classId=${classId}`
+    `${BASE_URL}/remark-systems?classId=${classId}`
   );
 
   /**
-   * Expected BE response:
+   * Expected BE response: 
    * {
    *   grades: [...]
    * }
@@ -34,13 +34,10 @@ export const saveGradingSystem = async (
   selectedAccount: string | null,
   payload: {
     classId: string;
-    grades: {
+    remarks: {
       id?: string;
       lowerBound: number;
       upperBound: number;
-      gradeName: string;
-      gradeRemark?: string;
-      gradePoint: number;
       descriptor?: string;
     }[];
   }
@@ -50,6 +47,6 @@ export const saveGradingSystem = async (
   }
 
   const api = createApiClient({ selectedAccount });
-  const response = await api.post(`${BASE_URL}/save-grading-system`, payload);
+  const response = await api.post(`${BASE_URL}/save-remark-system`, payload);
   return response;
 };

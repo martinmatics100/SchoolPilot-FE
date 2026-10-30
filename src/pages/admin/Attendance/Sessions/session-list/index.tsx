@@ -1,20 +1,20 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ReusableTable, type Column, type TableActionButton } from "../../../../../components/table";
 import IconButton from "@mui/material/IconButton";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIcon from "@mui/icons-material/Assignment";
-import AddIcon from "@mui/icons-material/Add";
-import { useTheme, alpha, Box, Typography, Chip, Avatar, Tooltip, Paper } from "@mui/material";
-import { NavigationButton } from "../../../../../components/navigation-button";
-import { getInitialAuthData } from "../../../../../utils/apiClient";
+import { useTheme, alpha, Box, Typography, Chip, Tooltip } from "@mui/material";
+import {
+    getInitialAuthData,
+    getCurrentUser,
+} from "../../../../../utils/apiClient";
+import { UserRoles } from "../../../../../enums/user-roles";
 import { useEnums } from "../../../../../hooks/useEnums";
 import CircularProgress from "@mui/material/CircularProgress";
-import { fetchAttendanceSessions, deleteAttendanceSession } from "../../../../../api/attendanceService";
+import { fetchAttendanceSessions } from "../../../../../api/attendanceService";
+import { fetchMyFormTeacherClasses } from "../../../../../api/classServices";
 import { useNavigate } from "react-router-dom";
 import MessageDisplay from "../../../../../components/message-display";
 
-// Types for attendance session - matches backend response
 interface AttendanceSession {
     id: string;
     classId: string;
@@ -38,7 +38,6 @@ const AttendanceSessionList = () => {
     const [sortBy, setSortBy] = useState<string>("attendanceDate");
     const [order, setOrder] = useState<"asc" | "desc">("desc");
     const [loading, setLoading] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [selectedRows, setSelectedRows] = useState<string[]>([]);
     const [alertMessage, setAlertMessage] = useState<{
         feMessage?: string;
@@ -46,13 +45,24 @@ const AttendanceSessionList = () => {
         httpStatus?: number;
     }>({});
 
+    // ── Filter state ──
+    const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
+    const [classFilter, setClassFilter] = useState<string>("");
+    const [classesLoaded, setClassesLoaded] = useState(false);
+    const [initialFilterApplied, setInitialFilterApplied] = useState(false);
+
     const theme = useTheme();
     const { selectedAccount } = getInitialAuthData();
     const { enums, isLoading: isEnumsLoading } = useEnums({
         fetchPermissionData: false,
     });
 
-    // Create maps for enum values
+    // ── Role detection (admin vs teacher) ──
+    const currentUser = getCurrentUser();
+    const isAdmin = !!currentUser?.roles?.some(
+        (r) => r === UserRoles.ADMIN || r === UserRoles.SUPER_ADMIN
+    );
+
     const termMap = useMemo(() => {
         return (
             enums?.SchoolTerms?.reduce(
@@ -128,22 +138,83 @@ const AttendanceSessionList = () => {
         );
     }, [enums]);
 
-    // Helper function to get enum display name
-    const getEnumDisplayName = (map: Record<number, string>, value: number, defaultValue: string = "Unknown") => {
+    const getEnumDisplayName = (
+        map: Record<number, string>,
+        value: number,
+        defaultValue: string = "Unknown"
+    ) => {
         return map[value] || defaultValue;
     };
 
-    // Fetch attendance sessions
+    /* ─────────────────────────────────────────────────────────
+       LOAD CLASSES
+       ───────────────────────────────────────────────────────── */
     useEffect(() => {
-        if (selectedAccount) {
-            setLoading(true);
-            fetchAttendanceSessions(selectedAccount, {
-                page,
-                pageLength: rowsPerPage,
-            })
-                .then(({ items, itemCount }) => {
-                    // Map the response to our display format - keep enum values as numbers
-                    const mappedData = items.map((item: any) => ({
+        const loadClasses = async () => {
+            if (!selectedAccount) {
+                setClassesLoaded(true);
+                return;
+            }
+            try {
+                const { ok, data: responseData } =
+                    await fetchMyFormTeacherClasses(selectedAccount);
+
+                if (ok && Array.isArray(responseData?.classes)) {
+                    setClasses(
+                        responseData.classes.map((c: any) => ({
+                            id: c.classId,
+                            name: c.className,
+                        }))
+                    );
+                } else {
+                    console.error(
+                        "Failed to load classes:",
+                        responseData?.message
+                    );
+                    setClasses([]);
+                }
+            } catch (err) {
+                console.error("Failed to load classes:", err);
+                setClasses([]);
+            } finally {
+                setClassesLoaded(true);
+            }
+        };
+        loadClasses();
+    }, [selectedAccount]);
+
+    // ── Auto-select first class once classes are loaded ──
+    useEffect(() => {
+        if (!classesLoaded) return;
+        if (initialFilterApplied) return;
+
+        if (classes.length > 0) {
+            setClassFilter(classes[0].id);
+        }
+        setInitialFilterApplied(true);
+    }, [classesLoaded, classes, initialFilterApplied]);
+
+    /* ─────────────────────────────────────────────────────────
+       LOAD SESSIONS
+       ───────────────────────────────────────────────────────── */
+    const loadSessions = () => {
+        if (!selectedAccount) {
+            setData([]);
+            return;
+        }
+
+        if (!classesLoaded) return;
+        if (!initialFilterApplied && classes.length > 0) return;
+
+        setLoading(true);
+        fetchAttendanceSessions(selectedAccount, {
+            page,
+            pageLength: rowsPerPage,
+            classId: classFilter || undefined,
+        })
+            .then(({ items }) => {
+                const mappedData: AttendanceSession[] = items.map(
+                    (item: any) => ({
                         id: item.id,
                         classId: item.classId,
                         className: item.className || "Not available",
@@ -156,111 +227,88 @@ const AttendanceSessionList = () => {
                         presentCount: item.presentCount || 0,
                         absentCount: item.absentCount || 0,
                         attendanceRate: item.attendanceRate || 0,
-                    }));
-                    setData(mappedData);
-                    // setTotalCount(itemCount || 0);
-                })
-                .catch((error) => {
-                    console.error("Error fetching attendance sessions:", error);
-                    setAlertMessage({
-                        feMessage: "Failed to load attendance sessions.",
-                        beMessage: error.message,
-                        httpStatus: error.status || 500,
-                    });
-                    setData([]);
-                    // setTotalCount(0);
-                })
-                .finally(() => setLoading(false));
-        } else {
-            console.error("No account selected");
-            setData([]);
-            // setTotalCount(0);
-        }
-    }, [page, rowsPerPage, sortBy, order, selectedAccount]);
+                    })
+                );
+                setData(mappedData);
+            })
+            .catch((error) => {
+                console.error("Error fetching attendance sessions:", error);
+                setAlertMessage({
+                    feMessage: "Failed to load attendance sessions.",
+                    beMessage: error?.message,
+                    httpStatus: 500,
+                });
+                setData([]);
+            })
+            .finally(() => setLoading(false));
+    };
 
-    // Format date for display
+    useEffect(() => {
+        loadSessions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        page,
+        rowsPerPage,
+        sortBy,
+        order,
+        selectedAccount,
+        classFilter,
+        classesLoaded,
+        initialFilterApplied,
+        classes.length,
+    ]);
+
     const formatDate = (dateString: string) => {
         if (!dateString) return "Not available";
         try {
             const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+            return date.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
             });
         } catch {
             return dateString;
         }
     };
 
-    // Handle delete
-    const handleDelete = async (id: string) => {
-        if (!selectedAccount) return;
-
-        if (window.confirm("Are you sure you want to delete this attendance session?")) {
-            setIsDeleting(true);
-            try {
-                await deleteAttendanceSession(selectedAccount, id);
-                setAlertMessage({
-                    feMessage: "Attendance session deleted successfully!",
-                    httpStatus: 200,
-                });
-                // Refresh the list
-                refreshSessions();
-            } catch (error: any) {
-                setAlertMessage({
-                    feMessage: "Failed to delete attendance session.",
-                    beMessage: error.message,
-                    httpStatus: error.status || 500,
-                });
-            } finally {
-                setIsDeleting(false);
-            }
-        }
-    };
-
-    // Handle take attendance
     const handleTakeAttendance = (sessionId: string) => {
-        // Navigate to take attendance page
         navigate(`${sessionId}`);
     };
 
-    // Refresh sessions
-    const refreshSessions = () => {
-        if (selectedAccount) {
-            setLoading(true);
-            fetchAttendanceSessions(selectedAccount, {
-                page,
-                pageLength: rowsPerPage,
-            })
-                .then(({ items, itemCount }) => {
-                    const mappedData = items.map((item: any) => ({
-                        id: item.id,
-                        classId: item.classId,
-                        className: item.className || "Not available",
-                        classLevel: item.classLevel,
-                        attendanceDate: item.attendanceDate,
-                        schoolTerm: item.schoolTerm,
-                        schoolSessions: item.schoolSessions,
-                        type: item.type,
-                        status: item.status,
-                        presentCount: item.presentCount || 0,
-                        absentCount: item.absentCount || 0,
-                        attendanceRate: item.attendanceRate || 0,
-                    }));
-                    setData(mappedData);
-                    // setTotalCount(itemCount || 0);
-                })
-                .catch((error) => {
-                    console.error("Error fetching attendance sessions:", error);
-                    setData([]);
-                    // setTotalCount(0);
-                })
-                .finally(() => setLoading(false));
-        }
+    /* ─────────────────────────────────────────────────────────
+       FILTER CONFIG
+       ───────────────────────────────────────────────────────── */
+    const tableFilters = useMemo(() => {
+        const classOptions = classes.map((c) => ({
+            value: c.id,
+            label: c.name,
+        }));
+
+        const options = isAdmin
+            ? [{ value: "", label: "All Classes" }, ...classOptions]
+            : classOptions;
+
+        return [
+            {
+                name: "classId",
+                label: "Class",
+                type: "select" as const,
+                defaultValue: classes.length > 0 ? classes[0].id : "",
+                minWidth: 220,
+                options,
+            },
+        ];
+    }, [classes, isAdmin]);
+
+    const handleFilterChange = (
+        values: Record<string, string | number | "">
+    ) => {
+        const newClassId = (values.classId as string) || "";
+        setClassFilter(newClassId);
+        setPage(1);
     };
 
-    // Define columns
     const columns: Column[] = [
         {
             id: "attendanceDate",
@@ -358,10 +406,14 @@ const AttendanceSessionList = () => {
                 const statusName = getEnumDisplayName(statusMap, value);
                 const getStatusColor = () => {
                     switch (value) {
-                        case 0: return theme.palette.success.main; // Active
-                        case 1: return theme.palette.info.main; // Completed
-                        case 2: return theme.palette.error.main; // Cancelled
-                        default: return theme.palette.grey[500];
+                        case 0:
+                            return theme.palette.success.main;
+                        case 1:
+                            return theme.palette.info.main;
+                        case 2:
+                            return theme.palette.error.main;
+                        default:
+                            return theme.palette.grey[500];
                     }
                 };
                 return (
@@ -456,13 +508,12 @@ const AttendanceSessionList = () => {
         },
     ];
 
-    // Action column
     const actionColumn = {
         label: "Actions",
-        minWidth: 120,
+        minWidth: 80,
         align: "center" as const,
         render: (row: AttendanceSession) => (
-            <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
                 <Tooltip title="Take Attendance" arrow>
                     <IconButton
                         aria-label="take-attendance"
@@ -478,53 +529,11 @@ const AttendanceSessionList = () => {
                         <AssignmentIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
-                <Tooltip title="Edit Session" arrow>
-                    <IconButton
-                        aria-label="edit"
-                        onClick={() => navigate(`edit-attendance-session/${row.id}`)}
-                        size="small"
-                        sx={{
-                            color: theme.palette.info.main,
-                            "&:hover": {
-                                bgcolor: alpha(theme.palette.info.main, 0.1),
-                            },
-                        }}
-                    >
-                        <EditIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete Session" arrow>
-                    <IconButton
-                        aria-label="delete"
-                        onClick={() => handleDelete(row.id)}
-                        size="small"
-                        disabled={isDeleting}
-                        sx={{
-                            color: theme.palette.error.main,
-                            "&:hover": {
-                                bgcolor: alpha(theme.palette.error.main, 0.1),
-                            },
-                        }}
-                    >
-                        <DeleteIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
             </Box>
         ),
     };
 
-    // Table action buttons
-    const tableActionButtons: TableActionButton[] = [
-        {
-            label: "New Attendance Session",
-            icon: <AddIcon />,
-            onClick: () => navigate("create-session"),
-            color: "primary",
-            variant: "contained",
-            tooltip: "Create new attendance session",
-            show: true,
-        },
-    ];
+    const tableActionButtons: TableActionButton[] = [];
 
     const handleSortChange = (sortByField: string, sortOrder: "asc" | "desc") => {
         setSortBy(sortByField);
@@ -565,18 +574,12 @@ const AttendanceSessionList = () => {
                 minHeight: "85%",
             }}
         >
-            {/* Message Display */}
-            {alertMessage.feMessage && (
-                <Box sx={{ mb: 2 }}>
-                    <MessageDisplay
-                        feMessage={alertMessage.feMessage}
-                        beMessage={alertMessage.beMessage}
-                        httpStatus={alertMessage.httpStatus}
-                    />
-                </Box>
-            )}
+            <MessageDisplay
+                feMessage={alertMessage.feMessage}
+                beMessage={alertMessage.beMessage}
+                httpStatus={alertMessage.httpStatus}
+            />
 
-            {/* Table */}
             <ReusableTable
                 title="Attendance Sessions"
                 columns={columns}
@@ -588,14 +591,18 @@ const AttendanceSessionList = () => {
                 sortBy={sortBy}
                 order={order}
                 onSortChange={handleSortChange}
-                onSelectedRowsChange={(selected) => setSelectedRows(selected.map((row: any) => row.id))}
+                onSelectedRowsChange={(selected) =>
+                    setSelectedRows(selected.map((row: any) => row.id))
+                }
                 page={page - 1}
                 onPageChange={handlePageChange}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleRowsPerPageChange}
-                // totalCount={totalCount}
                 loading={loading || isEnumsLoading}
                 actionButtons={tableActionButtons}
+                showFilters={true}
+                filters={tableFilters}
+                onFilterChange={handleFilterChange}
             />
         </Box>
     );

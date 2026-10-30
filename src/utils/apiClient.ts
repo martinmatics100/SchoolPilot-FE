@@ -242,6 +242,21 @@ export const createApiClient = ({
     return handleResponse<T>(response, isBlob);
   };
 
+  const requestWithStatus = async <T = any>(
+    url: string,
+    options: RequestInit = {},
+    isBlob = false,
+  ): Promise<{ status: number; ok: boolean; data: T | null }> => {
+    const headers = { ...baseHeaders, ...options.headers };
+    const response = await safeFetch(`${API_BASE_URL}${url}`, { ...options, headers });
+    const raw = await handleResponse<T | null>(response, isBlob);
+    const isEmpty =
+      raw === null ||
+      raw === undefined ||
+      (typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw as object).length === 0);
+    return { status: response.status, ok: response.ok, data: isEmpty ? null : raw };
+  };
+
   // Add file upload with progress tracking using XMLHttpRequest
   const uploadFile = <T = any>(
     url: string,
@@ -322,6 +337,12 @@ export const createApiClient = ({
     // New upload method for file uploads with progress
     upload: <T = any>(url: string, formData: FormData, onProgress?: (progress: number) => void) =>
       uploadFile<T>(url, formData, onProgress),
+
+    postWithStatus: <T = any>(url: string, body: any) =>
+      requestWithStatus<T>(url, { method: "POST", body: body ? JSON.stringify(body) : null }),
+
+    getWithStatus: <T = any>(url: string) =>
+      requestWithStatus<T>(url, { method: "GET" }),
 
     getAccounts: async ({ userId, role, page = DEFAULT_PAGE, pageLength = DEFAULT_PAGE_LENGTH }: GetAccountsParams) => {
       const queryParams = new URLSearchParams({

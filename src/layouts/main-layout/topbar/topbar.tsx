@@ -1,5 +1,4 @@
 import {
-  Badge,
   Stack,
   AppBar,
   Toolbar,
@@ -48,7 +47,6 @@ const Topbar = ({
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -68,12 +66,6 @@ const Topbar = ({
   const selectedAccountData = accounts.find(
     (account) => account.id === selectedAccount
   );
-
-  const notifications = [
-    { id: 1, message: "New comment on your post" },
-    { id: 2, message: "Your order has been shipped" },
-    { id: 3, message: "You have a new follower" },
-  ];
 
   /* ─────────────────────────────────────────────────────────
      ROLE GATE — same pattern as Sidebar
@@ -149,7 +141,6 @@ const Topbar = ({
   // Primary items (always visible on mobile)
   const primaryItems = () => (
     <Stack direction="row" gap={1.5} alignItems="center">
-      {/* <ThemeToggle /> */}
       <UserDropdown />
     </Stack>
   );
@@ -185,18 +176,6 @@ const Topbar = ({
         )}
 
         <Divider />
-
-        <ListItem
-          component="div"
-          sx={{ cursor: "pointer" }}
-          onClick={() => {
-            setShowMoreMenu(false);
-            setNotificationsOpen(true);
-          }}
-        >
-          <ListItemText primary="Notifications" />
-          <Badge color="error" variant="dot" />
-        </ListItem>
 
         <ListItem
           component="div"
@@ -345,20 +324,9 @@ const Topbar = ({
                   </Stack>
                 )}
 
-                <Badge
-                  color="error"
-                  badgeContent=" "
-                  variant="dot"
-                  sx={{ "& .MuiBadge-badge": { top: 11, right: 11 } }}
-                >
-                  <IconButton onClick={() => setNotificationsOpen(true)}>
-                    <IconifyIcon icon="ph:bell-bold" width={29} height={32} />
-                  </IconButton>
-                  <IconButton onClick={() => setChatOpen(true)}>
-                    <IconifyIcon icon="mdi:message-text" width={29} height={32} />
-                  </IconButton>
-                </Badge>
-                {/* <ThemeToggle /> */}
+                <IconButton onClick={() => setChatOpen(true)}>
+                  <IconifyIcon icon="mdi:message-text" width={29} height={32} />
+                </IconButton>
                 <UserDropdown />
               </>
             ) : (
@@ -383,40 +351,10 @@ const Topbar = ({
           </Stack>
         </Toolbar>
 
-        {/* Secondary Mini Topbar - Mobile only */}
         {isMobileScreen && showMoreMenu && <SecondaryMenu />}
       </AppBar>
 
-      {/* Drawer for Notifications */}
-      <Drawer
-        anchor="right"
-        open={notificationsOpen}
-        onClose={() => setNotificationsOpen(false)}
-        PaperProps={{
-          sx: {
-            width: "300px",
-            "@media (min-width: 1024px)": {
-              width: "30%",
-            },
-          },
-        }}
-      >
-        <IconButton
-          onClick={() => setNotificationsOpen(false)}
-          sx={{ alignSelf: "flex-start", margin: 1 }}
-        >
-          <IconifyIcon icon="ic:round-close" width={24} height={24} />
-        </IconButton>
-        <List>
-          {notifications.map((notification) => (
-            <ListItem key={notification.id}>
-              <ListItemText primary={notification.message} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
-
-      {/* Chat drawer — replaces the old Messages drawer */}
+      {/* Chat drawer */}
       <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );

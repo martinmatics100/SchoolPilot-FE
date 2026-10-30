@@ -3,12 +3,6 @@ import { type INavbarItem } from "../types/interfaces/i-navbar-items";
 
 const navItems: INavbarItem[] = [
 
-    /// /////////////////////////////
-    /// ADMIN
-    /// /////////////////////////////
-
-    //Dashboard
-
     {
         id: 1,
         path: '/app/welcome',
@@ -28,9 +22,11 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    // User Management
+
+
+
     {
-        id: 3,
+        id: 21,
         path: '/app/users',
         title: 'Users',
         icon: 'mdi:account-group',
@@ -39,22 +35,19 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
     {
-        id: 4,
+        id: 22,
         path: '/app/students',
         title: 'Students',
         icon: 'mdi:school',
         active: true,
         group: 'MANAGMENT',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 
-    /// /////////////////////////////
-    /// ATTENDANCE 👈 NEW SECTION
-    /// /////////////////////////////
+
 
     {
-        id: 20,
-        // path: '/app/attendance/dashboard',
+        id: 41,
         path: '/app/dashboard',
         title: 'Attendance Dashboard',
         icon: 'mdi:view-dashboard-outline',
@@ -63,7 +56,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
     {
-        id: 21,
+        id: 42,
         path: '/app/attendance',
         title: 'Attendance Sessions',
         icon: 'mdi:clipboard-check',
@@ -72,7 +65,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
     {
-        id: 29,
+        id: 43,
         path: '/app/weekly-attendance',
         title: 'Weekly Attendance',
         icon: 'mdi:google-classroom',
@@ -81,10 +74,11 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 
-    // Access Control
+
+
 
     {
-        id: 5,
+        id: 61,
         path: '/app/permission',
         title: 'Permissions',
         icon: 'mdi:shield-account',
@@ -93,7 +87,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
     {
-        id: 6,
+        id: 62,
         path: '/app/audit',
         title: 'Audit Trails',
         icon: 'mdi:clipboard-list',
@@ -102,10 +96,11 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    // Academics
+
+
 
     {
-        id: 7,
+        id: 81,
         path: '/app/academics/terms',
         title: 'Terms-Assessments',
         icon: 'mdi:calendar',
@@ -113,9 +108,8 @@ const navItems: INavbarItem[] = [
         group: 'Academics',
         roles: [UserRoles.ADMIN],
     },
-
     {
-        id: 9,
+        id: 82,
         path: '/app/academics/classes',
         title: 'Classes',
         icon: 'mdi:google-classroom',
@@ -123,9 +117,8 @@ const navItems: INavbarItem[] = [
         group: 'Academics',
         roles: [UserRoles.ADMIN],
     },
-
     {
-        id: 10,
+        id: 83,
         path: '/app/academics/subjects',
         title: 'Subjects',
         icon: 'mdi:book-open-blank-variant',
@@ -134,9 +127,12 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
-    // Results
+
+
+
+
     {
-        id: 11,
+        id: 101,
         path: '/app/score-sheet',
         title: 'Scores Sheet',
         icon: 'mdi:cog',
@@ -144,32 +140,30 @@ const navItems: INavbarItem[] = [
         group: 'Results',
         roles: [UserRoles.TEACHER],
     },
-
     {
-        id: 13,
+        id: 102,
         path: '/app/exam-sheet',
         title: 'Result BroadSheet',
         icon: 'mdi:cog',
         active: true,
         group: 'Results',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
-
     {
-        id: 72,
+        id: 103,
         path: '/app/results-hub',
         title: 'Result Hub',
         icon: 'mdi:cog',
         active: true,
         group: 'Results',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
 
 
-    // Settings
+
 
     {
-        id: 48,
+        id: 121,
         path: '/app/my-profile',
         title: 'My Profile',
         icon: 'mdi:cog',
@@ -178,7 +172,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER, UserRoles.PARENT],
     },
     {
-        id: 49,
+        id: 122,
         path: '/app/my-signature',
         title: 'My Signature',
         icon: 'mdi:cog',
@@ -187,7 +181,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
     {
-        id: 101,
+        id: 123,
         path: '/app/my-feedback',
         title: 'Feedback & Support',
         icon: 'mdi:school',
@@ -196,7 +190,7 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
     {
-        id: 18,
+        id: 124,
         path: '/app/settings',
         title: 'General',
         icon: 'mdi:cog',
@@ -205,26 +199,25 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
     {
-        id: 17,
+        id: 125,
         path: '/app/affective-skills',
         title: 'Affective Skills',
         icon: 'mdi:cog',
         active: true,
         group: 'Settings',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
     {
-        id: 14,
-        path: '/app/grading-system',
-        title: 'Grading Systems',
+        id: 126,
+        path: '/app/remarks',
+        title: 'Remarks',
         icon: 'mdi:cog',
         active: true,
         group: 'Settings',
-        roles: [UserRoles.ADMIN],
+        roles: [UserRoles.ADMIN, UserRoles.TEACHER],
     },
-
     {
-        id: 15,
+        id: 127,
         path: '/app/comment-bank',
         title: 'Comments Bank',
         icon: 'mdi:cog',
@@ -233,8 +226,11 @@ const navItems: INavbarItem[] = [
         roles: [UserRoles.ADMIN],
     },
 
+
+
+
     {
-        id: 34,
+        id: 141,
         path: '/app/my-children',
         title: 'My Children',
         icon: 'mdi:cog',

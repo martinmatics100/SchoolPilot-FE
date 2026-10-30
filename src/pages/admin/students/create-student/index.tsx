@@ -8,9 +8,9 @@ import { fetchBranches } from "../../../../api/userService";
 import { createStudent } from "../../../../api/studentService";
 import { type StudentPayload } from "../../../../types/interfaces/i-student";
 import { type Branch } from "../../../../types/interfaces/i-user";
-import { fetchClasses } from "../../../../api/classServices";
+import { fetchMyFormTeacherClasses } from "../../../../api/classServices";
 import { useAssetUpload } from "../../../../hooks/useAsset";
-import { Button, Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 
 const CreateStudent: React.FC = () => {
   const { enums, isLoading } = useEnums({ fetchPermissionData: false });
@@ -42,33 +42,51 @@ const CreateStudent: React.FC = () => {
   const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load classes and branches
+  // ── Load classes via the new role-aware endpoint ──
   useEffect(() => {
     const loadClasses = async () => {
-      if (selectedAccount) {
-        setIsLoadingClasses(true);
-        try {
-          const fetchedClasses = await fetchClasses(selectedAccount);
+      if (!selectedAccount) {
+        setIsLoadingClasses(false);
+        return;
+      }
+
+      setIsLoadingClasses(true);
+      try {
+        const { status, ok, data } = await fetchMyFormTeacherClasses(selectedAccount);
+
+        if (ok && Array.isArray(data?.classes)) {
           setClasses(
-            fetchedClasses.map((c: any) => ({
-              id: c.id,
+            data.classes.map((c: any) => ({
+              id: c.classId,
               name: c.className,
-              classLevel: c.classLevel,
+              // classLevel isn't returned by this endpoint, so it stays undefined.
+              // The Stream field won't appear unless the caller supplies it —
+              // see the "Stream field" note below for alternatives.
             }))
           );
-        } catch (err) {
+        } else {
+          setClasses([]);
           setAlertMessage({
             feMessage: "Failed to load classes.",
-            httpStatus: 500,
+            beMessage: data?.message,
+            httpStatus: status,
           });
-        } finally {
-          setIsLoadingClasses(false);
         }
+      } catch (err: any) {
+        setClasses([]);
+        setAlertMessage({
+          feMessage: "Failed to load classes.",
+          beMessage: err?.message,
+          httpStatus: 500,
+        });
+      } finally {
+        setIsLoadingClasses(false);
       }
     };
     loadClasses();
   }, [selectedAccount]);
 
+  // ── Load branches ──
   useEffect(() => {
     const loadBranches = async () => {
       if (selectedAccount) {
@@ -79,14 +97,17 @@ const CreateStudent: React.FC = () => {
             apiClient
           );
           setBranches(fetchedBranches);
-        } catch (err) {
+        } catch (err: any) {
           setAlertMessage({
             feMessage: "Failed to load branches.",
+            beMessage: err?.message,
             httpStatus: 500,
           });
         } finally {
           setIsLoadingBranches(false);
         }
+      } else {
+        setIsLoadingBranches(false);
       }
     };
     loadBranches();
@@ -98,7 +119,6 @@ const CreateStudent: React.FC = () => {
     setUploadedPhotoAssetId(null);
     clearUploadError();
 
-    // Auto-upload when file is selected
     if (file) {
       setAlertMessage({ feMessage: "Uploading profile picture..." });
       const result = await upload(file);
@@ -106,7 +126,6 @@ const CreateStudent: React.FC = () => {
       if (result) {
         setUploadedPhotoAssetId(result.fileId);
         setAlertMessage({ feMessage: "Profile picture uploaded successfully!" });
-        // Clear the success message after 3 seconds
         setTimeout(() => {
           setAlertMessage({});
         }, 3000);
@@ -122,20 +141,17 @@ const CreateStudent: React.FC = () => {
       setIsSubmitting(true);
       setAlertMessage({ feMessage: "Creating student..." });
 
-      // Parse numeric fields
       const genderValue = parseInt(data.gender);
       const nationalityValue = parseInt(data.nationality);
       const religiousSubjectValue = parseInt(data.religiousSubject);
       const languageSubjectValue = parseInt(data.languageSubject);
 
-      // Check if photo was selected but not uploaded
       if (selectedPhotoFile && !uploadedPhotoAssetId) {
         setAlertMessage({ feMessage: "Please wait for photo upload to complete..." });
         setIsSubmitting(false);
         return;
       }
 
-      // Prepare payload with photoAssetId if uploaded
       const payload = {
         Student: {
           FirstName: data.firstName,
@@ -162,13 +178,9 @@ const CreateStudent: React.FC = () => {
           httpStatus: 200,
         });
 
-        // Reset form after successful submission
         setTimeout(() => {
-          // Reset photo state
           setSelectedPhotoFile(null);
           setUploadedPhotoAssetId(null);
-          // You might want to redirect or clear the form
-          // window.location.href = "/students"; // Uncomment to redirect
         }, 2000);
       } else {
         throw new Error("Unexpected response from server");
@@ -280,7 +292,6 @@ const CreateStudent: React.FC = () => {
         });
       }
 
-      // Add address and profile picture fields
       fields.push(
         { name: "address", label: "Home Address", type: "address", colSpan: 3 },
         {
@@ -289,12 +300,10 @@ const CreateStudent: React.FC = () => {
           type: "image",
           multiple: false,
           colSpan: 2,
-          // Custom onChange handler for the image field
           onChange: (fileData: any) => {
             if (fileData && fileData.file) {
               handlePhotoSelect(fileData.file);
             } else {
-              // If file is removed
               setSelectedPhotoFile(null);
               setUploadedPhotoAssetId(null);
             }
@@ -322,12 +331,10 @@ const CreateStudent: React.FC = () => {
     uploadedPhotoAssetId,
   ]);
 
-  // Show loading state
   if (isLoading || isLoadingBranches || isLoadingClasses || formFields.length === 0) {
     return <div>Loading form...</div>;
   }
 
-  // Check if submit should be disabled
   const isSubmitDisabled = isPhotoUploading || isSubmitting || (selectedPhotoFile !== null && !uploadedPhotoAssetId);
 
   return (
@@ -348,7 +355,6 @@ const CreateStudent: React.FC = () => {
         Go to Student List
       </NavigationButton>
 
-      {/* Show upload progress indicator if uploading */}
       {isPhotoUploading && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
           <CircularProgress size={24} />
@@ -356,7 +362,6 @@ const CreateStudent: React.FC = () => {
         </Box>
       )}
 
-      {/* Show success indicator if photo uploaded */}
       {uploadedPhotoAssetId && !isPhotoUploading && (
         <Box sx={{ mb: 2, p: 2, bgcolor: 'success.light', color: 'success.contrastText', borderRadius: 1 }}>
           ✓ Profile picture uploaded successfully!

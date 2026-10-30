@@ -204,7 +204,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
                 checkInTime: statusValue === getStatusValue('present') ? new Date().toISOString() : record.checkInTime,
             }))
         );
-        showSnackbar(`All students marked as ${getStatusName(statusValue)}`, "info");
+        // showSnackbar(`All students marked as ${getStatusName(statusValue)}`, "info");
     };
 
     const handleSave = () => {

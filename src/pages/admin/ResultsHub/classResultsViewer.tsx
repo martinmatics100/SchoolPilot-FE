@@ -10,7 +10,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PersonIcon from "@mui/icons-material/Person";
 import { useAuth } from "../../../context";
 import { useEnums } from "../../../hooks/useEnums";
-import { fetchClasses } from "../../../api/classServices";
+import { fetchMyFormTeacherClasses } from "../../../api/classServices";
 import { fetchClassAffectiveSkills } from "../../../api/studentService";
 import { printClassTerminalReports } from "../../../api/resultService";
 import MessageDisplay from "../../../components/message-display";
@@ -45,6 +45,10 @@ const ClassResultsViewer: React.FC = () => {
     const [isLoadingClasses, setIsLoadingClasses] = useState(true);
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+    // Class loading state
+    const [classesLoaded, setClassesLoaded] = useState(false);
+    const [initialClassApplied, setInitialClassApplied] = useState(false);
 
     // Dialog state
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -83,31 +87,68 @@ const ClassResultsViewer: React.FC = () => {
         }
     }, [sessionOptions, termOptions, schoolSession, schoolTerm]);
 
-    // ---------- Load classes ----------
+    // ---------- Load classes (admin → all, teacher → form-teacher classes) ----------
     useEffect(() => {
+        if (!selectedAccount) {
+            setIsLoadingClasses(false);
+            setClassesLoaded(true);
+            return;
+        }
+        let cancelled = false;
+
         const load = async () => {
-            if (!selectedAccount) return;
             setIsLoadingClasses(true);
             try {
-                const fetched = await fetchClasses(selectedAccount);
-                const mapped: ClassOption[] = fetched.map((c: any) => ({
-                    id: c.id,
-                    name: c.className,
-                }));
-                setClasses(mapped);
-                if (mapped.length > 0) setSelectedClassId(mapped[0].id);
+                const { ok, data } = await fetchMyFormTeacherClasses(selectedAccount);
+                if (cancelled) return;
+
+                if (ok && Array.isArray(data?.classes)) {
+                    setClasses(
+                        data.classes.map((c: any) => ({
+                            id: c.classId,
+                            name: c.className,
+                        }))
+                    );
+                } else {
+                    setClasses([]);
+                    setAlertMessage({
+                        feMessage: "Failed to load classes.",
+                        beMessage: data?.message,
+                        httpStatus: 500,
+                    });
+                }
             } catch (err: any) {
-                setAlertMessage({
-                    feMessage: "Failed to load classes.",
-                    beMessage: err?.message,
-                    httpStatus: err?.status || 500,
-                });
+                if (!cancelled) {
+                    setClasses([]);
+                    setAlertMessage({
+                        feMessage: "Failed to load classes.",
+                        beMessage: err?.message,
+                        httpStatus: 500,
+                    });
+                }
             } finally {
-                setIsLoadingClasses(false);
+                if (!cancelled) {
+                    setIsLoadingClasses(false);
+                    setClassesLoaded(true);
+                }
             }
         };
         load();
+        return () => {
+            cancelled = true;
+        };
     }, [selectedAccount]);
+
+    // ---------- Auto-select first class once loaded ----------
+    useEffect(() => {
+        if (!classesLoaded) return;
+        if (initialClassApplied) return;
+
+        if (classes.length > 0) {
+            setSelectedClassId(classes[0].id);
+        }
+        setInitialClassApplied(true);
+    }, [classesLoaded, classes, initialClassApplied]);
 
     // ---------- Load students ----------
     useEffect(() => {
@@ -158,11 +199,6 @@ const ClassResultsViewer: React.FC = () => {
 
     // ---------- Preview helpers ----------
     const openPreview = (blob: Blob, title: string) => {
-        // If a previous preview exists, revoke it
-        if (previewBlob) {
-            // Note: ReportPreviewDialog also revokes internally on close,
-            // so this is just a safety net for repeated previews.
-        }
         setPreviewBlob(blob);
         setPreviewTitle(title);
         setPreviewOpen(true);

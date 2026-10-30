@@ -1,27 +1,64 @@
-import { Menu, Avatar, Button, Tooltip, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import {
+    Menu,
+    Button,
+    Tooltip,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+    Avatar,
+} from '@mui/material';
 import IconifyIcon from '../../../components/base/iconifyIcon';
-import profile from "../../../assets/images/account/Profile.png";
-import profile1 from "../../../assets/images/trending-now/home-decor-range.jpg"
-import { useState, type MouseEvent, useCallback, type ReactElement } from 'react';
-// import { useAuth } from '../../../context';
+import { useState, type MouseEvent, useCallback, type ReactElement, useEffect } from 'react';
 import { useAuth } from '../../../context';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import useUserMenuItems from '../../../data/user-menu-items';
-import CircularImage from '../../../components/circular-image';
+import { getUserProfile } from '../../../api/userService';
 import paths from '../../../routes/paths';
 
-
+interface ProfileLite {
+    firstName?: string;
+    lastName?: string;
+    photoUrl?: string;
+}
 
 const UserDropdown = (): ReactElement => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const menuOpen = Boolean(anchorEl);
-    const { logout } = useAuth();
+    const { logout, selectedAccount, currentUser } = useAuth();
     const navigate = useNavigate();
     const theme = useTheme();
 
     const userMenuItems = useUserMenuItems();
 
+    // ── Profile state (for the avatar) ──
+    const [profile, setProfile] = useState<ProfileLite | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadProfile = async () => {
+            if (!selectedAccount || !currentUser?.id) return;
+            try {
+                const data = await getUserProfile(selectedAccount, currentUser.id);
+                if (!cancelled && data) {
+                    setProfile({
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        photoUrl: data.photoUrl,
+                    });
+                }
+            } catch (err) {
+                // Non-fatal — fall back to initials below
+                console.error('Failed to load profile for user dropdown:', err);
+            }
+        };
+
+        loadProfile();
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedAccount, currentUser?.id]);
 
     const handleUserClick = useCallback((event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
@@ -36,6 +73,14 @@ const UserDropdown = (): ReactElement => {
         // logout();
         navigate(paths.logout);
     }, [logout, navigate]);
+
+    // ── Avatar display values ──
+    const initials =
+        `${profile?.firstName?.[0] ?? ''}${profile?.lastName?.[0] ?? ''}`.toUpperCase() ||
+        'U';
+    const displayName = profile
+        ? `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim()
+        : 'Profile';
 
     return (
         <>
@@ -58,8 +103,21 @@ const UserDropdown = (): ReactElement => {
                     },
                 }}
             >
-                <Tooltip title="Nickelfox" arrow placement="bottom">
-                    <CircularImage src={profile1} sx={{ width: 44, height: 44 }} />
+                <Tooltip title={displayName} arrow placement="bottom">
+                    <Avatar
+                        src={profile?.photoUrl || undefined}
+                        alt={displayName}
+                        sx={{
+                            width: 44,
+                            height: 44,
+                            bgcolor: theme.palette.primary.main,
+                            color: theme.palette.primary.contrastText,
+                            fontWeight: 700,
+                            fontSize: 16,
+                        }}
+                    >
+                        {!profile?.photoUrl && initials}
+                    </Avatar>
                 </Tooltip>
                 <IconifyIcon
                     color="common.white"
@@ -99,9 +157,9 @@ const UserDropdown = (): ReactElement => {
                         onClick={() => {
                             if (userMenuItem.title === 'Logout') {
                                 handleLogout();
-                            } else if (userMenuItem.path) { // Ensure path is defined
+                            } else if (userMenuItem.path) {
                                 handleUserClose();
-                                navigate(userMenuItem.path); // Navigate to the specified path
+                                navigate(userMenuItem.path);
                             }
                         }}>
                         <ListItemIcon
@@ -132,6 +190,6 @@ const UserDropdown = (): ReactElement => {
             </Menu>
         </>
     );
-}
+};
 
 export default UserDropdown;

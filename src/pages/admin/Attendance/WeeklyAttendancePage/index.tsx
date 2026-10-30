@@ -36,7 +36,7 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useAuth } from "../../../../context";
-import { fetchClasses } from "../../../../api/classServices";
+import { fetchMyFormTeacherClasses } from "../../../../api/classServices";
 import { SchoolService } from "../../../../api/schoolService";
 import { fetchClassAffectiveSkills } from "../../../../api/studentService";
 import {
@@ -199,14 +199,7 @@ const DAY_LABELS = ["M", "T", "W", "Th", "F"];
 const DAY_FULL = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 /* ─────────────────────────────────────────────────────────────
-   STATUS NORMALIZATION (enum-aware)
-   ─────────────────────────────────────────────────────────────
-   BE can send status as:
-     - string: "Present" | "Absent"       (with JsonStringEnumConverter)
-     - number: 1 | 2                       (default enum serialization)
-     - null:   no record for that day
-   We normalize everything to "present" | "absent" | null.
-   The enum values are read from local-storage-derived `enums`.
+   STATUS NORMALIZATION
    ───────────────────────────────────────────────────────────── */
 function normalizeStatus(
     raw: unknown,
@@ -214,14 +207,12 @@ function normalizeStatus(
 ): "present" | "absent" | null {
     if (raw === null || raw === undefined) return null;
 
-    // Numeric path: look up enum name by value
     if (typeof raw === "number") {
         const name = nameByValue[String(raw)];
         if (!name) return null;
         return toFeStatus(name);
     }
 
-    // String path: could be "Present" or the numeric string "1"
     if (typeof raw === "string") {
         if (/^\d+$/.test(raw)) {
             const name = nameByValue[raw];
@@ -238,7 +229,7 @@ function toFeStatus(name: string): "present" | "absent" | null {
     const n = name.trim().toLowerCase();
     if (n === "present") return "present";
     if (n === "absent") return "absent";
-    return null; // anything else (Late, Excused) → neutral dot
+    return null;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -264,6 +255,8 @@ const WeeklyAttendancePage: React.FC = () => {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<string>("");
     const [isLoadingClasses, setIsLoadingClasses] = useState(true);
+    const [classesLoaded, setClassesLoaded] = useState(false);
+    const [initialClassApplied, setInitialClassApplied] = useState(false);
 
     // Students
     const [students, setStudents] = useState<Student[]>([]);
@@ -279,11 +272,6 @@ const WeeklyAttendancePage: React.FC = () => {
 
     const [error, setError] = useState<string>("");
 
-    /* ─────────────────────────────────────────────────────────
-       Enum map: { "1": "Present", "2": "Absent" }
-       Built from local-storage-backed `enums.AttendanceStatus`.
-       Same pattern as StudentList.tsx.
-       ───────────────────────────────────────────────────────── */
     const statusNameByValue = useMemo(() => {
         const map: Record<string, string> = {};
         enums?.AttendanceStatus?.forEach((item: any) => {
@@ -328,33 +316,46 @@ const WeeklyAttendancePage: React.FC = () => {
         };
     }, []);
 
-    /* ── 2. Load classes, auto-select first ── */
+    /* ── 2. Load classes via the role-aware endpoint ── */
     useEffect(() => {
-        if (!selectedAccount) return;
+        if (!selectedAccount) {
+            setIsLoadingClasses(false);
+            setClassesLoaded(true);
+            return;
+        }
         let cancelled = false;
 
         const load = async () => {
             try {
                 setIsLoadingClasses(true);
-                const data = await fetchClasses(selectedAccount);
+
+                const { status, ok, data } =
+                    await fetchMyFormTeacherClasses(selectedAccount);
+
                 if (cancelled) return;
 
-                const mapped: ClassOption[] = data.map((c: any) => ({
-                    id: c.id,
-                    name: c.className,
-                }));
-                setClasses(mapped);
-
-                if (mapped.length > 0) {
-                    setSelectedClassId(mapped[0].id);
+                if (ok && Array.isArray(data?.classes)) {
+                    setClasses(
+                        data.classes.map((c: any) => ({
+                            id: c.classId,
+                            name: c.className,
+                        }))
+                    );
+                } else {
+                    setClasses([]);
+                    setError(data?.message || "Failed to load classes.");
                 }
-            } catch (err) {
+            } catch (err: any) {
                 if (!cancelled) {
                     console.error("Failed to load classes:", err);
-                    setError("Failed to load classes.");
+                    setClasses([]);
+                    setError(err?.message || "Failed to load classes.");
                 }
             } finally {
-                if (!cancelled) setIsLoadingClasses(false);
+                if (!cancelled) {
+                    setIsLoadingClasses(false);
+                    setClassesLoaded(true);
+                }
             }
         };
         load();
@@ -362,6 +363,17 @@ const WeeklyAttendancePage: React.FC = () => {
             cancelled = true;
         };
     }, [selectedAccount]);
+
+    /* ── 2b. Auto-select first class once classes are loaded ── */
+    useEffect(() => {
+        if (!classesLoaded) return;
+        if (initialClassApplied) return;
+
+        if (classes.length > 0) {
+            setSelectedClassId(classes[0].id);
+        }
+        setInitialClassApplied(true);
+    }, [classesLoaded, classes, initialClassApplied]);
 
     /* ── 3. Load students via the affective skills endpoint ── */
     useEffect(() => {
@@ -421,7 +433,7 @@ const WeeklyAttendancePage: React.FC = () => {
         };
     }, [selectedAccount, selectedClassId]);
 
-    /* ── 4. Load weekly attendance via new endpoint ── */
+    /* ── 4. Load weekly attendance ── */
     useEffect(() => {
         if (
             !selectedAccount ||
@@ -679,6 +691,24 @@ const WeeklyAttendancePage: React.FC = () => {
                     <CircularProgress />
                     <Typography variant="caption" sx={{ color: textSecondary }}>
                         Loading class, students, and attendance…
+                    </Typography>
+                </Box>
+            ) : classes.length === 0 ? (
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    minHeight={240}
+                    sx={{
+                        borderRadius: 2,
+                        border: `1px dashed ${theme.palette.divider}`,
+                        bgcolor: bgDefault,
+                        p: 4,
+                        textAlign: "center",
+                    }}
+                >
+                    <Typography sx={{ color: textSecondary }}>
+                        No classes available for your account.
                     </Typography>
                 </Box>
             ) : students.length === 0 ? (

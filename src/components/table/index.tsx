@@ -170,15 +170,39 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
     return initial;
   });
 
-  // If the parent supplies a different set of filters, re-seed state
+  /**
+   * Re-seed filter values when:
+   *   - the set of filter names changes, OR
+   *   - any filter's `defaultValue` changes.
+   *
+   * Behaviour:
+   *   - If the user hasn't touched a filter yet (its current value equals
+   *     the old default, or is empty), it follows the new `defaultValue`.
+   *     This lets parents pre-select a value (e.g. the first item of an
+   *     asynchronously loaded list).
+   *   - If the user has picked something, we preserve their choice.
+   */
   React.useEffect(() => {
-    const initial: Record<string, string | number | ""> = {};
-    filters.forEach((f) => {
-      initial[f.name] = filterValues[f.name] ?? f.defaultValue ?? "";
+    setFilterValues((prev) => {
+      const next: Record<string, string | number | ""> = {};
+      filters.forEach((f) => {
+        const prevValue = prev[f.name];
+        const newDefault = f.defaultValue ?? "";
+        const wasPristine =
+          prevValue === undefined ||
+          prevValue === "" ||
+          prevValue === newDefault;
+
+        next[f.name] = wasPristine ? newDefault : prevValue;
+      });
+      return next;
     });
-    setFilterValues(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.map((f) => f.name).join(",")]);
+  }, [
+    filters
+      .map((f) => `${f.name}:${String(f.defaultValue ?? "")}`)
+      .join("|"),
+  ]);
 
   const theme = useTheme();
 
@@ -194,10 +218,7 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
   const visibleButtons = actionButtons.filter((btn) => btn.show !== false);
 
   // ── Filter handlers ──
-  const handleFilterChange = (
-    name: string,
-    value: string | number | ""
-  ) => {
+  const handleFilterChange = (name: string, value: string | number | "") => {
     const next = { ...filterValues, [name]: value };
     setFilterValues(next);
     onFilterChange?.(next);
@@ -500,12 +521,14 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
               const minWidth = filter.minWidth ?? 180;
 
               if (filter.type === "select") {
+                // Determine whether an "All" option was supplied by the caller.
+                const hasAllOption = filter.options?.some((o) => o.value === "");
+                const allOption = filter.options?.find((o) => o.value === "");
+                const selectableOptions =
+                  filter.options?.filter((o) => o.value !== "") ?? [];
+
                 return (
-                  <FormControl
-                    key={filter.name}
-                    size="small"
-                    sx={{ minWidth }}
-                  >
+                  <FormControl key={filter.name} size="small" sx={{ minWidth }}>
                     <InputLabel id={`filter-${filter.name}-label`}>
                       {filter.label}
                     </InputLabel>
@@ -521,10 +544,14 @@ export const ReusableTable: React.FC<ReusableTableProps> = ({
                         )
                       }
                     >
-                      <MenuItem value="">
-                        <em>All</em>
-                      </MenuItem>
-                      {filter.options?.map((opt) => (
+                      {/* Render "All" only if the caller supplied a "" option. */}
+                      {hasAllOption && (
+                        <MenuItem value="">
+                          <em>{allOption?.label ?? "All"}</em>
+                        </MenuItem>
+                      )}
+
+                      {selectableOptions.map((opt) => (
                         <MenuItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </MenuItem>

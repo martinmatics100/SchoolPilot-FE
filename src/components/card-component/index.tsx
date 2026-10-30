@@ -182,6 +182,11 @@ const DashboardStats: React.FC = () => {
                 value: dashboardData?.numberOfClassRooms ?? 0,
                 icon: <SchoolIcon fontSize="large" color="success" />,
             },
+            {
+                title: "Active Parents",
+                value: dashboardData?.numberOfParents ?? 0,
+                icon: <SchoolIcon fontSize="large" color="success" />,
+            },
             // {
             //     title: "Total Subjects",
             //     value: getCurrentSubjectCount(),
